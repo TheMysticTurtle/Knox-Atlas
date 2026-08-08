@@ -4,7 +4,11 @@ All notable user-facing changes will be recorded here. The project follows the s
 
 ## [Unreleased]
 
-No unreleased changes.
+### Changed
+
+- Reworked the README into a friendlier release, installation, security, and source-build guide.
+- Added ready-to-paste Nexus Mods listing copy.
+- Verification now runs on every pushed branch and pull request; the manual Windows release workflow repeats frontend and Rust checks before packaging.
 
 ## [0.1.0] - 2026-08-08
 

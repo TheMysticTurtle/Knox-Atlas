@@ -1235,8 +1235,7 @@ kbd {
   background: rgba(195, 138, 69, 0.23);
 }
 
-.selection-actions .marker-action > i,
-.marker-focus > i {
+.selection-actions .marker-action > i {
   background: #c38a45;
 }
 
@@ -1267,11 +1266,12 @@ kbd {
 
 .marker-form > div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) 82px auto auto;
   gap: 6px;
 }
 
-.marker-form input {
+.marker-form input,
+.marker-form select {
   min-width: 0;
   height: 36px;
   padding: 0 10px;
@@ -1283,7 +1283,18 @@ kbd {
   font: 500 11px DM Mono, monospace;
 }
 
-.marker-form input:focus {
+.marker-form select {
+  padding: 0 7px;
+  cursor: pointer;
+}
+
+.marker-form select option {
+  background: #19211f;
+  color: #edf1ed;
+}
+
+.marker-form input:focus,
+.marker-form select:focus {
   border-color: rgba(195, 138, 69, 0.7);
   box-shadow: 0 0 0 2px rgba(195, 138, 69, 0.12);
 }
@@ -1429,12 +1440,13 @@ kbd {
 }
 
 .marker-focus > i {
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
   flex: 0 0 auto;
   border: 2px solid rgba(255, 255, 255, 0.75);
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(195, 138, 69, 0.6);
+  background: var(--marker-color, #c38a45);
+  box-shadow: 0 0 0 1px var(--marker-color, #c38a45);
 }
 
 .marker-focus > span {

@@ -3,7 +3,7 @@
 <p align="center"><strong>A read-only Project Zomboid interactive map and companion atlas.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/TheMysticTurtle/Knox-Atlas/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.0-d99b55"></a>
+  <a href="https://github.com/TheMysticTurtle/Knox-Atlas/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.1-d99b55"></a>
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0a7bbd">
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-Rust%20%C2%B7%20Tauri%20%C2%B7%20TypeScript-3b8d95">
   <img alt="License" src="https://img.shields.io/badge/license-PolyForm%20Strict%201.0.0-6e7a86">
@@ -36,8 +36,11 @@ metadata, but it never edits Project Zomboid or writes into a save.
   areas with game-defined pool context when available.
 - 📍 **Personal markers** — save up to 100 named, colored markers locally and keep them visible over
   the map.
-- 🧭 **Distance Measurement** — set a manual position and destination, see direct tile distance, copy
-  stable coordinates, and bookmark a favorite center/zoom view.
+- 📏 **Distance measurement** — drop multiple points, see the combined straight-line distance, and
+  save named, colored paths for later.
+- 📂 **Selectable game source** — Steam libraries are discovered automatically, and the local source
+  card can point Knox Atlas at another Project Zomboid installation folder.
+- 🧭 **Map helpers** — copy stable clicked coordinates and bookmark a favorite center/zoom view.
 - 🖥️ **Desktop companion UI** — can remain open on a second monitor or be checked while playing.
 
 ## ⬇️ Releases
@@ -52,7 +55,18 @@ Download the latest compiled Windows build from the
 
 The portable package is a best-effort convenience. Tauri does not officially define a portable
 distribution mode, and the portable executable expects the Microsoft WebView2 runtime to already be
-installed on the machine.
+installed on the machine. Download the runtime only from Microsoft's
+[official WebView2 page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The
+[portable guide](docs/portable.md) includes Command Prompt and PowerShell checks, saved-item storage,
+updates, removal, and backup notes.
+
+### Vortex users
+
+On Nexus Mods, use **Manual Download** and extract the portable ZIP normally. To keep Knox Atlas in
+Vortex, open **Dashboard → Add Tool**, set **Target** to the extracted `Knox-Atlas.exe`, confirm
+**Start In** is its folder, name it **Knox Atlas**, and save. Knox Atlas is a companion tool, so the
+ZIP should not be deployed into Project Zomboid's game or Mods folder. See the complete
+[Vortex guide](docs/vortex.md).
 
 ### 🛡️ Windows SmartScreen and antivirus
 
@@ -92,7 +106,9 @@ You can open the `.cmd` file in any text editor before running it to verify its 
 - **Windows 10 or 11**
 - **Node.js 22** with npm
 - **Rust stable** using the MSVC toolchain
-- **Microsoft C++ Build Tools** and **WebView2**, as required by Tauri on Windows
+- **Microsoft C++ Build Tools** and
+  **[WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)**, as required by Tauri
+  on Windows
 - **Project Zomboid installed through Steam** to display the map when the finished app runs
 
 Install the locked frontend dependencies once from the repository root:
@@ -134,11 +150,12 @@ New-Item -ItemType Directory -Force -Path .release\portable
 Copy-Item src-tauri\target\release\knox-atlas.exe .release\portable\Knox-Atlas.exe
 Copy-Item packaging\PORTABLE-NOTES.txt .release\portable\README.txt
 Copy-Item LICENSE .release\portable\LICENSE.txt
-Compress-Archive -Path .release\portable\* -DestinationPath Knox-Atlas-0.1.0-Windows-x64-portable.zip -Force
+Compress-Archive -Path .release\portable\* -DestinationPath Knox-Atlas-0.1.1-Windows-x64-portable.zip -Force
 ```
 
 The resulting ZIP can be moved to another Windows computer and extracted normally. WebView2 must
-already be available on that computer.
+already be available on that computer. Follow [the portable guide](docs/portable.md) for runtime
+checks and the separate per-user storage behavior.
 
 ### Verify a source build
 
@@ -151,6 +168,25 @@ cargo test
 
 ## 🧭 Using the atlas
 
+### **Choose the game installation**
+
+Knox Atlas first checks the standard Steam installation and Steam's configured library folders. On
+Windows, the usual default is:
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid
+```
+
+If Knox Atlas cannot find the game—or you want to use a different Steam installation—click the
+**Local game source** card in the lower-left corner. In the folder picker, choose the
+`ProjectZomboid` folder itself, then click **Select Folder**. A valid folder contains
+`projectzomboid.jar` and the `media` directory. Knox Atlas validates the selection, remembers it in
+its own local settings, and reloads the map from that installation.
+
+<p align="center">
+  <img src="docs/images/knox-atlas-game-source.png" alt="Choosing the ProjectZomboid installation folder from the Local game source card" width="1000">
+</p>
+
 ### **Explore and filter**
 
 Pan and zoom around the game-derived canvas, search by name, and use the left-hand layer controls to
@@ -160,13 +196,28 @@ example, you can hide all businesses except gas stations.
 ### **Work with coordinates**
 
 The lower-right readout follows the pointer. Click a location to keep its X/Y, compiled-cell, and
-chunk details stable, then copy the coordinate or use it as your manual position or destination.
+chunk details stable, then copy the coordinate or save a marker there.
+
+Choose **Measure distance**, then click each turn or waypoint in order. Knox Atlas totals the direct
+tile distance of every segment. Undo points while drawing, or save the finished measurement as a
+named, colored path in Knox Atlas's local storage. Measurements describe the lines you draw; they do
+not calculate a road route.
 
 ### **Save your places**
 
 Click a location and choose **Add marker** to give it a name and color. Markers live in Knox Atlas's
 own local application storage, never in the Project Zomboid save. **Save view** remembers the current
 center and zoom; the target map control returns to it later.
+
+Markers, saved paths, the preferred view, and the selected game installation persist automatically
+under the current Windows account at `%LOCALAPPDATA%\com.pzcompanion.map`. Installer and portable
+builds share that storage on the same account; the data is not kept beside the portable EXE. Moving
+or updating the extracted program folder therefore does not normally remove it. Another computer or
+Windows account starts separately, and built-in export/import is not available yet. The
+[portable guide](docs/portable.md) explains the current best-effort backup procedure.
+
+The **Local game source** card shows the installation currently being read. Click it to choose a
+different `ProjectZomboid` folder if automatic Steam-library discovery does not find the right copy.
 
 ## 🗺️ Understanding the map layers
 
@@ -181,6 +232,7 @@ Knox Atlas distinguishes direct map data, inferred zones, and app-owned informat
 | **Vehicle pools** | Places where drivable vehicles may spawn, not confirmed live vehicles. |
 | **Latest save location** | The last saved in-game map view used as a starting camera, not the player's live position. |
 | **Custom markers** | Labels created by the user and stored locally by Knox Atlas. |
+| **Saved paths** | User-drawn straight-line measurements stored locally by Knox Atlas. |
 
 Random generation, sandbox settings, mods, player activity, and the current save determine what is
 actually present in the world.
@@ -193,7 +245,7 @@ flowchart LR
     S["Latest save metadata"] -->|read only| B
     B --> C["Typed map snapshot"]
     C --> D["TypeScript canvas and filters"]
-    U["App-owned markers and saved view"] --> D
+    U["App-owned markers, paths, and saved view"] --> D
 ```
 
 The Rust side owns file discovery and source-specific parsing. The TypeScript side owns map state,
@@ -204,9 +256,12 @@ small, and the game installation and save directories remain read-only.
 
 - [**Architecture**](docs/architecture.md) — boundaries, data flow, renderer decisions, and design principles.
 - [**Map data notes**](docs/map-data.md) — source files, coordinate systems, inference rules, and known limits.
+- [**Detailed-map feasibility**](docs/detailed-map-feasibility.md) — what an interior/floor renderer would require.
 - [**Roadmap and progress**](docs/roadmap.md) — the living backlog and implementation history.
 - [**Development guide**](docs/development.md) — commands, branch conventions, checks, and maintainer notes.
 - [**Windows distribution**](docs/distribution.md) — launcher, installer, portable build, and release workflow.
+- [**Portable Windows guide**](docs/portable.md) — WebView2 checks, user-data persistence, updates, removal, and backup notes.
+- [**Vortex and Nexus guide**](docs/vortex.md) — manual Nexus download and Vortex Dashboard tool setup.
 - [**Changelog**](CHANGELOG.md) — versioned user-facing release history.
 - [**Nexus Mods description**](docs/NEXUS-DESCRIPTION.bbcode) — ready-to-paste formatted listing copy.
 - [**Nexus upload copy**](docs/NEXUS-UPLOAD-COPY.md) — short description and installer/portable file instructions.

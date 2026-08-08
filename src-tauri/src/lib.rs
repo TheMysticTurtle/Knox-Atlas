@@ -796,35 +796,56 @@ fn newest_save(root: &Path) -> Option<(PathBuf, String)> {
     candidates.pop().map(|(_, path, group)| (path, group))
 }
 
+fn is_game_root(candidate: &Path) -> bool {
+    candidate.join("projectzomboid.jar").is_file() && candidate.join("media").join("maps").is_dir()
+}
+
+fn steam_library_paths(steam_root: &Path) -> Vec<PathBuf> {
+    let mut libraries = vec![steam_root.to_path_buf()];
+    let source = fs::read_to_string(steam_root.join("steamapps").join("libraryfolders.vdf"))
+        .unwrap_or_default();
+    let path_pattern = Regex::new(r#""path"\s+"([^"]+)""#).expect("valid Steam path pattern");
+    for captures in path_pattern.captures_iter(&source) {
+        if let Some(value) = captures.get(1) {
+            libraries.push(PathBuf::from(value.as_str().replace("\\\\", "\\")));
+        }
+    }
+    libraries
+}
+
 fn find_game_root() -> Option<PathBuf> {
-    let mut candidates = Vec::new();
+    let mut steam_roots = Vec::new();
     if let Some(program_files_x86) = std::env::var_os("ProgramFiles(x86)") {
-        candidates.push(
-            PathBuf::from(program_files_x86)
-                .join("Steam")
-                .join("steamapps")
-                .join("common")
-                .join("ProjectZomboid"),
-        );
+        steam_roots.push(PathBuf::from(program_files_x86).join("Steam"));
     }
     if let Some(program_files) = std::env::var_os("ProgramFiles") {
-        candidates.push(
-            PathBuf::from(program_files)
-                .join("Steam")
-                .join("steamapps")
-                .join("common")
-                .join("ProjectZomboid"),
-        );
+        steam_roots.push(PathBuf::from(program_files).join("Steam"));
     }
     for drive in ["C", "D", "E", "F"] {
-        candidates.push(PathBuf::from(format!(
-            "{drive}:\\SteamLibrary\\steamapps\\common\\ProjectZomboid"
-        )));
+        steam_roots.push(PathBuf::from(format!("{drive}:\\SteamLibrary")));
     }
-    candidates.into_iter().find(|candidate| {
-        candidate.join("projectzomboid.jar").is_file()
-            && candidate.join("media").join("maps").is_dir()
-    })
+
+    steam_roots
+        .into_iter()
+        .flat_map(|root| steam_library_paths(&root))
+        .map(|library| {
+            library
+                .join("steamapps")
+                .join("common")
+                .join("ProjectZomboid")
+        })
+        .find(|candidate| is_game_root(candidate))
+}
+
+fn validated_game_root(path: &Path) -> Result<PathBuf, String> {
+    if !is_game_root(path) {
+        return Err(
+            "That folder is not a Project Zomboid installation. Choose the ProjectZomboid folder that contains projectzomboid.jar and media\\maps."
+                .to_string(),
+        );
+    }
+    path.canonicalize()
+        .map_err(|error| format!("The Project Zomboid folder could not be opened: {error}"))
 }
 
 fn steam_build_id(game_root: &Path) -> Option<String> {
@@ -837,10 +858,14 @@ fn steam_build_id(game_root: &Path) -> Option<String> {
         .map(|value| value.as_str().to_string())
 }
 
-fn load_snapshot() -> Result<GameSnapshot, String> {
-    let game_root = find_game_root().ok_or_else(|| {
-        "Project Zomboid was not found in the standard Steam library locations.".to_string()
-    })?;
+fn load_snapshot_from(selected_root: Option<&Path>) -> Result<GameSnapshot, String> {
+    let game_root = match selected_root {
+        Some(path) => validated_game_root(path)?,
+        None => find_game_root().ok_or_else(|| {
+            "Project Zomboid was not found in your Steam libraries. Choose the ProjectZomboid installation folder from the Local game source card."
+                .to_string()
+        })?,
+    };
     let map_root = game_root.join("media").join("maps").join("Muldraugh, KY");
     let mut bounds = Bounds::empty();
     let features = parse_world_map(&map_root.join("worldmap.xml"), &mut bounds)?;
@@ -948,16 +973,30 @@ fn load_snapshot() -> Result<GameSnapshot, String> {
     })
 }
 
+#[cfg(test)]
+fn load_snapshot() -> Result<GameSnapshot, String> {
+    load_snapshot_from(None)
+}
+
 #[tauri::command]
-fn load_game_snapshot() -> Result<GameSnapshot, String> {
-    load_snapshot()
+fn load_game_snapshot(game_root: Option<String>) -> Result<GameSnapshot, String> {
+    load_snapshot_from(game_root.as_deref().map(Path::new))
+}
+
+#[tauri::command]
+fn validate_game_install_path(path: String) -> Result<String, String> {
+    validated_game_root(Path::new(&path)).map(|root| root.to_string_lossy().into_owned())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![load_game_snapshot])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            load_game_snapshot,
+            validate_game_install_path
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Knox Atlas");
 }

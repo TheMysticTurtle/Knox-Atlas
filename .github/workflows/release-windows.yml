@@ -67,15 +67,44 @@ jobs:
             - Search by name or jump directly to X/Y coordinates.
             - Filter businesses, likely-loot zones, building types, and vehicle spawn pools.
             - Save named, color-coded custom markers.
-            - Set a position and destination and view the direct tile distance.
+            - Measure multi-point distances and save named, color-coded paths.
             - Copy coordinates and save a preferred map view.
+            - See the active local game folder or choose another Project Zomboid installation.
 
             Knox Atlas does not edit Project Zomboid or its save files. Some layers represent game-authored zones and possible spawn locations rather than confirmed live loot, vehicles, or player positions.
+
+            ### 📍 Waypoints and paths
+
+            Click a location to inspect and copy its coordinates or save a named, color-coded waypoint. Saved places can be focused, renamed, recolored, or removed from the **Your Map** card.
+
+            Choose the ruler tool to measure a route through as many points as needed. Knox Atlas totals the direct tile distance of each segment, and the finished measurement can be saved locally as a named, color-coded path for later.
+
+            ![Named waypoints and a saved multi-point path in Knox Atlas](https://raw.githubusercontent.com/TheMysticTurtle/Knox-Atlas/main/docs/images/knox-atlas-markers-paths.png)
+
+            ### 🧭 Filters and map layers
+
+            The left panel separates orientation, buildings, businesses, likely-loot hints, resources, and drivable vehicle pools. Expand a category to choose individual types—for example, particular gas-station brands or medical activity zones—without hiding the rest of the basemap.
+
+            ![Expanded business, medical, and fuel filters in Knox Atlas](https://raw.githubusercontent.com/TheMysticTurtle/Knox-Atlas/main/docs/images/knox-atlas-filters.png)
+
+            ### 📂 Choosing the game installation
+
+            Knox Atlas first checks the standard Steam installation and Steam's configured library folders. The usual Windows location is `C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid`.
+
+            If the game is elsewhere—or you want Knox Atlas to read a different installation—click **Local game source** in the lower-left corner. Choose the `ProjectZomboid` folder itself and click **Select Folder**. The correct folder contains `projectzomboid.jar` and the `media` directory. Knox Atlas validates and remembers the selection without changing the game files.
+
+            ![Choosing the ProjectZomboid installation folder from the Local game source card](https://raw.githubusercontent.com/TheMysticTurtle/Knox-Atlas/main/docs/images/knox-atlas-game-source.png)
 
             ### 📦 Downloads
 
             - **Windows installer:** Run the setup EXE and follow the Windows prompts.
-            - **Portable ZIP:** Extract the ZIP into a writable folder and run `Knox-Atlas.exe`. Microsoft WebView2 must already be installed.
+            - **Portable ZIP:** Extract the ZIP into a writable folder and run `Knox-Atlas.exe`. Microsoft WebView2 must already be installed; use Microsoft's [official WebView2 Runtime page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if needed.
+
+            Markers, saved paths, the preferred view, and the selected game folder persist for the current Windows account under `%LOCALAPPDATA%\com.pzcompanion.map`. They are separate from the portable folder, so replacing that folder does not normally erase them. The [portable guide](https://github.com/TheMysticTurtle/Knox-Atlas/blob/main/docs/portable.md) includes runtime check commands and best-effort backup notes.
+
+            ### Vortex
+
+            On Nexus Mods, use **Manual Download** and extract the portable ZIP normally. In Vortex, open **Dashboard → Add Tool**, set **Target** to `Knox-Atlas.exe`, confirm **Start In** is its extracted folder, name it **Knox Atlas**, and save. Do not deploy the ZIP into the Project Zomboid game or Mods folder. See the [Vortex guide](https://github.com/TheMysticTurtle/Knox-Atlas/blob/main/docs/vortex.md).
 
             ### 🛡️ Windows notice
 

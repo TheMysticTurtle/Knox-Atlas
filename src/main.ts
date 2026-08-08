@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 type Point = { x: number; y: number };
 type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
@@ -86,6 +87,7 @@ type SearchEntry = { label: string; meta: string; point: Point; poi?: Poi };
 type SavedMapView = Point & { scale: number };
 type CustomMarkerColor = "amber" | "teal" | "red" | "blue" | "violet" | "green" | "white";
 type CustomMarker = Point & { id: string; label: string; color: CustomMarkerColor };
+type SavedPath = { id: string; label: string; color: CustomMarkerColor; points: Point[] };
 type FilterIcon = PoiCategory | "towns" | "streets" | "buildings";
 type SubfilterItem = {
   id: string;
@@ -121,8 +123,12 @@ const mapColors = {
 } as const;
 
 const customMarkerStorageKey = "knox-atlas.custom-markers.v1";
+const savedPathStorageKey = "knox-atlas.saved-paths.v1";
 const savedMapViewStorageKey = "knox-atlas.saved-map-view.v1";
+const gameInstallStorageKey = "knox-atlas.game-install.v1";
 const customMarkerLimit = 100;
+const savedPathLimit = 50;
+const savedPathPointLimit = 250;
 const customMarkerPalette: Record<CustomMarkerColor, string> = {
   amber: "#d79a4f",
   teal: "#3eb4ae",
@@ -213,10 +219,15 @@ app.innerHTML = `
           <div id="loot-filters" class="filter-list"></div>
           <p class="filter-note">Broad hints inferred from game spawn zones—not guaranteed item locations.</p>
         </section>
-        <div class="source-card">
+        <button id="game-source-card" class="source-card" type="button" title="Choose a different Project Zomboid installation folder">
           <span class="source-card-icon" aria-hidden="true"></span>
-          <div><strong>Local game source</strong><p id="source-detail">Discovering your installation…</p></div>
-        </div>
+          <div>
+            <strong>Local game source</strong>
+            <span id="source-path">Searching Steam libraries&hellip;</span>
+            <p id="source-detail">Click to choose another installation.</p>
+          </div>
+          <svg class="source-card-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg>
+        </button>
       </aside>
 
       <section class="map-stage" aria-label="Interactive Knox Country map">
@@ -245,6 +256,9 @@ app.innerHTML = `
           <button id="fit-map" class="icon-button fit-icon" aria-label="Fit the whole map" data-tooltip="Fit whole map">
             <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5H5v4M15 5h4v4M19 15v4h-4M9 19H5v-4"/></svg>
           </button>
+          <button id="measure-distance" class="icon-button measure-icon" aria-label="Measure distance" aria-pressed="false" data-tooltip="Measure distance">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 18 18 5l2 2L7 20H5zM14 9l2 2M10 13l2 2M7 16l2 2"/></svg>
+          </button>
         </div>
 
         <div id="save-context" class="save-context" hidden>
@@ -265,10 +279,6 @@ app.innerHTML = `
             <div><span>CHUNK</span><strong id="selection-chunk">—</strong></div>
           </div>
           <div class="selection-actions">
-            <button id="set-current" class="position-action"><i aria-hidden="true"></i>Set position</button>
-            <button id="clear-current-selection" class="clear-route-action position-clear-action" disabled><span aria-hidden="true">&times;</span>Clear position</button>
-            <button id="set-destination" class="destination-action"><i aria-hidden="true"></i>Set destination</button>
-            <button id="clear-destination-selection" class="clear-route-action destination-clear-action" disabled><span aria-hidden="true">&times;</span>Clear destination</button>
             <button id="add-custom-marker" class="marker-action"><i aria-hidden="true"></i>Add marker</button>
             <button id="copy-selection-coordinates" class="copy-selection"><i class="copy-icon" aria-hidden="true"></i><span id="selection-copy-label">Copy X/Y</span></button>
           </div>
@@ -292,30 +302,55 @@ app.innerHTML = `
           </form>
         </div>
 
-        <section id="marker-panel" class="marker-panel" aria-label="Custom map markers" hidden>
+        <section id="marker-panel" class="marker-panel" aria-label="Saved map items" hidden>
           <div class="marker-panel-heading">
-            <div><span class="eyebrow">CUSTOM MARKERS</span><strong id="marker-panel-title">Saved places</strong></div>
+            <div><span class="eyebrow">YOUR MAP</span><strong id="marker-panel-title">Saved map items</strong></div>
             <div class="marker-panel-controls">
-              <button id="toggle-markers" class="marker-collapse" type="button" aria-label="Collapse custom markers" aria-expanded="true" title="Collapse custom markers">
+              <button id="toggle-markers" class="marker-collapse" type="button" aria-label="Collapse saved map items" aria-expanded="true" title="Collapse saved map items">
                 <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 7.5 5 5 5-5"/></svg>
               </button>
             </div>
           </div>
-          <div id="marker-list" class="marker-list"></div>
+          <div class="saved-map-lists">
+            <section id="saved-places-section" class="saved-map-section" hidden>
+              <h2>Places</h2>
+              <div id="marker-list" class="marker-list"></div>
+            </section>
+            <section id="saved-paths-section" class="saved-map-section" hidden>
+              <h2>Paths</h2>
+              <div id="path-list" class="marker-list"></div>
+            </section>
+          </div>
         </section>
 
-        <div id="route-readout" class="route-readout" hidden>
-          <div class="route-point">
-            <i class="route-dot position-dot" aria-hidden="true"></i>
-            <span>POSITION</span><strong id="current-coordinate">Not set</strong>
-            <button id="clear-current" type="button" aria-label="Clear position">×</button>
+        <div id="measurement-readout" class="measurement-readout" hidden>
+          <div class="measurement-heading">
+            <span><small>MEASURE DISTANCE</small><strong id="measurement-state">Click the map to begin</strong></span>
+            <button id="finish-measurement" type="button" aria-label="Finish adding measurement points" title="Finish adding points">Done</button>
           </div>
-          <div class="route-point">
-            <i class="route-dot destination-dot" aria-hidden="true"></i>
-            <span>DESTINATION</span><strong id="destination-coordinate">Not set</strong>
-            <button id="clear-destination" type="button" aria-label="Clear destination">×</button>
+          <div class="measurement-summary">
+            <span><small>POINTS</small><strong id="measurement-point-count">0</strong></span>
+            <span><small>TOTAL DISTANCE</small><strong id="measurement-distance">0 tiles</strong></span>
           </div>
-          <div id="route-distance-row" class="route-distance"><span>DIRECT DISTANCE</span><strong id="route-distance">0 tiles</strong></div>
+          <div class="measurement-actions">
+            <button id="undo-measurement" type="button" disabled>Undo point</button>
+            <button id="clear-measurement" type="button" disabled>Clear</button>
+            <button id="show-save-path" class="save-path-action" type="button" disabled>Save as path</button>
+          </div>
+          <form id="path-form" class="path-form" hidden>
+            <label for="path-name">Path name and color</label>
+            <div>
+              <input id="path-name" maxlength="40" autocomplete="off" placeholder="Supply run, patrol, shortcut&hellip;" />
+              <select id="path-color" aria-label="Path color">
+                <option value="amber">Amber</option><option value="teal">Teal</option><option value="red">Red</option>
+                <option value="blue">Blue</option><option value="violet">Violet</option><option value="green">Green</option>
+                <option value="white">White</option>
+              </select>
+              <button type="submit">Save</button>
+              <button id="cancel-path" type="button">Cancel</button>
+            </div>
+            <span id="path-form-note">Saved locally on this computer.</span>
+          </form>
         </div>
 
         <div class="coordinate-hud">
@@ -345,10 +380,11 @@ let scale = 0.22;
 let pointerWorld: Point | undefined;
 let selectedPoint: Point | undefined;
 let selectedPoi: Poi | undefined;
-let currentPosition: Point | undefined;
-let destination: Point | undefined;
 let savedMapView = loadSavedMapView();
 let customMarkers = loadCustomMarkers();
+let savedPaths = loadSavedPaths();
+let measurementPoints: Point[] = [];
+let measurementActive = false;
 let editingMarkerId: string | undefined;
 let selectedCustomMarkerId: string | undefined;
 let dragging = false;
@@ -1014,18 +1050,47 @@ function drawMarker(point: Point, color: string, label: string, emphasized = fal
   context.restore();
 }
 
-function drawRoute(): void {
-  if (!currentPosition || !destination) return;
-  const start = toScreen(currentPosition);
-  const end = toScreen(destination);
+function pathDistance(points: Point[]): number {
+  return points.slice(1).reduce((total, point, index) => (
+    total + Math.hypot(point.x - points[index].x, point.y - points[index].y)
+  ), 0);
+}
+
+function drawMeasuredPath(points: Point[], color: string, active = false): void {
+  if (points.length === 0) return;
+  const screenPoints = points.map(toScreen);
   context.save();
-  context.beginPath();
-  context.moveTo(start.x, start.y);
-  context.lineTo(end.x, end.y);
-  context.setLineDash([8, 7]);
-  context.strokeStyle = "rgba(45,48,43,.72)";
-  context.lineWidth = 2;
-  context.stroke();
+  if (screenPoints.length > 1) {
+    context.beginPath();
+    context.moveTo(screenPoints[0].x, screenPoints[0].y);
+    for (const point of screenPoints.slice(1)) context.lineTo(point.x, point.y);
+    context.setLineDash(active ? [3, 7] : [5, 6]);
+    context.lineCap = "round";
+    context.strokeStyle = "rgba(245,242,224,.96)";
+    context.lineWidth = active ? 6 : 5;
+    context.stroke();
+    context.strokeStyle = color;
+    context.lineWidth = active ? 3 : 2.5;
+    context.stroke();
+  }
+  context.setLineDash([]);
+  screenPoints.forEach((point, index) => {
+    context.beginPath();
+    context.arc(point.x, point.y, active ? 8 : 6, 0, Math.PI * 2);
+    context.fillStyle = "rgba(245,242,224,.98)";
+    context.fill();
+    context.beginPath();
+    context.arc(point.x, point.y, active ? 5 : 3.5, 0, Math.PI * 2);
+    context.fillStyle = color;
+    context.fill();
+    if (active) {
+      context.fillStyle = mapColors.ink;
+      context.font = '700 9px Inter, "Segoe UI", sans-serif';
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(String(index + 1), point.x, point.y - 14);
+    }
+  });
   context.restore();
 }
 
@@ -1073,20 +1138,18 @@ function draw(): void {
   drawMapLabels(occupied);
   drawStreetLabels(view, occupied);
   drawPois(view, occupied);
-  drawRoute();
-  if (currentPosition) drawMarker(currentPosition, mapColors.current, "YOU");
-  if (destination) drawMarker(destination, mapColors.destination, "DESTINATION");
-  const selectedMatchesRoute = selectedPoint
-    && [currentPosition, destination].some((point) => point && Math.hypot(point.x - selectedPoint!.x, point.y - selectedPoint!.y) < 0.5);
+  for (const path of savedPaths) drawMeasuredPath(path.points, customMarkerPalette[path.color]);
   const selectedMatchesCustomMarker = selectedPoint
     && customMarkers.some((marker) => Math.hypot(marker.x - selectedPoint!.x, marker.y - selectedPoint!.y) < 0.5);
-  if (selectedPoint && !selectedPoi && !selectedMatchesRoute && !selectedMatchesCustomMarker) {
+  if (selectedPoint && !selectedPoi && !selectedMatchesCustomMarker) {
     drawMarker(selectedPoint, mapColors.selected, "SELECTED");
   }
 
   // Towns participate in collision avoidance above, then receive a final
   // source-data pass so dense POI and vehicle layers cannot obscure them.
   drawMapLabels([], true);
+
+  drawMeasuredPath(measurementPoints, customMarkerPalette.amber, true);
 
   // User-authored markers are the final annotation layer by design: they must
   // remain visible over source-derived geometry, labels, and POI symbols.
@@ -1123,9 +1186,46 @@ function loadCustomMarkers(): CustomMarker[] {
   }
 }
 
+function loadSavedPaths(): SavedPath[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(savedPathStorageKey) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((value): SavedPath[] => {
+      if (!value || typeof value !== "object") return [];
+      const candidate = value as Partial<SavedPath>;
+      if (typeof candidate.id !== "string" || typeof candidate.label !== "string" || !Array.isArray(candidate.points)) return [];
+      const label = candidate.label.trim().slice(0, 40);
+      const points = candidate.points.flatMap((point): Point[] => (
+        point
+        && typeof point.x === "number"
+        && typeof point.y === "number"
+        && Number.isFinite(point.x)
+        && Number.isFinite(point.y)
+          ? [{ x: point.x, y: point.y }]
+          : []
+      )).slice(0, savedPathPointLimit);
+      const color = typeof candidate.color === "string"
+        && Object.prototype.hasOwnProperty.call(customMarkerPalette, candidate.color)
+        ? candidate.color as CustomMarkerColor
+        : "amber";
+      return label && points.length >= 2 ? [{ id: candidate.id, label, color, points }] : [];
+    }).slice(0, savedPathLimit);
+  } catch {
+    return [];
+  }
+}
+
 function persistCustomMarkers(): void {
   try {
     localStorage.setItem(customMarkerStorageKey, JSON.stringify(customMarkers));
+  } catch {
+    // The map remains usable if app-owned WebView storage is unavailable.
+  }
+}
+
+function persistSavedPaths(): void {
+  try {
+    localStorage.setItem(savedPathStorageKey, JSON.stringify(savedPaths));
   } catch {
     // The map remains usable if app-owned WebView storage is unavailable.
   }
@@ -1261,7 +1361,7 @@ function showSelection(point: Point, poi?: Poi): void {
   must<HTMLElement>("#selection-title").textContent = poi?.label ?? "Selected map point";
   must<HTMLElement>("#selection-detail").textContent = poi
     ? `${poi.details} · Level ${poi.z}`
-    : "Stable details for this clicked location. Copy it or use it as a route marker.";
+    : "Stable details for this clicked location. Copy it or save a named marker here.";
   must<HTMLElement>("#selection-x").textContent = Math.round(point.x).toString();
   must<HTMLElement>("#selection-y").textContent = Math.round(point.y).toString();
   must<HTMLElement>("#selection-cell").textContent = `${Math.floor(point.x / snapshot.compiledCellSize)}, ${Math.floor(point.y / snapshot.compiledCellSize)}`;
@@ -1275,7 +1375,7 @@ function showCustomMarkerSelection(marker: CustomMarker): void {
   selectedCustomMarkerId = marker.id;
   must<HTMLElement>("#selection-kind").textContent = "CUSTOM MARKER";
   must<HTMLElement>("#selection-title").textContent = marker.label;
-  must<HTMLElement>("#selection-detail").textContent = "Saved locally by Knox Atlas. Use this point as a route marker or copy its coordinates.";
+  must<HTMLElement>("#selection-detail").textContent = "Saved locally by Knox Atlas. Copy its coordinates or update its name and color.";
 }
 
 function hideMarkerForm(): void {
@@ -1306,8 +1406,12 @@ function showMarkerForm(marker?: CustomMarker): void {
 function renderCustomMarkers(): void {
   const panel = must<HTMLElement>("#marker-panel");
   const list = must<HTMLElement>("#marker-list");
-  panel.hidden = customMarkers.length === 0;
-  must<HTMLElement>("#marker-panel-title").textContent = `Saved places (${customMarkers.length})`;
+  const pathList = must<HTMLElement>("#path-list");
+  const totalItems = customMarkers.length + savedPaths.length;
+  panel.hidden = totalItems === 0;
+  must<HTMLElement>("#marker-panel-title").textContent = `Saved map items (${totalItems})`;
+  must<HTMLElement>("#saved-places-section").hidden = customMarkers.length === 0;
+  must<HTMLElement>("#saved-paths-section").hidden = savedPaths.length === 0;
   list.innerHTML = customMarkers.map((marker) => `
     <article class="marker-list-item">
       <button class="marker-focus" type="button" data-marker-focus="${escapeHtml(marker.id)}">
@@ -1316,6 +1420,15 @@ function renderCustomMarkers(): void {
       </button>
       <button class="marker-list-action" type="button" data-marker-rename="${escapeHtml(marker.id)}" aria-label="Rename ${escapeHtml(marker.label)}" title="Rename marker">&#9998;</button>
       <button class="marker-list-action marker-remove" type="button" data-marker-remove="${escapeHtml(marker.id)}" aria-label="Remove ${escapeHtml(marker.label)}" title="Remove marker">&times;</button>
+    </article>
+  `).join("");
+  pathList.innerHTML = savedPaths.map((path) => `
+    <article class="marker-list-item path-list-item">
+      <button class="marker-focus path-focus" type="button" data-path-focus="${escapeHtml(path.id)}">
+        <i aria-hidden="true" style="--marker-color: ${customMarkerPalette[path.color]}"></i>
+        <span><strong>${escapeHtml(path.label)}</strong><small>${path.points.length} points · ${formatCount(Math.round(pathDistance(path.points)))} tiles</small></span>
+      </button>
+      <button class="marker-list-action marker-remove" type="button" data-path-remove="${escapeHtml(path.id)}" aria-label="Remove ${escapeHtml(path.label)}" title="Remove path">&times;</button>
     </article>
   `).join("");
 
@@ -1337,35 +1450,60 @@ function removeCustomMarker(markerId: string): void {
   queueRender();
 }
 
-function updateRoute(): void {
-  const readout = must<HTMLElement>("#route-readout");
-  readout.hidden = !currentPosition && !destination;
-  must<HTMLElement>("#current-coordinate").textContent = currentPosition
-    ? `${Math.round(currentPosition.x)}, ${Math.round(currentPosition.y)}`
-    : "Not set";
-  must<HTMLElement>("#destination-coordinate").textContent = destination
-    ? `${Math.round(destination.x)}, ${Math.round(destination.y)}`
-    : "Not set";
-  must<HTMLButtonElement>("#clear-current").hidden = !currentPosition;
-  must<HTMLButtonElement>("#clear-destination").hidden = !destination;
-  must<HTMLButtonElement>("#clear-current-selection").disabled = !currentPosition;
-  must<HTMLButtonElement>("#clear-destination-selection").disabled = !destination;
-  const distanceRow = must<HTMLElement>("#route-distance-row");
-  distanceRow.hidden = !currentPosition || !destination;
-  if (!currentPosition || !destination) return;
-  const distance = Math.round(Math.hypot(destination.x - currentPosition.x, destination.y - currentPosition.y));
-  must<HTMLElement>("#route-distance").textContent = `${formatCount(distance)} tiles`;
-}
-
-function clearCurrentPosition(): void {
-  currentPosition = undefined;
-  updateRoute();
+function focusSavedPath(path: SavedPath): void {
+  const bounds = path.points.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    minY: Math.min(result.minY, point.y),
+    maxX: Math.max(result.maxX, point.x),
+    maxY: Math.max(result.maxY, point.y),
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+  center = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+  const width = Math.max(160, bounds.maxX - bounds.minX + 180);
+  const height = Math.max(160, bounds.maxY - bounds.minY + 180);
+  scale = Math.max(0.022, Math.min(1.25, canvas.clientWidth / width, canvas.clientHeight / height));
   queueRender();
 }
 
-function clearDestination(): void {
-  destination = undefined;
-  updateRoute();
+function updateMeasurement(): void {
+  const readout = must<HTMLElement>("#measurement-readout");
+  readout.hidden = !measurementActive && measurementPoints.length === 0;
+  must<HTMLElement>("#measurement-state").textContent = measurementActive
+    ? (measurementPoints.length ? "Click to add another point" : "Click the map to begin")
+    : "Measurement paused";
+  must<HTMLElement>("#measurement-point-count").textContent = measurementPoints.length.toString();
+  must<HTMLElement>("#measurement-distance").textContent = `${formatCount(Math.round(pathDistance(measurementPoints)))} tiles`;
+  must<HTMLButtonElement>("#undo-measurement").disabled = measurementPoints.length === 0;
+  must<HTMLButtonElement>("#clear-measurement").disabled = measurementPoints.length === 0;
+  must<HTMLButtonElement>("#show-save-path").disabled = measurementPoints.length < 2 || savedPaths.length >= savedPathLimit;
+  const measureButton = must<HTMLButtonElement>("#measure-distance");
+  measureButton.classList.toggle("is-active", measurementActive);
+  measureButton.setAttribute("aria-pressed", String(measurementActive));
+  measureButton.dataset.tooltip = measurementActive ? "Finish measuring" : "Measure distance";
+  canvas.classList.toggle("is-measuring", measurementActive);
+  must<HTMLButtonElement>("#finish-measurement").hidden = !measurementActive;
+  queueRender();
+}
+
+function setMeasurementActive(active: boolean): void {
+  measurementActive = active;
+  if (active) {
+    must<HTMLElement>("#selection-card").hidden = true;
+    hideMarkerForm();
+  }
+  updateMeasurement();
+}
+
+function clearMeasurement(): void {
+  measurementPoints = [];
+  must<HTMLFormElement>("#path-form").hidden = true;
+  must<HTMLInputElement>("#path-name").value = "";
+  updateMeasurement();
+}
+
+function removeSavedPath(pathId: string): void {
+  savedPaths = savedPaths.filter((path) => path.id !== pathId);
+  persistSavedPaths();
+  renderCustomMarkers();
   queueRender();
 }
 
@@ -1433,12 +1571,17 @@ function wireInteractions(): void {
   canvas.addEventListener("pointerup", (event) => {
     if (!dragMoved) {
       const point = toWorld(event.clientX, event.clientY);
-      const marker = customMarkerAt(point);
-      if (marker) {
-        showCustomMarkerSelection(marker);
+      if (measurementActive) {
+        if (measurementPoints.length < savedPathPointLimit) measurementPoints = [...measurementPoints, point];
+        updateMeasurement();
       } else {
-        const poi = nearestPoi(point);
-        showSelection(poi ?? point, poi);
+        const marker = customMarkerAt(point);
+        if (marker) {
+          showCustomMarkerSelection(marker);
+        } else {
+          const poi = nearestPoi(point);
+          showSelection(poi ?? point, poi);
+        }
       }
     }
     dragging = false;
@@ -1458,6 +1601,56 @@ function wireInteractions(): void {
   must<HTMLButtonElement>("#reset-view").addEventListener("click", resetView);
   must<HTMLButtonElement>("#save-map-view").addEventListener("click", saveMapView);
   must<HTMLButtonElement>("#fit-map").addEventListener("click", fitMap);
+  must<HTMLButtonElement>("#measure-distance").addEventListener("click", () => setMeasurementActive(!measurementActive));
+  must<HTMLButtonElement>("#finish-measurement").addEventListener("click", () => setMeasurementActive(false));
+  must<HTMLButtonElement>("#undo-measurement").addEventListener("click", () => {
+    measurementPoints = measurementPoints.slice(0, -1);
+    updateMeasurement();
+  });
+  must<HTMLButtonElement>("#clear-measurement").addEventListener("click", clearMeasurement);
+  must<HTMLButtonElement>("#show-save-path").addEventListener("click", () => {
+    if (measurementPoints.length < 2 || savedPaths.length >= savedPathLimit) return;
+    const form = must<HTMLFormElement>("#path-form");
+    form.hidden = false;
+    const input = must<HTMLInputElement>("#path-name");
+    input.focus();
+    input.select();
+  });
+  must<HTMLButtonElement>("#cancel-path").addEventListener("click", () => {
+    must<HTMLFormElement>("#path-form").hidden = true;
+    must<HTMLInputElement>("#path-name").value = "";
+  });
+  must<HTMLFormElement>("#path-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = must<HTMLInputElement>("#path-name");
+    const label = input.value.trim().slice(0, 40);
+    const note = must<HTMLElement>("#path-form-note");
+    if (!label) {
+      note.textContent = "Give this path a name first.";
+      input.focus();
+      return;
+    }
+    if (measurementPoints.length < 2 || savedPaths.length >= savedPathLimit) return;
+    const selectedColor = must<HTMLSelectElement>("#path-color").value;
+    const color = Object.prototype.hasOwnProperty.call(customMarkerPalette, selectedColor)
+      ? selectedColor as CustomMarkerColor
+      : "amber";
+    savedPaths = [...savedPaths, {
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      label,
+      color,
+      points: measurementPoints.map((point) => ({ ...point })),
+    }];
+    persistSavedPaths();
+    measurementActive = false;
+    measurementPoints = [];
+    input.value = "";
+    must<HTMLSelectElement>("#path-color").value = "amber";
+    must<HTMLFormElement>("#path-form").hidden = true;
+    note.textContent = "Saved locally on this computer.";
+    renderCustomMarkers();
+    updateMeasurement();
+  });
   must<HTMLButtonElement>("#copy-selection-coordinates").addEventListener("click", copyCoordinates);
   must<HTMLButtonElement>("#close-selection").addEventListener("click", () => {
     must<HTMLElement>("#selection-card").hidden = true;
@@ -1467,22 +1660,6 @@ function wireInteractions(): void {
     hideMarkerForm();
     queueRender();
   });
-  must<HTMLButtonElement>("#set-current").addEventListener("click", () => {
-    if (!selectedPoint) return;
-    currentPosition = { ...selectedPoint };
-    updateRoute();
-    queueRender();
-  });
-  must<HTMLButtonElement>("#set-destination").addEventListener("click", () => {
-    if (!selectedPoint) return;
-    destination = { ...selectedPoint };
-    updateRoute();
-    queueRender();
-  });
-  must<HTMLButtonElement>("#clear-current").addEventListener("click", clearCurrentPosition);
-  must<HTMLButtonElement>("#clear-current-selection").addEventListener("click", clearCurrentPosition);
-  must<HTMLButtonElement>("#clear-destination").addEventListener("click", clearDestination);
-  must<HTMLButtonElement>("#clear-destination-selection").addEventListener("click", clearDestination);
   must<HTMLButtonElement>("#add-custom-marker").addEventListener("click", () => {
     if (!selectedPoint || customMarkers.length >= customMarkerLimit) return;
     showMarkerForm();
@@ -1545,13 +1722,23 @@ function wireInteractions(): void {
     }
     if (removeId) removeCustomMarker(removeId);
   });
+  must<HTMLElement>("#path-list").addEventListener("click", (event) => {
+    const target = event.target as Element;
+    const focusId = target.closest<HTMLButtonElement>("[data-path-focus]")?.dataset.pathFocus;
+    const removeId = target.closest<HTMLButtonElement>("[data-path-remove]")?.dataset.pathRemove;
+    if (focusId) {
+      const path = savedPaths.find((candidate) => candidate.id === focusId);
+      if (path) focusSavedPath(path);
+    }
+    if (removeId) removeSavedPath(removeId);
+  });
   must<HTMLButtonElement>("#toggle-markers").addEventListener("click", () => {
     const panel = must<HTMLElement>("#marker-panel");
     const button = must<HTMLButtonElement>("#toggle-markers");
     const collapsed = panel.classList.toggle("is-collapsed");
     button.setAttribute("aria-expanded", String(!collapsed));
-    button.setAttribute("aria-label", collapsed ? "Expand custom markers" : "Collapse custom markers");
-    button.title = collapsed ? "Expand custom markers" : "Collapse custom markers";
+    button.setAttribute("aria-label", collapsed ? "Expand saved map items" : "Collapse saved map items");
+    button.title = collapsed ? "Expand saved map items" : "Collapse saved map items";
   });
 
   const panel = must<HTMLElement>(".filter-panel");
@@ -1573,6 +1760,7 @@ function wireInteractions(): void {
       search.focus();
       search.select();
     }
+    if (event.key === "Escape" && measurementActive) setMeasurementActive(false);
   });
   document.addEventListener("pointerdown", (event) => {
     if (!(event.target as Element).closest(".search-area")) must<HTMLElement>("#search-results").hidden = true;
@@ -1592,6 +1780,38 @@ function wireInteractions(): void {
   new ResizeObserver(queueRender).observe(canvas);
 }
 
+function loadSavedGameRoot(): string | undefined {
+  try {
+    const value = localStorage.getItem(gameInstallStorageKey)?.trim();
+    return value || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function chooseGameInstall(): Promise<void> {
+  const chosen = await open({
+    directory: true,
+    multiple: false,
+    title: "Choose the ProjectZomboid installation folder",
+  });
+  if (typeof chosen !== "string") return;
+  const detail = must<HTMLElement>("#source-detail");
+  const pathLabel = must<HTMLElement>("#source-path");
+  pathLabel.textContent = chosen;
+  pathLabel.title = chosen;
+  detail.textContent = "Checking this folder…";
+  try {
+    const validated = await invoke<string>("validate_game_install_path", { path: chosen });
+    localStorage.setItem(gameInstallStorageKey, validated);
+    pathLabel.textContent = validated;
+    detail.textContent = "Loading this installation…";
+    window.location.reload();
+  } catch (error) {
+    detail.textContent = String(error);
+  }
+}
+
 function presentSnapshot(data: GameSnapshot): void {
   snapshot = data;
   center = { ...data.initialCenter };
@@ -1603,6 +1823,8 @@ function presentSnapshot(data: GameSnapshot): void {
 
   must<HTMLElement>("#source-status").textContent = "Local map ready";
   must<HTMLElement>("#build-status").textContent = data.steamBuildId ? `Steam build ${data.steamBuildId}` : data.gameTitle;
+  must<HTMLElement>("#source-path").textContent = data.installPath;
+  must<HTMLElement>("#source-path").title = data.installPath;
   must<HTMLElement>("#source-detail").textContent = `${formatCount(data.features.length)} shapes · ${formatCount(data.counts.streets)} streets · ${formatCount(data.pois.length)} zones`;
   if (data.save) {
     must<HTMLElement>("#save-context").hidden = false;
@@ -1622,6 +1844,19 @@ function presentError(error: unknown): void {
   loading.innerHTML = `<div class="error-mark">!</div><strong>Couldn’t read the local map</strong><span>${escapeHtml(String(error))}</span>`;
   must<HTMLElement>("#source-status").textContent = "Map unavailable";
   must<HTMLElement>("#build-status").textContent = "Check the local installation";
+  must<HTMLElement>("#source-path").textContent = "Choose your ProjectZomboid folder";
+  must<HTMLElement>("#source-detail").textContent = "Click here to select the local game installation.";
 }
 
-invoke<GameSnapshot>("load_game_snapshot").then(presentSnapshot).catch(presentError);
+const savedGameRoot = loadSavedGameRoot();
+if (savedGameRoot) {
+  must<HTMLElement>("#source-path").textContent = savedGameRoot;
+  must<HTMLElement>("#source-path").title = savedGameRoot;
+}
+must<HTMLButtonElement>("#game-source-card").addEventListener("click", () => {
+  chooseGameInstall().catch((error) => {
+    must<HTMLElement>("#source-detail").textContent = String(error);
+  });
+});
+
+invoke<GameSnapshot>("load_game_snapshot", { gameRoot: savedGameRoot }).then(presentSnapshot).catch(presentError);

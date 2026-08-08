@@ -330,7 +330,7 @@ kbd {
 
 .coordinate-form span {
   color: var(--accent);
-  font: 500 9px DM Mono, monospace;
+  font: 500 10px DM Mono, monospace;
 }
 
 .coordinate-form input {
@@ -340,7 +340,7 @@ kbd {
   outline: 0;
   background: transparent;
   color: #d9dfda;
-  font: 500 11px DM Mono, monospace;
+  font: 500 12px DM Mono, monospace;
 }
 
 .coordinate-form button {
@@ -368,7 +368,7 @@ kbd {
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.045);
   color: #aeb9b3;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -411,7 +411,7 @@ kbd {
 .source-state strong {
   overflow: hidden;
   color: #cad3ce;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -420,7 +420,7 @@ kbd {
 .source-state small {
   overflow: hidden;
   color: var(--faint);
-  font: 400 9px DM Mono, monospace;
+  font: 400 10px DM Mono, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -533,7 +533,7 @@ kbd {
 .filter-section h2 {
   margin: 0 7px 10px;
   color: #78857f;
-  font: 600 10px DM Mono, monospace;
+  font: 600 11px DM Mono, monospace;
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
@@ -547,7 +547,7 @@ kbd {
 .section-title span {
   margin-right: 7px;
   color: #66736d;
-  font: 400 9px DM Mono, monospace;
+  font: 400 10px DM Mono, monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -615,13 +615,13 @@ kbd {
 
 .filter-copy strong {
   color: #d6ddd8;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .filter-copy small {
   color: #718079;
-  font-size: 10.5px;
+  font-size: 11.5px;
   line-height: 1.35;
   overflow-wrap: anywhere;
   white-space: normal;
@@ -629,7 +629,7 @@ kbd {
 
 .filter-count {
   color: #6e7a74;
-  font: 400 9px DM Mono, monospace;
+  font: 400 10px DM Mono, monospace;
 }
 
 .filter-main input {
@@ -796,7 +796,7 @@ kbd {
 
 .subfilter-row > span:nth-last-child(2) {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -804,25 +804,26 @@ kbd {
 
 .subfilter-row small {
   color: #68756f;
-  font: 400 9px DM Mono, monospace;
+  font: 400 10px DM Mono, monospace;
 }
 
 .subfilter-hint {
   margin: 7px 7px 3px 0;
   color: #738079;
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1.45;
 }
 
 .filter-note {
   margin: 9px 7px 0;
   color: #6c7973;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
 .source-card {
   display: flex;
+  width: calc(100% - 30px);
   align-items: center;
   gap: 10px;
   margin: auto 15px 15px;
@@ -830,6 +831,15 @@ kbd {
   border: 1px solid rgba(111, 164, 139, 0.2);
   border-radius: 8px;
   background: rgba(111, 164, 139, 0.055);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.source-card:hover {
+  border-color: rgba(111, 164, 139, 0.42);
+  background: rgba(111, 164, 139, 0.1);
 }
 
 .source-card-icon {
@@ -855,20 +865,43 @@ kbd {
 .source-card-icon::after { top: 15px; }
 
 .source-card > div {
+  display: flex;
   min-width: 0;
+  flex: 1;
+  flex-direction: column;
 }
 
 .source-card strong {
   color: #a7c1b4;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
+}
+
+.source-card > div > span {
+  overflow: hidden;
+  margin-top: 3px;
+  color: #8ca79a;
+  font: 500 11px/1.35 DM Mono, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .source-card p {
   margin: 3px 0 0;
   color: #718079;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.4;
+}
+
+.source-card-chevron {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #729284;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
 
 .map-stage {
@@ -890,6 +923,10 @@ kbd {
 
 #map-canvas.is-dragging {
   cursor: grabbing;
+}
+
+#map-canvas.is-measuring {
+  cursor: crosshair;
 }
 
 .map-stage::after {
@@ -998,6 +1035,12 @@ kbd {
   height: 42px;
 }
 
+.map-tools .icon-button.is-active {
+  border-color: rgba(184, 119, 55, 0.55);
+  background: #d99b55;
+  color: #18201d;
+}
+
 .tool-icon {
   width: 23px;
   height: 23px;
@@ -1079,13 +1122,13 @@ kbd {
 .save-context .eyebrow {
   margin: 0;
   color: #8b6439;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .save-context strong {
   max-width: 310px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1093,7 +1136,7 @@ kbd {
 
 .save-context > span:last-child {
   color: #77766c;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .selection-card {
@@ -1155,14 +1198,14 @@ kbd {
 
 .selection-coordinates span {
   color: #8f9a95;
-  font: 500 8px DM Mono, monospace;
+  font: 500 9px DM Mono, monospace;
   letter-spacing: 0.08em;
 }
 
 .selection-coordinates strong {
   overflow: hidden;
   color: #edf1ed;
-  font: 600 12px DM Mono, monospace;
+  font: 600 13px DM Mono, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1201,7 +1244,7 @@ kbd {
   border-radius: 6px;
   background: rgba(217, 155, 85, 0.08);
   color: #e5b477;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1304,7 +1347,7 @@ kbd {
   display: block;
   margin-bottom: 6px;
   color: #a9b3ad;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -1324,7 +1367,7 @@ kbd {
   outline: 0;
   background: rgba(255, 255, 255, 0.055);
   color: #edf1ed;
-  font: 500 11px DM Mono, monospace;
+  font: 500 12px DM Mono, monospace;
 }
 
 .marker-form select {
@@ -1348,7 +1391,7 @@ kbd {
   border-radius: 6px;
   background: rgba(195, 138, 69, 0.16);
   color: #e4b87e;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
   cursor: pointer;
 }
@@ -1362,6 +1405,67 @@ kbd {
   display: block;
   margin-top: 6px;
   color: #74827b;
+  font: 400 10px/1.4 DM Mono, monospace;
+}
+
+.path-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(48, 51, 46, 0.12);
+}
+
+.path-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: #686a61;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.path-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 78px auto auto;
+  gap: 5px;
+}
+
+.path-form input,
+.path-form select {
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(48, 51, 46, 0.18);
+  border-radius: 5px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.55);
+  color: #393c36;
+  font: 500 11px DM Mono, monospace;
+}
+
+.path-form input:focus,
+.path-form select:focus {
+  border-color: rgba(155, 100, 45, 0.7);
+  box-shadow: 0 0 0 2px rgba(155, 100, 45, 0.12);
+}
+
+.path-form button {
+  padding: 0 9px;
+  border-radius: 5px;
+  background: rgba(155, 100, 45, 0.15);
+  color: #7e5127;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.path-form #cancel-path {
+  background: rgba(48, 51, 46, 0.07);
+  color: #6f7169;
+}
+
+.path-form > span {
+  display: block;
+  margin-top: 6px;
+  color: #7b7c72;
   font: 400 9px/1.4 DM Mono, monospace;
 }
 
@@ -1396,11 +1500,11 @@ kbd {
 
 .marker-panel-heading .eyebrow {
   color: #c38a45;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .marker-panel-heading strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .marker-panel-controls {
@@ -1441,7 +1545,7 @@ kbd {
   width: 230px;
 }
 
-.marker-panel.is-collapsed .marker-list {
+.marker-panel.is-collapsed .saved-map-lists {
   display: none;
 }
 
@@ -1453,9 +1557,25 @@ kbd {
   transform: rotate(180deg);
 }
 
-.marker-list {
+.saved-map-lists {
   max-height: min(430px, 50vh);
   overflow-y: auto;
+}
+
+.saved-map-section + .saved-map-section {
+  border-top: 1px solid rgba(230, 237, 231, 0.09);
+}
+
+.saved-map-section h2 {
+  margin: 0;
+  padding: 9px 13px 2px;
+  color: #78857f;
+  font: 600 9px DM Mono, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.marker-list {
   padding: 5px;
 }
 
@@ -1508,13 +1628,27 @@ kbd {
 }
 
 .marker-focus strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .marker-focus small {
   color: #85918b;
-  font: 400 9px DM Mono, monospace;
+  font: 400 10px DM Mono, monospace;
+}
+
+.path-list-item {
+  grid-template-columns: minmax(0, 1fr) 28px;
+}
+
+.path-focus > i {
+  width: 17px;
+  height: 7px;
+  border: 0;
+  border-top: 3px dotted var(--marker-color, #c38a45);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .marker-list-action {
@@ -1611,6 +1745,108 @@ kbd {
   font: 700 11px DM Mono, monospace;
 }
 
+.measurement-readout {
+  position: absolute;
+  z-index: 7;
+  right: 20px;
+  bottom: 78px;
+  width: 340px;
+  padding: 12px;
+  border: 1px solid rgba(48, 51, 46, 0.14);
+  border-radius: 9px;
+  background: rgba(245, 242, 224, 0.94);
+  color: #393c36;
+  box-shadow: 0 7px 22px rgba(44, 43, 38, 0.16);
+  backdrop-filter: blur(7px);
+}
+
+.measurement-heading,
+.measurement-summary,
+.measurement-actions {
+  display: flex;
+  align-items: center;
+}
+
+.measurement-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.measurement-heading > span,
+.measurement-summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.measurement-heading small,
+.measurement-summary small {
+  color: #8b6439;
+  font: 600 9px DM Mono, monospace;
+  letter-spacing: 0.08em;
+}
+
+.measurement-heading strong {
+  font-size: 13px;
+}
+
+.measurement-heading > button {
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: rgba(48, 51, 46, 0.08);
+  color: #5f615a;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.measurement-summary {
+  gap: 22px;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(48, 51, 46, 0.11);
+  border-bottom: 1px solid rgba(48, 51, 46, 0.11);
+}
+
+.measurement-summary > span:last-child {
+  flex: 1;
+}
+
+.measurement-summary strong {
+  font: 700 13px DM Mono, monospace;
+}
+
+.measurement-actions {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.measurement-actions button {
+  flex: 1;
+  padding: 8px 7px;
+  border-radius: 5px;
+  background: rgba(48, 51, 46, 0.075);
+  color: #5e6059;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.measurement-actions .save-path-action {
+  background: rgba(155, 100, 45, 0.14);
+  color: #805126;
+}
+
+.measurement-actions button:hover,
+.measurement-heading > button:hover {
+  background: rgba(48, 51, 46, 0.14);
+}
+
+.measurement-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .coordinate-hud {
   position: absolute;
   z-index: 6;
@@ -1646,11 +1882,11 @@ kbd {
 
 .coordinate-hud span {
   color: #9a6d3c;
-  font: 500 8.5px DM Mono, monospace;
+  font: 500 9.5px DM Mono, monospace;
 }
 
 .coordinate-hud strong {
-  font: 500 13px DM Mono, monospace;
+  font: 500 14px DM Mono, monospace;
   white-space: nowrap;
 }
 
@@ -1681,7 +1917,7 @@ kbd {
   left: 20px;
   margin: 0;
   color: rgba(59, 59, 53, 0.58);
-  font: 500 7px DM Mono, monospace;
+  font: 500 9px DM Mono, monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

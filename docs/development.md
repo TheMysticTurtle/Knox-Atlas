@@ -16,10 +16,18 @@ This is the quick-reference page for future work.
 │   └── tauri.conf.json
 ├── docs/
 │   ├── architecture.md
+│   ├── detailed-map-feasibility.md
+│   ├── distribution.md
 │   ├── map-data.md
+│   ├── portable.md
 │   ├── roadmap.md
 │   ├── development.md
+│   ├── vortex.md
+│   ├── NEXUS-DESCRIPTION.bbcode
+│   ├── NEXUS-UPLOAD-COPY.md
 │   └── images/
+├── packaging/
+│   └── PORTABLE-NOTES.txt
 └── CHANGELOG.md
 ```
 
@@ -102,6 +110,30 @@ Parent layer switches own their child state: switching a parent changes every ch
 - Map POI pictograms are drawn directly on canvas; sidebar icons are small inline SVGs using the same stable category vocabulary.
 - The local app currently reads English `MapLabel.json`. Localization is a future adapter concern.
 - Keep game-owned and app-owned data physically separate.
+- The Tauri identifier `com.pzcompanion.map` determines the Windows WebView profile. Do not change it
+  without migrating `%LOCALAPPDATA%\com.pzcompanion.map`.
+- The versioned frontend storage keys are recorded in [architecture.md](architecture.md). Installer
+  and portable builds intentionally share them on the same Windows account.
+- WebView local storage uses LevelDB internally. Close Knox Atlas before a manual profile backup and
+  copy the complete app-data folder rather than individual database files.
+- Knox Atlas is a Vortex dashboard tool, not a deployable Project Zomboid mod. Do not add a Vortex
+  extension manifest to the application archives without a separate integration design.
+
+## Release-document checklist
+
+When behavior, versioning, or packaging changes, review these together so public and maintainer notes
+do not drift:
+
+1. `README.md` and `CHANGELOG.md`.
+2. `.github/workflows/release-windows.yml` generated release body.
+3. `packaging/PORTABLE-NOTES.txt` included in the portable ZIP.
+4. `docs/distribution.md`, `docs/portable.md`, and `docs/vortex.md`.
+5. `docs/NEXUS-DESCRIPTION.bbcode` and `docs/NEXUS-UPLOAD-COPY.md`.
+6. `docs/architecture.md`, `docs/map-data.md`, `docs/roadmap.md`, and any relevant feasibility note.
+7. Screenshot files under `docs/images/` and every link that embeds them.
+
+For a release, confirm the Nexus files remain manual downloads, test the installer and portable
+artifacts from the draft, and verify that the portable `README.txt` matches the current app version.
 
 ## Visual baseline
 

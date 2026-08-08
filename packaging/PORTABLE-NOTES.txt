@@ -1,13 +1,55 @@
 KNOX ATLAS - PORTABLE RELEASE
 
-Run Knox-Atlas.exe from any writable folder.
+SETUP
+
+1. Extract the complete ZIP into a writable folder.
+2. Do not run the app from inside the ZIP preview.
+3. Run Knox-Atlas.exe and keep this README and LICENSE.txt with it.
 
 This is a best-effort portable Windows build. Tauri does not officially guarantee a
 portable distribution mode. The Microsoft WebView2 runtime must already be
-installed; current Windows 10/11 systems usually have it.
+installed.
+
+Official WebView2 Runtime download:
+https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+
+On 64-bit Windows, either command below should report a pv version greater than
+0.0.0.0. A missing-key message for one is fine if the other reports a version.
+
+Command Prompt:
+reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+reg query "HKCU\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+
+PowerShell:
+$webView2Id = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$webView2Id", "HKCU:\Software\Microsoft\EdgeUpdate\Clients\$webView2Id" -Name pv -ErrorAction SilentlyContinue | Select-Object PSPath, pv
 
 The app reads Project Zomboid data from standard local Steam/save locations. It
-does not modify the game installation or saves.
+does not modify the game installation or saves. If automatic discovery does not
+find the right copy, click Local game source in the lower-left corner and choose
+the ProjectZomboid folder containing projectzomboid.jar and media\maps.
+
+SAVED MAP ITEMS
+
+Markers, saved paths, the preferred map view, and the selected game folder are
+stored automatically for the current Windows user at:
+
+%LOCALAPPDATA%\com.pzcompanion.map\
+
+They are not stored beside Knox-Atlas.exe. Replacing or moving the extracted app
+folder does not normally remove them, and the installer shares the same user data.
+A different Windows account or computer has separate storage. Clearing that app
+data can remove the saved items.
+
+For a best-effort backup, close Knox Atlas and copy the complete
+com.pzcompanion.map folder somewhere safe. Restore it only while the app is closed.
+
+VORTEX
+
+Use Manual Download on Nexus and extract this ZIP normally. To launch Knox Atlas
+from Vortex, open Dashboard, choose Add Tool, and set Target to Knox-Atlas.exe.
+Confirm Start In is this extracted folder, name the tool Knox Atlas, and save.
+Do not deploy this ZIP into the Project Zomboid game or Mods folder.
 
 If Windows SmartScreen warns about the file, that is expected for an unsigned
 build. Confirm the file came from the project's GitHub release. Use
@@ -15,3 +57,7 @@ the included LICENSE.txt for the source-available terms.
 
 Source code and build instructions:
 https://github.com/TheMysticTurtle/Knox-Atlas
+
+Portable and Vortex guides:
+https://github.com/TheMysticTurtle/Knox-Atlas/blob/main/docs/portable.md
+https://github.com/TheMysticTurtle/Knox-Atlas/blob/main/docs/vortex.md

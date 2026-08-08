@@ -25,8 +25,27 @@ Despite the directory name, this is the shared base map used by the neighboring 
 | `objects.lua` | Parking, activity, loot, and water zones | Read |
 | `worldmap.xml.bin` | Compiled world-map form | Not needed while XML is available |
 | `worldmap.png` / `pyramid.zip` | Raster overview/pyramid assets | Not needed by the vector renderer |
+| `.lotheader`, `.lotpack`, and map `.bin` files | Compiled detailed tile/cell data used by the game world | Deferred; see the detailed-map feasibility study |
 
 The game script `media/lua/client/ISUI/Maps/ISMapDefinitions.lua` was especially useful: it shows which sources the in-game map loads and records the in-game map color palette. Knox Atlas mirrors those category colors rather than inventing a competing map legend.
+
+## Installation discovery
+
+Knox Atlas first checks the normal Windows Steam roots and parses Steam's `steamapps/libraryfolders.vdf` to find additional libraries. A valid game root must contain both `projectzomboid.jar` and `media/maps`.
+
+The Local game source card shows the root currently in use. A user may choose another `ProjectZomboid` folder through the native folder picker; Rust validates it before the path is remembered in app-owned storage. The folder remains read-only.
+
+## App-owned companion data
+
+The selected installation path, preferred camera view, custom markers, and saved measurements are
+not Project Zomboid map or save records. They stay in Knox Atlas's WebView profile beneath
+`%LOCALAPPDATA%\com.pzcompanion.map` for the current Windows account. This keeps user annotations
+out of the installed map sources and makes the same records available to both installer and portable
+builds.
+
+Do not teach a map parser to read or write these records. Their versioned storage keys and migration
+boundary are documented in [architecture.md](architecture.md); portable preservation and backup
+notes live in [portable.md](portable.md).
 
 ## Save metadata
 
@@ -49,6 +68,12 @@ Other observed save files include `map_symbols.bin`, `map_t.bin`, `vehicles.db`,
 - `map_t.bin` is global mod/table data, not a dependable player-location source.
 - `vehicles.db` describes saved world state but is not required for the lighter “possible vehicle zones” layer.
 - Multiplayer client saves do not expose a simple trustworthy roster of live player coordinates.
+
+## Detailed cells and floors
+
+The inspected installation contains 4,065 `.lotheader` files and 4,065 `.lotpack` files totaling about 3.8 GB, plus thousands of map `.bin` files. Those sources carry the detailed tile world rather than the light overview geometry Knox Atlas currently reads. They make a selectable-floor view possible, but only through a new cell decoder and renderer; they are not ready-made images.
+
+See [Detailed map and floor-level feasibility](detailed-map-feasibility.md) for the proposed incremental approach.
 
 ## Coordinate systems
 

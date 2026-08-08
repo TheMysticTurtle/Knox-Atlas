@@ -4,15 +4,31 @@ All notable user-facing changes will be recorded here. The project follows the s
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-08
+
 ### Added
 
 - Added PolyForm Strict 1.0.0 source-available licensing and included the license with Windows packages.
+- Added a clickable Local game source card that displays the active installation and opens a native folder picker for alternate `ProjectZomboid` folders.
+- Added Steam `libraryfolders.vdf` discovery so non-default Steam libraries are found without manual configuration.
+- Added multi-point distance measurement with running segment totals, undo/clear controls, and up to 50 locally persisted named, colored paths.
+- Added portable-use documentation covering Microsoft WebView2 checks, per-user saved-item persistence, updates, removal, and best-effort backup.
+- Added Nexus/Vortex instructions for registering the portable executable as a Vortex dashboard tool without deploying it into Project Zomboid.
 
 ### Changed
 
 - Reworked the README into a friendlier release, installation, security, and source-build guide.
 - Added ready-to-paste Nexus Mods listing copy.
 - Verification now runs on every pushed branch and pull request; the manual Windows release workflow repeats frontend and Rust checks before packaging.
+- Replaced the two-point position/destination controls with a dedicated click-to-measure workflow.
+- Increased the smallest layer, status, source, saved-item, coordinate, and map-credit text.
+- Replaced the release overview screenshot and added focused marker/path, filter, and game-source examples.
+- Updated project and package versions to `0.1.1`.
+
+### Known limitations
+
+- Markers and saved paths persist for the current Windows account, but built-in export/import is not yet available for transfers to another computer.
+- Vortex integration is manual Dashboard tool registration; Knox Atlas is not a deployable Project Zomboid mod.
 
 ## [0.1.0] - 2026-08-08
 

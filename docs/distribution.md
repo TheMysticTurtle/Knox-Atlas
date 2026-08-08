@@ -53,13 +53,72 @@ When the draft is published, GitHub automatically adds source-code ZIP and TAR a
 | Format | Recommendation | Notes |
 | --- | --- | --- |
 | NSIS `-setup.exe` | Preferred | Normal install/uninstall experience; can bootstrap WebView2 when required. |
-| Portable ZIP | Optional | Contains the plain app executable and notes; Tauri does not officially support portable mode. |
+| Portable ZIP | Optional | Contains the plain app executable and notes; expects WebView2 to be installed and keeps user data in the Windows profile. |
 
 Both builds are currently unsigned. Windows SmartScreen may warn testers because the publisher has no signing reputation. This is acceptable for a few informed testers; obtain a Windows code-signing certificate before broad public distribution.
 
 ## WebView2
 
-Tauri uses Microsoft WebView2 on Windows. The installer can handle machines where it is missing. The plain portable executable assumes a compatible runtime is already available.
+Tauri uses Microsoft WebView2 on Windows. The NSIS installer uses Tauri's default
+`downloadBootstrapper` behavior, which checks for the runtime and downloads the bootstrapper when it
+is missing. The plain portable executable cannot perform that installer step and assumes a
+compatible Evergreen Runtime is already available.
+
+Use Microsoft's [official WebView2 Runtime page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
+for the Evergreen Bootstrapper or Standalone Installer.
+
+On 64-bit Windows, Microsoft documents the following machine and per-user registry checks. Either
+`pv` value is sufficient when it reports a version greater than `0.0.0.0`.
+
+Command Prompt:
+
+```bat
+reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+reg query "HKCU\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+```
+
+PowerShell:
+
+```powershell
+$webView2Id = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$webView2Id", "HKCU:\Software\Microsoft\EdgeUpdate\Clients\$webView2Id" -Name pv -ErrorAction SilentlyContinue | Select-Object PSPath, pv
+```
+
+See Microsoft's [runtime detection documentation](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution#detect-if-a-webview2-runtime-is-already-installed).
+
+## Portable user data
+
+Both artifacts are built from the same Tauri identifier, `com.pzcompanion.map`. WebView2 therefore
+keeps their local storage under the same per-user profile:
+
+```text
+%LOCALAPPDATA%\com.pzcompanion.map\
+```
+
+The current version stores custom markers, saved measurement paths, one preferred camera view, and
+an optional preferred game-install path there. Replacing or moving the portable application folder
+does not normally remove those records. Different Windows accounts or computers do not share them,
+and clearing the WebView profile removes them.
+
+There is no supported export/import command yet. The documented best-effort backup is to close Knox
+Atlas and copy the complete `com.pzcompanion.map` folder. Do not copy individual live LevelDB files.
+See [Portable Windows guide](portable.md).
+
+## Nexus Mods and Vortex
+
+Knox Atlas is a standalone companion tool. Publish the installer and portable ZIP as manual Nexus
+downloads; neither archive should be deployed through Vortex as a Project Zomboid mod.
+
+Portable users can still launch Knox Atlas from Vortex:
+
+1. Extract the ZIP normally.
+2. Open **Vortex → Dashboard → Add Tool**.
+3. Set **Target** to the extracted `Knox-Atlas.exe`.
+4. Confirm **Start In** is the executable folder, name it **Knox Atlas**, and save.
+
+No Vortex extension manifest is packaged. Automatic tool discovery would require a separately
+maintained Vortex extension or coordination with the Project Zomboid game extension. See
+[Vortex and Nexus Mods guide](vortex.md).
 
 ## Repository prerequisite
 
@@ -76,3 +135,6 @@ The project repository is hosted at
 
 - [Tauri Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/)
 - [Official Tauri GitHub Action](https://github.com/tauri-apps/tauri-action)
+- [Microsoft WebView2 Runtime download](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
+- [Microsoft WebView2 runtime detection](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution#detect-if-a-webview2-runtime-is-already-installed)
+- [Vortex user FAQ: adding a tool](https://github.com/Nexus-Mods/Vortex/wiki/MODDINGWIKI-Users-FAQ#how-do-i-add-a-tool-to-vortex)

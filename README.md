@@ -193,6 +193,10 @@ Pan and zoom around the game-derived canvas, search by name, and use the left-ha
 focus on the information you need. Parent filters can be expanded into individual categories—for
 example, you can hide all businesses except gas stations.
 
+<p align="center">
+  <img src="docs/images/knox-atlas-filters.png" alt="Knox Atlas with gas-station and medical filters expanded and selected" width="1100">
+</p>
+
 ### **Work with coordinates**
 
 The lower-right readout follows the pointer. Click a location to keep its X/Y, compiled-cell, and
@@ -208,6 +212,10 @@ not calculate a road route.
 Click a location and choose **Add marker** to give it a name and color. Markers live in Knox Atlas's
 own local application storage, never in the Project Zomboid save. **Save view** remembers the current
 center and zoom; the target map control returns to it later.
+
+<p align="center">
+  <img src="docs/images/knox-atlas-markers-paths.png" alt="Knox Atlas showing named points of interest and a saved multi-point path" width="1100">
+</p>
 
 Markers, saved paths, the preferred view, and the selected game installation persist automatically
 under the current Windows account at `%LOCALAPPDATA%\com.pzcompanion.map`. Installer and portable

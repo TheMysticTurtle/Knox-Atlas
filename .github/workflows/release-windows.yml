@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -64,9 +64,21 @@ jobs:
           prerelease: false
           generateReleaseNotes: true
           args: --bundles nsis
-          uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: Knox-Atlas-[version]-Windows-[arch]-[bundle]
           releaseAssetNamePattern: Knox-Atlas-[version]-Windows-[arch][setup].[ext]
+
+      - name: Prepare installer release asset
+        shell: powershell
+        run: |
+          $installerDirectory = "src-tauri/target/release/bundle/nsis"
+          $installers = @(Get-ChildItem -LiteralPath $installerDirectory -Filter "*.exe" -File)
+
+          if ($installers.Count -ne 1) {
+            $found = ($installers.FullName -join ", ")
+            throw "Expected exactly one NSIS installer in $installerDirectory; found $($installers.Count): $found"
+          }
+
+          $assetName = "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-setup.exe"
+          Copy-Item -LiteralPath $installers[0].FullName -Destination $assetName -Force
 
       - name: Package best-effort portable build
         shell: powershell
@@ -74,14 +86,28 @@ jobs:
           New-Item -ItemType Directory -Path .release/portable -Force | Out-Null
           Copy-Item -LiteralPath src-tauri/target/release/knox-atlas.exe -Destination .release/portable/Knox-Atlas.exe
           Copy-Item -LiteralPath packaging/PORTABLE-NOTES.txt -Destination .release/portable/README.txt
-          Compress-Archive -Path .release/portable/* -DestinationPath "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip" -Force
+          $assetName = "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip"
+          Compress-Archive -Path .release/portable/* -DestinationPath $assetName -Force
+
+      - name: Upload installer workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-installer
+          path: Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-setup.exe
+          if-no-files-found: error
 
       - name: Upload portable workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable
           path: Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip
           if-no-files-found: error
+
+      - name: Add installer to draft release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "v${{ steps.tauri.outputs.appVersion }}" "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-setup.exe" --clobber
 
       - name: Add portable archive to draft release
         shell: powershell

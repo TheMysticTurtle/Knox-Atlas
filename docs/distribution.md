@@ -32,7 +32,7 @@ NSIS is the recommended format for early testers: one familiar executable, curre
 Two workflows live in `.github/workflows/`:
 
 - `ci.yml` automatically runs frontend compilation, Rust formatting, and Rust tests on every pushed branch and pull request.
-- `release-windows.yml` is a manual release workflow. It repeats those checks, builds the NSIS installer, creates/updates a draft GitHub release named from `tauri.conf.json`, uploads build artifacts, and adds a best-effort portable ZIP.
+- `release-windows.yml` is a manual release workflow. It repeats those checks, builds the NSIS installer, creates/updates a draft GitHub release named from `tauri.conf.json`, and packages a best-effort portable ZIP. It validates and uploads both downloads explicitly as workflow artifacts and as draft-release assets.
 
 To publish a release:
 
@@ -43,6 +43,8 @@ To publish a release:
 5. Edit the generated notes and publish the draft when ready.
 
 Repeated runs at the same app version update the same draft tag. Bump the version before starting a distinct testing round.
+
+The installer staging step requires exactly one generated NSIS `.exe`; the workflow fails clearly if packaging produces none or more than one. Both release uploads use `--clobber`, so rerunning a corrected workflow repairs the existing draft instead of creating duplicate assets.
 
 ## Installer versus portable
 

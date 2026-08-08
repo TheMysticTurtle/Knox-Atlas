@@ -70,6 +70,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - Added per-marker colors and a larger final annotation pass so user-authored points remain visible across the map.
 - Added a minimal saved-view bookmark containing only world X/Y and zoom.
 - Established `0.1.0` as the first public release baseline across the desktop, frontend, changelog, and packaging workflow.
+- Hardened Windows publishing so the validated installer and portable ZIP are each retained as workflow artifacts and attached explicitly to the draft release; updated official GitHub actions to their Node 24-based versions.
 
 ## Definition of done for a feature
 

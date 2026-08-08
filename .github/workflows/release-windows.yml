@@ -28,6 +28,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       - name: Cache Rust build output
         uses: Swatinem/rust-cache@v2
@@ -36,6 +38,15 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Check frontend
+        run: npm run check
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
+      - name: Test Rust adapter
+        run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Build NSIS installer and create draft release
         id: tauri

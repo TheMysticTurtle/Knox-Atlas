@@ -31,8 +31,8 @@ NSIS is the recommended format for early testers: one familiar executable, curre
 
 Two workflows live in `.github/workflows/`:
 
-- `ci.yml` runs frontend compilation, Rust formatting, and Rust tests on pushes to `main` and pull requests.
-- `release-windows.yml` is a manual release workflow. It builds the NSIS installer, creates/updates a draft GitHub release named from `tauri.conf.json`, uploads build artifacts, and adds a best-effort portable ZIP.
+- `ci.yml` automatically runs frontend compilation, Rust formatting, and Rust tests on every pushed branch and pull request.
+- `release-windows.yml` is a manual release workflow. It repeats those checks, builds the NSIS installer, creates/updates a draft GitHub release named from `tauri.conf.json`, uploads build artifacts, and adds a best-effort portable ZIP.
 
 To publish a release:
 
@@ -65,7 +65,8 @@ GitHub Actions only runs after this local repository has a GitHub remote and its
 git remote -v
 ```
 
-At the time this guide was written, the local repository had no configured remote.
+The project repository is hosted at
+[TheMysticTurtle/Project-Zomboid-Interactive-Map](https://github.com/TheMysticTurtle/Project-Zomboid-Interactive-Map).
 
 ## Official references
 

@@ -12,6 +12,8 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Make selected likely-loot categories visually distinct from the general business layer.
 - [x] Document the map sources, coordinate systems, architectural choices, workflow, and limitations.
 - [x] Add a one-click Windows development launcher and GitHub verification/release workflows.
+- [x] Add scalable POI icons, larger map/menu typography, a building legend, and hierarchical subfilters.
+- [x] Focus the vehicle layer on drivable spawn pools and surface expected pool quality/damage metadata.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 
@@ -19,7 +21,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 
 - [ ] Add a reload-data action so a user can refresh without restarting.
 - [ ] Persist layer preferences and manual markers in app-owned storage.
-- [ ] Add a clear in-map building-color legend.
+- [x] Add a clear building-color legend with per-type visibility controls.
 - [ ] Let the user choose a non-standard game/save path when discovery fails.
 - [ ] Improve business-name normalization and category coverage from real-world feedback.
 - [ ] Add an explicit map/update compatibility warning when required source shapes change.
@@ -31,6 +33,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [ ] Read mod-provided world map, street, annotation, and object sources through the same adapter boundary.
 - [ ] Design an optional tiny client mod that exports only the local player's position.
 - [ ] Evaluate server-authorized party positions with privacy and permission controls.
+- [ ] Evaluate authorized live vehicle condition and vehicle-to-key locations for single-player/server providers.
 - [ ] Consider saved custom marker collections and import/export.
 
 ## Deliberately deferred

@@ -86,15 +86,20 @@ git diff --check
 4. Keep dense layers zoom-gated and viewport-culled.
 5. Check it with the general business/building layers both on and off.
 
+Parent layer switches own their child state: switching a parent changes every child, while changing a child updates the parent checkbox to checked, unchecked, or indeterminate. Keep the normalized IDs in `prepareSubfilters` aligned with the visibility predicates used by the canvas renderer.
+
 ## Maintainer notes
 
 - `worldmap.xml` geometry is converted from vector-cell-local coordinates using a 300-unit cell origin.
 - UI cell/chunk readouts use the compiled sizes reported by the current map metadata: 256 and 8.
 - Never call the save's last map center a player position.
 - `ZombiesType` and `ParkingStall` are probabilistic context, not live inventories or vehicles.
+- Vehicle body groups and expected quality come from `VehicleZoneDefinition.lua`; never relabel them as a spawned model or actual condition.
+- Multiplayer client `vehicles.db` may be empty because the server owns vehicle state. Key locations are not part of the parking-zone source.
 - `Path2D` objects and bounds are built once in `prepareData`; avoid rebuilding them during pan/zoom.
 - All canvas redraws should go through `queueRender`.
 - Labels are screen-space text with simple collision boxes; avoid adding thousands of permanent DOM markers.
+- Map POI pictograms are drawn directly on canvas; sidebar icons are small inline SVGs using the same stable category vocabulary.
 - The local app currently reads English `MapLabel.json`. Localization is a future adapter concern.
 - Keep game-owned and app-owned data physically separate.
 

@@ -29,6 +29,9 @@ type Poi = {
   height: number;
   source: string;
   details: string;
+  vehicleTypes: Array<"cars" | "vans" | "trucks" | "emergency">;
+  expectedQuality?: number;
+  partDamageChance?: number;
 };
 type SaveInfo = {
   name: string;
@@ -80,6 +83,14 @@ type FilterKey =
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = Street & { path: Path2D; bounds: Bounds; anchor: Point; angle: number };
 type SearchEntry = { label: string; meta: string; point: Point; poi?: Poi };
+type FilterIcon = PoiCategory | "towns" | "streets" | "buildings";
+type SubfilterItem = {
+  id: string;
+  label: string;
+  count: number;
+  color: string;
+  icon?: FilterIcon;
+};
 
 const mapColors = {
   paper: "#dbd7c0",
@@ -132,6 +143,8 @@ const filters: Record<FilterKey, boolean> = {
 };
 
 const lootFilterKeys = ["food", "medical", "tools", "security", "fuel", "water"] as const;
+const subfilterGroups = new Map<FilterKey, SubfilterItem[]>();
+const subfilterState = new Map<string, boolean>();
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Application root was not found.");
@@ -178,11 +191,6 @@ app.innerHTML = `
           <div id="loot-filters" class="filter-list"></div>
           <p class="filter-note">Broad hints inferred from game spawn zones—not guaranteed item locations.</p>
         </section>
-        <section class="filter-section">
-          <h2>World</h2>
-          <div id="world-filters" class="filter-list"></div>
-        </section>
-
         <div class="source-card">
           <span class="source-card-icon" aria-hidden="true"></span>
           <div><strong>Local game source</strong><p id="source-detail">Discovering your installation…</p></div>
@@ -367,47 +375,205 @@ function prepareData(data: GameSnapshot): void {
 }
 
 const filterDefinitions: Array<{
-  group: "orientation" | "loot" | "world";
+  group: "orientation" | "loot";
   key: FilterKey;
   label: string;
   description: string;
   color: string;
+  icon: FilterIcon;
   count: (data: GameSnapshot) => number;
 }> = [
-  { group: "orientation", key: "towns", label: "Towns & areas", description: "Official map labels", color: "#d8ad68", count: (data) => data.labels.filter((item) => item.kind === "town" || item.kind === "place").length },
-  { group: "orientation", key: "streets", label: "Street names", description: "Visible as you zoom in", color: "#a9a69b", count: (data) => data.counts.streets },
-  { group: "orientation", key: "businesses", label: "Businesses", description: "Labels and game zones", color: "#98b26b", count: (data) => data.counts.businesses },
-  { group: "orientation", key: "buildings", label: "Building types", description: "Use in-game map colors", color: "#a6805e", count: (data) => data.counts.buildings },
-  { group: "loot", key: "food", label: "Food", description: "Grocers, kitchens, dining", color: categoryColors.food, count: (data) => data.pois.filter((poi) => poi.category === "food").length },
-  { group: "loot", key: "medical", label: "Medical", description: "Clinics and pharmacies", color: categoryColors.medical, count: (data) => data.pois.filter((poi) => poi.category === "medical").length },
-  { group: "loot", key: "tools", label: "Tools & materials", description: "Industrial and hardware", color: categoryColors.tools, count: (data) => data.pois.filter((poi) => poi.category === "tools").length },
-  { group: "loot", key: "security", label: "Security & services", description: "Police, fire, military", color: categoryColors.security, count: (data) => data.pois.filter((poi) => poi.category === "security").length },
-  { group: "loot", key: "fuel", label: "Fuel", description: "Gas station zones", color: categoryColors.fuel, count: (data) => data.pois.filter((poi) => poi.category === "fuel").length },
-  { group: "loot", key: "water", label: "Water", description: "Water features and zones", color: categoryColors.water, count: (data) => data.pois.filter((poi) => poi.category === "water").length },
-  { group: "world", key: "vehicles", label: "Vehicle zones", description: "Possible parked vehicles", color: categoryColors.vehicles, count: (data) => data.counts.vehicleZones },
+  { group: "orientation", key: "towns", label: "Towns & areas", description: "Official map labels", color: "#d8ad68", icon: "towns", count: (data) => data.labels.filter((item) => ["town", "area", "water"].includes(item.kind)).length },
+  { group: "orientation", key: "streets", label: "Street names", description: "Visible as you zoom in", color: "#a9a69b", icon: "streets", count: (data) => data.counts.streets },
+  { group: "orientation", key: "vehicles", label: "Drivable vehicle pools", description: "Cars, vans, trucks & services", color: categoryColors.vehicles, icon: "vehicles", count: (data) => data.counts.vehicleZones },
+  { group: "orientation", key: "businesses", label: "Businesses", description: "Choose activity types", color: "#98b26b", icon: "business", count: (data) => data.counts.businesses },
+  { group: "orientation", key: "buildings", label: "Building types", description: "In-game color legend", color: "#a6805e", icon: "buildings", count: (data) => data.counts.buildings },
+  { group: "loot", key: "food", label: "Food", description: "Grocers, kitchens, dining", color: categoryColors.food, icon: "food", count: (data) => data.pois.filter((poi) => poi.category === "food").length },
+  { group: "loot", key: "medical", label: "Medical", description: "Clinics and pharmacies", color: categoryColors.medical, icon: "medical", count: (data) => data.pois.filter((poi) => poi.category === "medical").length },
+  { group: "loot", key: "tools", label: "Tools & materials", description: "Industrial and hardware", color: categoryColors.tools, icon: "tools", count: (data) => data.pois.filter((poi) => poi.category === "tools").length },
+  { group: "loot", key: "security", label: "Security & services", description: "Police, fire, military", color: categoryColors.security, icon: "security", count: (data) => data.pois.filter((poi) => poi.category === "security").length },
+  { group: "loot", key: "fuel", label: "Fuel & gas", description: "Gas station activity zones", color: categoryColors.fuel, icon: "fuel", count: (data) => data.pois.filter((poi) => poi.category === "fuel").length },
+  { group: "loot", key: "water", label: "Water", description: "Water features and zones", color: categoryColors.water, icon: "water", count: (data) => data.pois.filter((poi) => poi.category === "water").length },
 ];
 
+function filterIcon(icon: FilterIcon): string {
+  const paths: Record<FilterIcon, string> = {
+    towns: '<path d="M12 3 6 9v10h12V9l-6-6Zm-3 15v-6h6v6"/>',
+    streets: '<path d="M5 4h4l1 5h4l1-5h4M8 20l1-6h6l1 6"/>',
+    buildings: '<path d="M4 20V8l8-5 8 5v12M8 20v-7h8v7M4 9h16"/>',
+    business: '<path d="M4 9h16l-2-5H6L4 9Zm1 0v11h14V9M9 20v-6h6v6"/>',
+    food: '<path d="M7 3v7m-2-7v4a2 2 0 0 0 4 0V3m-2 7v11M16 3v18m0-18c3 2 3 7 0 9"/>',
+    medical: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/>',
+    tools: '<path d="m14 6 4-3 3 3-3 4-3-1-7 7 1 2-2 2-3-3 2-2 2 1 7-7-1-3Z"/>',
+    security: '<path d="m12 3 7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3Z"/>',
+    fuel: '<path d="M5 21V4h10v17M5 9h10M8 17h4m3-10 3 2v8a2 2 0 0 0 4 0v-6l-2-2"/>',
+    water: '<path d="M12 3S6 10 6 15a6 6 0 0 0 12 0c0-5-6-12-6-12Z"/>',
+    vehicles: '<path d="m5 9 2-5h10l2 5 2 2v6h-2v3h-3v-3H8v3H5v-3H3v-6l2-2Zm1 2h12M7 14h.01M17 14h.01"/>',
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[icon]}</svg>`;
+}
+
+function countByLabel(pois: Poi[], category: PoiCategory): SubfilterItem[] {
+  const counts = new Map<string, number>();
+  for (const poi of pois) {
+    if (poi.category !== category) continue;
+    counts.set(poi.label, (counts.get(poi.label) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ id: `${category}:${label}`, label, count, color: categoryColors[category], icon: category }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+function setSubfilterGroup(key: FilterKey, items: SubfilterItem[]): void {
+  subfilterGroups.set(key, items);
+  for (const item of items) {
+    if (!subfilterState.has(item.id)) subfilterState.set(item.id, filters[key]);
+  }
+}
+
+function prepareSubfilters(data: GameSnapshot): void {
+  const townFilters: SubfilterItem[] = [
+    { id: "towns:town", label: "Town names", count: data.labels.filter((label) => label.kind === "town").length, color: "#d8ad68", icon: "towns" },
+    { id: "towns:area", label: "Areas & landmarks", count: data.labels.filter((label) => label.kind === "area").length, color: "#bca777", icon: "towns" },
+    { id: "towns:water", label: "Water names", count: data.labels.filter((label) => label.kind === "water").length, color: categoryColors.water, icon: "water" },
+  ];
+  setSubfilterGroup("towns", townFilters.filter((item) => item.count > 0));
+
+  const businessCategories: Array<{ category: PoiCategory; label: string; icon: FilterIcon }> = [
+    { category: "food", label: "Food & dining", icon: "food" },
+    { category: "fuel", label: "Gas stations", icon: "fuel" },
+    { category: "medical", label: "Medical", icon: "medical" },
+    { category: "tools", label: "Industrial & tools", icon: "tools" },
+    { category: "security", label: "Security & civic", icon: "security" },
+    { category: "business", label: "Other businesses", icon: "business" },
+  ];
+  setSubfilterGroup("businesses", businessCategories.map(({ category, label, icon }) => ({
+    id: `businesses:${category}`,
+    label,
+    count: data.pois.filter((poi) => poi.kind === "business" && poi.category === category).length,
+    color: categoryColors[category],
+    icon,
+  })).filter((item) => item.count > 0));
+
+  const buildingValues = new Map<string, number>();
+  for (const feature of data.features) {
+    if (feature.kind === "building") buildingValues.set(feature.value, (buildingValues.get(feature.value) ?? 0) + 1);
+  }
+  const buildingOrder = ["Residential", "RetailAndCommercial", "RestaurantsAndEntertainment", "Medical", "CommunityServices", "Hospitality", "Industrial"];
+  const buildingNames: Record<string, string> = {
+    Residential: "Residential",
+    RetailAndCommercial: "Retail & commercial",
+    RestaurantsAndEntertainment: "Dining & entertainment",
+    Medical: "Medical",
+    CommunityServices: "Community services",
+    Hospitality: "Hospitality",
+    Industrial: "Industrial",
+  };
+  setSubfilterGroup("buildings", [...buildingValues.entries()]
+    .map(([value, count]) => ({ id: `buildings:${value}`, label: buildingNames[value] ?? value, count, color: buildingColor(value) }))
+    .sort((a, b) => {
+      const aOrder = buildingOrder.indexOf(a.id.slice("buildings:".length));
+      const bOrder = buildingOrder.indexOf(b.id.slice("buildings:".length));
+      return (aOrder < 0 ? 99 : aOrder) - (bOrder < 0 ? 99 : bOrder);
+    }));
+
+  for (const category of lootFilterKeys) setSubfilterGroup(category, countByLabel(data.pois, category));
+  const vehicleTypes: Array<{ id: "cars" | "vans" | "trucks" | "emergency"; label: string }> = [
+    { id: "cars", label: "Cars & SUVs" },
+    { id: "vans", label: "Vans & shuttles" },
+    { id: "trucks", label: "Trucks & utility" },
+    { id: "emergency", label: "Emergency & service" },
+  ];
+  setSubfilterGroup("vehicles", vehicleTypes.map(({ id, label }) => ({
+    id: `vehicles:${id}`,
+    label,
+    count: data.pois.filter((poi) => poi.kind === "vehicle" && poi.vehicleTypes?.includes(id)).length,
+    color: categoryColors.vehicles,
+    icon: "vehicles" as const,
+  })).filter((item) => item.count > 0));
+}
+
+function subfilterEnabled(id: string): boolean {
+  return subfilterState.get(id) ?? false;
+}
+
+function syncParentFilter(key: FilterKey): void {
+  const children = subfilterGroups.get(key) ?? [];
+  if (!children.length) return;
+  const enabled = children.filter((item) => subfilterEnabled(item.id)).length;
+  filters[key] = enabled > 0;
+  const parent = document.querySelector<HTMLInputElement>(`#filter-${key}`);
+  if (parent) {
+    parent.checked = enabled === children.length;
+    parent.indeterminate = enabled > 0 && enabled < children.length;
+  }
+}
+
 function renderFilters(data: GameSnapshot): void {
-  for (const group of ["orientation", "loot", "world"] as const) {
+  prepareSubfilters(data);
+  for (const group of ["orientation", "loot"] as const) {
     const target = must<HTMLDivElement>(`#${group}-filters`);
     target.innerHTML = filterDefinitions
       .filter((definition) => definition.group === group)
-      .map((definition) => `
-        <label class="filter-row" for="filter-${definition.key}">
-          <span class="filter-swatch" style="--swatch:${definition.color}"></span>
-          <span class="filter-copy"><strong>${definition.label}</strong><small>${definition.description}</small></span>
-          <span class="filter-count">${formatCount(definition.count(data))}</span>
-          <input id="filter-${definition.key}" type="checkbox" data-filter="${definition.key}" ${filters[definition.key] ? "checked" : ""} />
-          <span class="switch" aria-hidden="true"></span>
-        </label>
-      `).join("");
+      .map((definition) => {
+        const children = subfilterGroups.get(definition.key) ?? [];
+        return `
+          <div class="filter-item">
+            <div class="filter-row">
+              <label class="filter-main" for="filter-${definition.key}">
+                <span class="filter-icon" style="--swatch:${definition.color}">${filterIcon(definition.icon)}</span>
+                <span class="filter-copy"><strong>${definition.label}</strong><small>${definition.description}</small></span>
+                <span class="filter-count">${formatCount(definition.count(data))}</span>
+                <input id="filter-${definition.key}" type="checkbox" data-filter="${definition.key}" ${filters[definition.key] ? "checked" : ""} />
+                <span class="switch" aria-hidden="true"></span>
+              </label>
+              ${children.length ? `<button class="expand-filter" type="button" data-expand="${definition.key}" aria-expanded="false" aria-controls="subfilters-${definition.key}" aria-label="Choose ${definition.label} types"><span>›</span></button>` : ""}
+            </div>
+            ${children.length ? `
+              <div id="subfilters-${definition.key}" class="subfilter-list" hidden>
+                ${children.map((child, index) => `
+                  <label class="subfilter-row" for="subfilter-${definition.key}-${index}">
+                    <input id="subfilter-${definition.key}-${index}" type="checkbox" data-subfilter="${escapeHtml(child.id)}" data-parent-filter="${definition.key}" ${subfilterEnabled(child.id) ? "checked" : ""} />
+                    <span class="subfilter-check" aria-hidden="true"></span>
+                    <span class="subfilter-symbol" style="--swatch:${child.color}">${child.icon ? filterIcon(child.icon) : ""}</span>
+                    <span>${escapeHtml(child.label)}</span>
+                    <small>${formatCount(child.count)}</small>
+                  </label>
+                `).join("")}
+                ${definition.key === "vehicles" ? '<p class="subfilter-hint">Spawn-pool estimates. Select a marker for expected quality; live condition and key locations require save/server data.</p>' : ""}
+              </div>` : ""}
+          </div>`;
+      }).join("");
   }
 
   document.querySelectorAll<HTMLInputElement>("[data-filter]").forEach((input) => {
     input.addEventListener("change", () => {
       const key = input.dataset.filter as FilterKey;
       filters[key] = input.checked;
+      for (const child of subfilterGroups.get(key) ?? []) subfilterState.set(child.id, input.checked);
+      document.querySelectorAll<HTMLInputElement>(`[data-parent-filter="${key}"]`).forEach((childInput) => {
+        childInput.checked = input.checked;
+      });
       queueRender();
+    });
+  });
+
+  document.querySelectorAll<HTMLInputElement>("[data-subfilter]").forEach((input) => {
+    input.addEventListener("change", () => {
+      subfilterState.set(input.dataset.subfilter ?? "", input.checked);
+      syncParentFilter(input.dataset.parentFilter as FilterKey);
+      queueRender();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-expand]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.expand as FilterKey;
+      const list = must<HTMLElement>(`#subfilters-${key}`);
+      const expanded = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(expanded));
+      list.hidden = !expanded;
+      button.closest(".filter-item")?.classList.toggle("is-expanded", expanded);
     });
   });
 }
@@ -456,7 +622,7 @@ function buildingColor(value: string): string {
 
 function drawFeature(feature: PreparedFeature): void {
   if (feature.kind === "building") {
-    if (!filters.buildings) return;
+    if (!subfilterEnabled(`buildings:${feature.value}`)) return;
     context.fillStyle = buildingColor(feature.value);
     context.fill(feature.path);
     if (scale > 0.18) {
@@ -538,12 +704,19 @@ function drawScreenLabel(text: string, point: Point, size: number, weight: numbe
 
 function drawMapLabels(occupied: Bounds[]): void {
   for (const label of snapshot.labels) {
-    const isTown = label.kind === "town" || label.kind === "place";
+    const isTown = label.kind === "town";
+    const isArea = label.kind === "area";
+    const isWater = label.kind === "water";
     const isBusiness = label.kind === "landmark";
-    if ((isTown && !filters.towns) || (isBusiness && !filters.businesses)) continue;
-    if (!isTown && !isBusiness && scale < 0.18) continue;
+    if (isTown && !subfilterEnabled("towns:town")) continue;
+    if (isArea && !subfilterEnabled("towns:area")) continue;
+    if (isWater && !subfilterEnabled("towns:water")) continue;
+    if (isBusiness && !subfilterEnabled("businesses:business")) continue;
+    if (!isTown && !isArea && !isWater && !isBusiness && scale < 0.18) continue;
     if (isBusiness && scale < 0.18) continue;
-    const size = isTown ? Math.max(14, Math.min(24, 10 + scale * 24)) : Math.max(11, Math.min(15, 9 + scale * 11));
+    const townSize = Math.max(18, Math.min(28, 28 - scale * 8));
+    const areaSize = Math.max(14, Math.min(19, 19 - scale * 3));
+    const size = isTown ? townSize : isArea || isWater ? areaSize : Math.max(12, Math.min(16, 10 + scale * 11));
     drawScreenLabel(label.text, label, size, isTown ? 700 : 650, isTown ? mapColors.ink : mapColors.mutedInk, occupied, isTown);
   }
 }
@@ -555,7 +728,7 @@ function drawStreetLabels(view: Bounds, occupied: Bounds[]): void {
     const street = preparedStreets[index];
     if (!intersects(street.bounds, view)) continue;
     const screen = toScreen(street.anchor);
-    const size = scale > 0.7 ? 12 : 11;
+    const size = scale > 0.7 ? 13 : 12;
     if (!labelFits(screen, street.name, size, occupied)) continue;
     context.save();
     context.translate(screen.x, screen.y);
@@ -573,13 +746,128 @@ function drawStreetLabels(view: Bounds, occupied: Bounds[]): void {
   }
 }
 
+function businessLayerEnabled(poi: Poi): boolean {
+  return poi.kind === "business" && subfilterEnabled(`businesses:${poi.category}`);
+}
+
+function lootLayerEnabled(poi: Poi): boolean {
+  if (poi.category === "business" || poi.category === "vehicles") return false;
+  return filters[poi.category] && subfilterEnabled(`${poi.category}:${poi.label}`);
+}
+
 function poiIsVisible(poi: Poi): boolean {
-  if (poi.kind === "vehicle") return filters.vehicles && scale >= 0.42;
-  const isSelectedCategory = poi.category !== "business"
-    && poi.category !== "vehicles"
-    && filters[poi.category];
-  if (poi.kind === "loot" || poi.kind === "resource") return isSelectedCategory;
-  return filters.businesses || isSelectedCategory;
+  if (poi.kind === "vehicle") {
+    return scale >= 0.42
+      && filters.vehicles
+      && (poi.vehicleTypes ?? ["cars"]).some((type) => subfilterEnabled(`vehicles:${type}`));
+  }
+  return businessLayerEnabled(poi) || lootLayerEnabled(poi);
+}
+
+function drawPoiIcon(screen: Point, category: PoiCategory, highlighted: boolean): void {
+  const size = highlighted ? 20 : scale > 0.65 ? 18 : 14;
+  const radius = size / 2;
+  context.save();
+  context.translate(screen.x, screen.y);
+
+  if (highlighted) {
+    context.beginPath();
+    context.arc(0, 0, radius + 4, 0, Math.PI * 2);
+    context.fillStyle = `${categoryColors[category]}30`;
+    context.fill();
+    context.strokeStyle = categoryColors[category];
+    context.lineWidth = 1.5;
+    context.stroke();
+  }
+
+  context.beginPath();
+  context.arc(0, 0, radius, 0, Math.PI * 2);
+  context.fillStyle = categoryColors[category];
+  context.fill();
+  context.strokeStyle = "rgba(255,255,255,.82)";
+  context.lineWidth = 1.2;
+  context.stroke();
+
+  const unit = size / 18;
+  context.scale(unit, unit);
+  context.strokeStyle = "#fff8e9";
+  context.fillStyle = "#fff8e9";
+  context.lineWidth = 1.45;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.beginPath();
+
+  if (category === "medical") {
+    context.fillRect(-1.5, -5, 3, 10);
+    context.fillRect(-5, -1.5, 10, 3);
+  } else if (category === "food") {
+    context.moveTo(-3.5, -5);
+    context.lineTo(-3.5, 5);
+    context.moveTo(-5.2, -5);
+    context.lineTo(-5.2, -1.5);
+    context.quadraticCurveTo(-3.5, 0, -1.8, -1.5);
+    context.lineTo(-1.8, -5);
+    context.moveTo(3.4, -5);
+    context.lineTo(3.4, 5);
+    context.moveTo(3.4, -5);
+    context.quadraticCurveTo(6, -1, 3.4, 1);
+    context.stroke();
+  } else if (category === "fuel") {
+    context.rect(-4.5, -5, 6.5, 10);
+    context.moveTo(-4.5, -1.5);
+    context.lineTo(2, -1.5);
+    context.moveTo(2, -3.5);
+    context.quadraticCurveTo(5, -3, 5, 0);
+    context.lineTo(5, 3.5);
+    context.quadraticCurveTo(5, 5, 3.5, 5);
+    context.stroke();
+  } else if (category === "security") {
+    context.moveTo(0, -5.5);
+    context.lineTo(5, -3.5);
+    context.lineTo(4.2, 1.5);
+    context.quadraticCurveTo(3, 4, 0, 5.5);
+    context.quadraticCurveTo(-3, 4, -4.2, 1.5);
+    context.lineTo(-5, -3.5);
+    context.closePath();
+    context.stroke();
+  } else if (category === "tools") {
+    context.arc(-2.5, 2.5, 1.8, 0, Math.PI * 2);
+    context.moveTo(-1.2, 1.2);
+    context.lineTo(4.5, -4.5);
+    context.moveTo(2.5, -5.3);
+    context.lineTo(5.3, -2.5);
+    context.stroke();
+  } else if (category === "water") {
+    context.moveTo(0, -6);
+    context.bezierCurveTo(4.5, -1, 5, 1.2, 5, 2.2);
+    context.arc(0, 2, 5, 0, Math.PI, true);
+    context.bezierCurveTo(-5, 1.2, -4.5, -1, 0, -6);
+    context.fill();
+  } else if (category === "vehicles") {
+    context.rect(-5.5, -2.5, 11, 5.5);
+    context.moveTo(-3.5, -2.5);
+    context.lineTo(-1.8, -5);
+    context.lineTo(3, -5);
+    context.lineTo(4.7, -2.5);
+    context.stroke();
+    context.beginPath();
+    context.arc(-3.3, 3.2, 1.2, 0, Math.PI * 2);
+    context.arc(3.3, 3.2, 1.2, 0, Math.PI * 2);
+    context.fill();
+  } else {
+    context.moveTo(-5, -1.5);
+    context.lineTo(5, -1.5);
+    context.moveTo(-4, -1.5);
+    context.lineTo(-4, 5);
+    context.lineTo(4, 5);
+    context.lineTo(4, -1.5);
+    context.moveTo(-5, -1.5);
+    context.lineTo(-3.5, -5);
+    context.lineTo(3.5, -5);
+    context.lineTo(5, -1.5);
+    context.stroke();
+  }
+  context.restore();
 }
 
 function drawPois(view: Bounds, occupied: Bounds[]): void {
@@ -587,35 +875,13 @@ function drawPois(view: Bounds, occupied: Bounds[]): void {
   for (const poi of snapshot.pois) {
     if (!poiIsVisible(poi)) continue;
     if (poi.x < view.minX || poi.x > view.maxX || poi.y < view.minY || poi.y > view.maxY) continue;
-    const isHighlightedLoot = poi.category !== "business"
-      && poi.category !== "vehicles"
-      && filters[poi.category];
+    const isHighlightedLoot = lootLayerEnabled(poi);
     const screen = toScreen(poi);
-    const dotRadius = isHighlightedLoot ? 5 : scale > 0.65 ? 4.5 : 3.5;
 
-    if (hasActiveLootFilter && poi.kind === "business" && !isHighlightedLoot) {
+    if (hasActiveLootFilter && businessLayerEnabled(poi) && !isHighlightedLoot) {
       context.globalAlpha = 0.18;
     }
-    if (isHighlightedLoot) {
-      context.beginPath();
-      context.arc(screen.x, screen.y, 9, 0, Math.PI * 2);
-      context.fillStyle = `${categoryColors[poi.category]}33`;
-      context.fill();
-      context.strokeStyle = categoryColors[poi.category];
-      context.lineWidth = 1.5;
-      context.stroke();
-    }
-    context.beginPath();
-    if (poi.kind === "vehicle") {
-      context.rect(screen.x - 3.5, screen.y - 2.5, 7, 5);
-    } else {
-      context.arc(screen.x, screen.y, dotRadius, 0, Math.PI * 2);
-    }
-    context.fillStyle = categoryColors[poi.category] ?? categoryColors.business;
-    context.fill();
-    context.strokeStyle = "rgba(255,255,255,.75)";
-    context.lineWidth = 1.2;
-    context.stroke();
+    drawPoiIcon(screen, poi.category, isHighlightedLoot);
 
     const showLabel = poi.kind === "business"
       && ((isHighlightedLoot && scale >= 0.3) || (!hasActiveLootFilter && scale >= 0.52));

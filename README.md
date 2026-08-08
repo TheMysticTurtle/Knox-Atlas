@@ -11,9 +11,10 @@ The guiding idea is deliberately simple: show the map the installed game knows a
 - Reads the installed Steam map and latest local save metadata.
 - Renders the game-derived vector map on a responsive canvas.
 - Shows towns, areas, street names, landmark labels, and business/activity zones.
-- Uses Project Zomboid's own building-category colors.
+- Uses Project Zomboid's own building-category colors with an expandable legend.
 - Filters broad, likely loot categories such as food, medical, tools, security, fuel, and water.
-- Shows possible vehicle spawn zones.
+- Shows possible drivable vehicle pools grouped as cars, vans, trucks/utility, and emergency/service, with expected spawn quality when the game defines it.
+- Provides expandable subtype controls and distinct map icons for businesses, loot hints, and vehicles.
 - Searches names and jumps to exact X/Y coordinates.
 - Displays world, compiled-cell, and chunk coordinates under the pointer.
 - Supports manual “my position” and destination markers with direct tile distance.

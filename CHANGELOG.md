@@ -18,6 +18,12 @@ All notable user-facing changes will be recorded here. The project follows the s
 - One-click Windows development launcher.
 - GitHub Actions verification and draft Windows release pipelines.
 - NSIS installer packaging and a best-effort portable test archive.
+- Scalable category pictograms for business, loot, resource, and vehicle zones.
+- Expandable per-type filters, including gas stations as both a business subtype and likely fuel source.
+- Expandable building-color legend with individual building-type visibility.
+- Larger interface, town, area, and street typography with overview-aware town label sizing.
+- Focused drivable vehicle-pool filters for cars/SUVs, vans/shuttles, trucks/utility, and emergency/service vehicles.
+- Expected spawn-pool quality and part-damage context from the game's vehicle distribution definitions; obvious wreck/traffic pools are excluded.
 
 ### Changed
 

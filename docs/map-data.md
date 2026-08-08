@@ -107,7 +107,20 @@ The filter is useful for navigation, but container distributions and generated c
 
 ## Vehicles
 
-`ParkingStall` zones indicate possible parked or spawned vehicles. Names can hint at a pool—police, ambulance, sport, farm, ranger, postal, and others—but actual presence and condition vary.
+`ParkingStall` zones indicate possible parked or spawned vehicles. The game's `media/lua/shared/VehicleZoneDefinition.lua` maps those zone names to weighted vehicle scripts and sometimes supplies `baseVehicleQuality` and `chanceToPartDamage`.
+
+Knox Atlas uses those definitions to expose focused, overlapping pool filters:
+
+- Cars & SUVs
+- Vans & shuttles
+- Trucks & utility
+- Emergency & service
+
+Obvious wreck-only sources (`burnt`, traffic-jam, and junkyard pools) are excluded. A generic parking pool may legitimately appear in more than one group because it can spawn more than one vehicle body type.
+
+The quality and damage values describe the **spawn distribution**, not the condition of a live vehicle. The selected-point detail uses language such as lower/standard/higher expected quality and retains the configured part-damage percentage.
+
+The inspected multiplayer client's `vehicles.db` is a valid SQLite database with an `id`, world position, and serialized `data` blob schema, but it contains zero local vehicle rows because the server owns that state. Keys are separate serialized items in world/container state, so this client has no reliable vehicle-to-key coordinate relationship to draw. A key line requires a future single-player save decoder or an authorized server integration.
 
 There are thousands of these zones, so the renderer enables them only at a useful zoom level and culls off-screen points.
 

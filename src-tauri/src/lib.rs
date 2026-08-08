@@ -98,6 +98,9 @@ struct Poi {
     height: f32,
     source: String,
     details: String,
+    vehicle_types: Vec<String>,
+    expected_quality: Option<f32>,
+    part_damage_chance: Option<f32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -479,7 +482,120 @@ fn poi_category(value: &str) -> &'static str {
     }
 }
 
-fn parse_pois(path: &Path, bounds: &mut Bounds) -> Result<Vec<Poi>, String> {
+#[derive(Debug, Default, Clone)]
+struct VehicleZoneSpec {
+    scripts: Vec<String>,
+    base_quality: Option<f32>,
+    part_damage_chance: Option<f32>,
+    includes_normal_pool: bool,
+}
+
+fn is_drivable_vehicle_zone(value: &str) -> bool {
+    let value = value.trim().to_ascii_lowercase();
+    !value.contains("burnt")
+        && !value.contains("trafficjam")
+        && !value.contains("traffic jam")
+        && !value.contains("junkyard")
+}
+
+fn parse_vehicle_zone_definitions(path: &Path) -> HashMap<String, VehicleZoneSpec> {
+    let Ok(source) = fs::read_to_string(path) else {
+        return HashMap::new();
+    };
+    let section_pattern = Regex::new(r"VehicleZoneDistribution\.([A-Za-z0-9_]+)\s*=\s*\{\s*\}\s*;")
+        .expect("valid vehicle section expression");
+    let vehicle_pattern =
+        Regex::new(r#"\.vehicles\[\"([^\"]+)\"\]"#).expect("valid vehicle expression");
+    let quality_pattern = Regex::new(r"\.baseVehicleQuality\s*=\s*([0-9.]+)")
+        .expect("valid vehicle quality expression");
+    let damage_pattern = Regex::new(r"\.chanceToPartDamage\s*=\s*([0-9.]+)")
+        .expect("valid vehicle damage expression");
+    let normal_pattern =
+        Regex::new(r"\.chanceToSpawnNormal\s*=\s*([0-9.]+)").expect("valid normal pool expression");
+    let sections: Vec<_> = section_pattern.captures_iter(&source).collect();
+    let mut definitions = HashMap::new();
+
+    for (index, captures) in sections.iter().enumerate() {
+        let Some(section) = captures.get(0) else {
+            continue;
+        };
+        let name = captures
+            .get(1)
+            .map(|value| value.as_str().to_ascii_lowercase())
+            .unwrap_or_default();
+        let end = sections
+            .get(index + 1)
+            .and_then(|next| next.get(0))
+            .map(|next| next.start())
+            .unwrap_or(source.len());
+        let block = &source[section.end()..end];
+        let scripts = vehicle_pattern
+            .captures_iter(block)
+            .filter_map(|capture| capture.get(1))
+            .map(|value| value.as_str().to_string())
+            .collect();
+        let number = |pattern: &Regex| {
+            pattern
+                .captures(block)
+                .and_then(|capture| capture.get(1))
+                .and_then(|value| value.as_str().parse::<f32>().ok())
+        };
+        definitions.insert(
+            name,
+            VehicleZoneSpec {
+                scripts,
+                base_quality: number(&quality_pattern),
+                part_damage_chance: number(&damage_pattern),
+                includes_normal_pool: number(&normal_pattern).is_some_and(|chance| chance > 0.0),
+            },
+        );
+    }
+
+    let normal_scripts = definitions
+        .get("parkingstall")
+        .map(|definition| definition.scripts.clone())
+        .unwrap_or_default();
+    for definition in definitions.values_mut() {
+        if definition.includes_normal_pool {
+            definition.scripts.extend(normal_scripts.iter().cloned());
+        }
+    }
+    definitions
+}
+
+fn vehicle_types(spec: &VehicleZoneSpec, zone_name: &str) -> Vec<String> {
+    let mut types = Vec::new();
+    let scripts = spec.scripts.join(" ").to_ascii_lowercase();
+    let zone_name = zone_name.to_ascii_lowercase();
+
+    if scripts.contains("car") || scripts.contains("suv") || scripts.contains("offroad") {
+        types.push("cars".into());
+    }
+    if scripts.contains("van") || scripts.contains("ambulance") {
+        types.push("vans".into());
+    }
+    if scripts.contains("truck") || scripts.contains("tractor") {
+        types.push("trucks".into());
+    }
+    if ["police", "ambulance", "fire", "prison", "ranger", "army"]
+        .iter()
+        .any(|name| zone_name.contains(name))
+    {
+        types.push("emergency".into());
+    }
+    if types.is_empty() {
+        types.push("cars".into());
+    }
+    types.sort();
+    types.dedup();
+    types
+}
+
+fn parse_pois(
+    path: &Path,
+    vehicle_definitions_path: &Path,
+    bounds: &mut Bounds,
+) -> Result<Vec<Poi>, String> {
     let source =
         fs::read_to_string(path).map_err(|error| format!("Could not read game zones: {error}"))?;
     let pattern = Regex::new(
@@ -488,6 +604,11 @@ fn parse_pois(path: &Path, bounds: &mut Bounds) -> Result<Vec<Poi>, String> {
     .expect("valid zone expression");
     let mut pois = Vec::new();
     let mut seen_businesses = HashSet::new();
+    let vehicle_definitions = parse_vehicle_zone_definitions(vehicle_definitions_path);
+    let default_vehicle_spec = vehicle_definitions
+        .get("parkingstall")
+        .cloned()
+        .unwrap_or_default();
 
     for capture in pattern.captures_iter(&source) {
         let name = capture.get(1).map(|value| value.as_str()).unwrap_or("");
@@ -517,7 +638,7 @@ fn parse_pois(path: &Path, bounds: &mut Bounds) -> Result<Vec<Poi>, String> {
             y: y + height / 2.0,
         };
 
-        let (kind, category, label, details) = match zone_type {
+        let (kind, category, label, details, vehicle_types, expected_quality, part_damage_chance) = match zone_type {
             "ZombiesType" if !name.trim().is_empty() => {
                 let dedupe_key = format!(
                     "{}:{}:{}:{}",
@@ -538,19 +659,61 @@ fn parse_pois(path: &Path, bounds: &mut Bounds) -> Result<Vec<Poi>, String> {
                         "Game-defined activity zone. {} loot may be nearby; contents are not guaranteed.",
                         friendly_name(category)
                     ),
+                    Vec::new(),
+                    None,
+                    None,
                 )
             }
             "ParkingStall" => {
+                if !is_drivable_vehicle_zone(name) {
+                    continue;
+                }
                 let label = if name.trim().is_empty() {
                     "Vehicle spawn".into()
                 } else {
                     format!("{} vehicle zone", friendly_name(name))
                 };
+                let zone_key = if name.trim().is_empty() {
+                    "parkingstall".to_string()
+                } else {
+                    name.trim().to_ascii_lowercase()
+                };
+                let spec = vehicle_definitions
+                    .get(&zone_key)
+                    .unwrap_or(&default_vehicle_spec);
+                let types = vehicle_types(spec, name);
+                let type_summary = types
+                    .iter()
+                    .map(|value| friendly_name(value))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let quality_summary = spec.base_quality.map(|quality| {
+                    if quality >= 1.0 {
+                        "higher"
+                    } else if quality < 0.7 {
+                        "lower"
+                    } else {
+                        "standard"
+                    }
+                });
+                let mut details = format!(
+                    "Game-defined possible drivable spawn area for {type_summary}. This is a spawn pool, not a live vehicle."
+                );
+                if let Some(quality) = quality_summary {
+                    details.push_str(&format!(" Expected spawn quality: {quality}."));
+                }
+                if let Some(chance) = spec.part_damage_chance {
+                    details.push_str(&format!(" Part-damage chance: {chance:.0}%."));
+                }
+                details.push_str(" Actual presence, model, condition, and keys vary by save. This source does not expose key locations.");
                 (
                     "vehicle",
                     "vehicles",
                     label,
-                    "Game-defined parking or vehicle spawn area. Vehicle presence and condition vary by save.".into(),
+                    details,
+                    types,
+                    spec.base_quality,
+                    spec.part_damage_chance,
                 )
             }
             "LootZone" => (
@@ -558,12 +721,18 @@ fn parse_pois(path: &Path, bounds: &mut Bounds) -> Result<Vec<Poi>, String> {
                 poi_category(name),
                 if name.trim().is_empty() { "Loot zone".into() } else { friendly_name(name) },
                 "Explicit game loot zone. Actual contents still depend on sandbox settings and random generation.".into(),
+                Vec::new(),
+                None,
+                None,
             ),
             "WaterZone" => (
                 "resource",
                 "water",
                 "Water access".into(),
                 "Game-defined water zone.".into(),
+                Vec::new(),
+                None,
+                None,
             ),
             _ => continue,
         };
@@ -580,6 +749,9 @@ fn parse_pois(path: &Path, bounds: &mut Bounds) -> Result<Vec<Poi>, String> {
             height,
             source: format!("objects.lua · {zone_type}"),
             details,
+            vehicle_types,
+            expected_quality,
+            part_damage_chance,
         });
     }
 
@@ -677,7 +849,15 @@ fn load_snapshot() -> Result<GameSnapshot, String> {
             .join("MapLabel.json"),
         &mut bounds,
     )?;
-    let pois = parse_pois(&map_root.join("objects.lua"), &mut bounds)?;
+    let pois = parse_pois(
+        &map_root.join("objects.lua"),
+        &game_root
+            .join("media")
+            .join("lua")
+            .join("shared")
+            .join("VehicleZoneDefinition.lua"),
+        &mut bounds,
+    )?;
     let map_info = read_key_value(&map_root.join("map.info"));
     let mut warnings = Vec::new();
 
@@ -777,7 +957,9 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{find_game_root, friendly_name, load_snapshot, poi_category};
+    use super::{
+        find_game_root, friendly_name, is_drivable_vehicle_zone, load_snapshot, poi_category,
+    };
 
     #[test]
     fn classifies_game_zones_into_honest_broad_categories() {
@@ -796,6 +978,16 @@ mod tests {
     }
 
     #[test]
+    fn excludes_obvious_wreck_and_traffic_vehicle_pools() {
+        assert!(!is_drivable_vehicle_zone("burnt"));
+        assert!(!is_drivable_vehicle_zone("rtrafficjamw"));
+        assert!(!is_drivable_vehicle_zone("junkyard"));
+        assert!(is_drivable_vehicle_zone(""));
+        assert!(is_drivable_vehicle_zone("police"));
+        assert!(is_drivable_vehicle_zone("sport"));
+    }
+
+    #[test]
     fn reads_an_installed_game_when_available() {
         if find_game_root().is_none() {
             return;
@@ -806,5 +998,20 @@ mod tests {
         assert!(!snapshot.streets.is_empty());
         assert!(!snapshot.labels.is_empty());
         assert!(snapshot.counts.buildings > 1_000);
+        let vehicles: Vec<_> = snapshot
+            .pois
+            .iter()
+            .filter(|poi| poi.kind == "vehicle")
+            .collect();
+        assert!(!vehicles.is_empty());
+        assert!(vehicles.iter().all(|poi| !poi.vehicle_types.is_empty()));
+        assert!(vehicles.iter().any(|poi| poi.expected_quality.is_some()));
+        assert!(vehicles.iter().all(|poi| {
+            let label = poi.label.to_ascii_lowercase();
+            !label.contains("burnt")
+                && !label.contains("traffic jam")
+                && !label.contains("trafficjam")
+                && !label.contains("junkyard")
+        }));
     }
 }

@@ -30,6 +30,12 @@ All notable user-facing changes will be recorded here. The project follows the s
 ### Changed
 
 - Likely-loot filters now highlight matching zones and fade unrelated business zones so selection is visually clear.
+- Town labels receive a final foreground pass so dense POI and vehicle markers cannot cover them.
+- Main layer switches share one aligned control column, and map controls use larger SVG icons with hover/focus tooltips.
+- Raw `building=yes` map metadata is labeled **Unclassified buildings** instead of appearing as a bogus `yes` category.
+- The water filter says **Water zones** and explains that its count covers authored zone records while waterways remain part of the basemap.
+- Coordinate copying now belongs to the stable clicked-location card instead of the continuously changing pointer HUD.
+- Position and destination use distinct colored actions plus a route-status card with coordinates, clear controls, and direct distance.
 
 ### Known limitations
 

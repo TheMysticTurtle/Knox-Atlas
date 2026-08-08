@@ -16,6 +16,9 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Focus the vehicle layer on drivable spawn pools and surface expected pool quality/damage metadata.
 - [x] Enlarge the coordinate HUD and add one-click coordinate copying.
 - [x] Enlarge click-detail cards and align map controls in the upper-left.
+- [x] Keep town labels above markers, align layer switches, and add larger tooltipped map controls.
+- [x] Replace raw `building=yes` metadata with an honest unclassified-building label and clarify water-zone counts.
+- [x] Move coordinate copying to stable clicked-place details and add explicit position/destination status and clear controls.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 
@@ -27,6 +30,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [ ] Let the user choose a non-standard game/save path when discovery fails.
 - [ ] Improve business-name normalization and category coverage from real-world feedback.
 - [ ] Add an explicit map/update compatibility warning when required source shapes change.
+- [ ] Investigate save-backed claimed safehouses and randomized survivor houses; never infer them from ordinary residential polygons.
 - [ ] Run the GitHub packaging workflow and smoke-test its NSIS and portable artifacts on a second machine.
 
 ## Later — mod and multiplayer support
@@ -43,6 +47,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - Exact live container inventories.
 - Reading process memory.
 - Editing Project Zomboid saves.
+- A hosted/shared browser map until the local companion map is polished and dependable.
 - Full road routing before the map has suitable navigation topology.
 - A database/cache layer before startup and render profiling justifies one.
 
@@ -57,6 +62,8 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - Added the first working interactive atlas and visual baseline in `ec22f08` (`feat(map): add interactive local atlas interface`).
 - Corrected likely-loot filter emphasis in `8432027` (`fix(filters): make loot categories visually distinct`).
 - Added the initial project handbook and replaced the scaffold README.
+- Added scalable POI controls, subtype filters, drivable vehicle-pool context, larger coordinate/detail text, and copyable coordinates.
+- Polished map hierarchy and controls: town labels stay above markers, switches align, map buttons are larger and self-describing, and ambiguous source labels are explained.
 
 ## Definition of done for a feature
 

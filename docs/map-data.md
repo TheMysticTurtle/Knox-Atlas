@@ -101,9 +101,11 @@ Broad categories are inferred from explicit zone names:
 - Tools/materials: factories, construction, farms, logging, and related activities.
 - Security/services: police, prison, military, and survivalist zones.
 - Fuel: named gas-station brands.
-- Water: water-zone metadata.
+- Water zones: 49 explicit `WaterZone` records in the current installed map. These are authored activity/resource zones, not an inventory of every usable shoreline, well, sink, or other water source. The basemap separately draws hundreds of water polygons from `worldmap.xml`.
 
 The filter is useful for navigation, but container distributions and generated contents remain governed by the game, sandbox settings, and current save state.
+
+The raw vector source also uses `building=yes` when a building has no more specific display category. Knox Atlas presents that value as **Unclassified buildings**; `yes` is not a gameplay building type.
 
 ## Vehicles
 

@@ -298,9 +298,17 @@ kbd {
   background: var(--accent);
 }
 
+.top-actions,
 .coordinate-form {
   display: flex;
   align-items: center;
+}
+
+.top-actions {
+  gap: 8px;
+}
+
+.coordinate-form {
   gap: 6px;
 }
 
@@ -350,6 +358,42 @@ kbd {
   background: var(--accent-bright);
 }
 
+.save-view-button {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #aeb9b3;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.save-view-button:hover {
+  border-color: rgba(217, 155, 85, 0.42);
+  background: rgba(217, 155, 85, 0.1);
+  color: #e2b477;
+}
+
+.save-view-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.save-view-button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
 .source-state {
   display: flex;
   align-items: center;
@@ -367,7 +411,7 @@ kbd {
 .source-state strong {
   overflow: hidden;
   color: #cad3ce;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -376,7 +420,7 @@ kbd {
 .source-state small {
   overflow: hidden;
   color: var(--faint);
-  font: 400 8px DM Mono, monospace;
+  font: 400 9px DM Mono, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1035,13 +1079,13 @@ kbd {
 .save-context .eyebrow {
   margin: 0;
   color: #8b6439;
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .save-context strong {
   max-width: 310px;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1049,7 +1093,7 @@ kbd {
 
 .save-context > span:last-child {
   color: #77766c;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .selection-card {

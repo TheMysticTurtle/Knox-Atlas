@@ -71,7 +71,7 @@ Business/activity and spawn-zone metadata can suggest useful loot or possible ve
 
 **Status:** accepted.
 
-Named custom markers are stored as a small, versioned JSON record in the desktop WebView's app-owned local storage. Records are validated and capped at 100 when loaded. Manual position and destination remain session-only because they describe temporary navigation state.
+Named custom markers, their palette keys, and one saved camera position/zoom are stored as small, versioned JSON records in the desktop WebView's app-owned local storage. Marker records are validated and capped at 100 when loaded; older records without a color safely default to amber. Manual position and destination remain session-only because they describe temporary navigation state.
 
 Knox Atlas never writes markers into a Project Zomboid save. A future move to a settings file or database should preserve that boundary and include an explicit migration from the versioned browser-storage key.
 

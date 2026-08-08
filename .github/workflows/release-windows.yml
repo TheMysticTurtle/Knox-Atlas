@@ -1,4 +1,4 @@
-name: Publish Windows preview
+name: Publish Windows release
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   package:
-    name: Build installer and portable preview
+    name: Build installer and portable release
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -43,14 +43,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: knox-atlas-v__VERSION__
+          tagName: v__VERSION__
           releaseName: Knox Atlas v__VERSION__
           releaseBody: |
-            Windows preview build for friendly testing.
+            Knox Atlas is a read-only Project Zomboid companion map built from the game data installed on your computer.
 
-            The installer is the recommended download. The portable archive is best-effort and requires the Microsoft WebView2 runtime already present on the test machine.
+            The installer is the recommended download. The portable archive is best-effort and requires the Microsoft WebView2 runtime already present on the computer.
           releaseDraft: true
-          prerelease: true
+          prerelease: false
           generateReleaseNotes: true
           args: --bundles nsis
           uploadWorkflowArtifacts: true
@@ -76,4 +76,4 @@ jobs:
         shell: powershell
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "knox-atlas-v${{ steps.tauri.outputs.appVersion }}" "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip" --clobber
+        run: gh release upload "v${{ steps.tauri.outputs.appVersion }}" "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip" --clobber

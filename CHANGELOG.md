@@ -1,8 +1,12 @@
 # Changelog
 
-All notable user-facing changes will be recorded here. The project follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) while it is pre-release.
+All notable user-facing changes will be recorded here. The project follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic versioning.
 
 ## [Unreleased]
+
+No unreleased changes.
+
+## [0.1.0] - 2026-08-08
 
 ### Added
 
@@ -26,7 +30,8 @@ All notable user-facing changes will be recorded here. The project follows the s
 - Expected spawn-pool quality and part-damage context from the game's vehicle distribution definitions; obvious wreck/traffic pools are excluded.
 - Larger coordinate readout with one-click `X, Y` clipboard copy.
 - Larger selected-point information card and a horizontal upper-left map-control strip.
-- Up to 100 locally persisted named markers with focus, rename, remove, and collapsible-list actions.
+- Persistent saved map center and zoom with a top-bar save action and target-button restore.
+- Up to 100 locally persisted named markers with selectable colors, emphasized foreground rendering, focus, rename, remove, and collapsible-list actions.
 
 ### Changed
 
@@ -38,6 +43,7 @@ All notable user-facing changes will be recorded here. The project follows the s
 - Coordinate copying now belongs to the stable clicked-location card instead of the continuously changing pointer HUD.
 - Position and destination use distinct colored actions plus a route-status card with coordinates, clear controls, and direct distance.
 - Selected-place actions now pair set/clear controls for position and destination, followed by marker and coordinate-copy actions.
+- Layer descriptions now wrap to their full text while counts and switches remain aligned.
 
 ### Known limitations
 

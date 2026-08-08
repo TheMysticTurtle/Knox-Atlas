@@ -83,6 +83,7 @@ type FilterKey =
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = Street & { path: Path2D; bounds: Bounds; anchor: Point; angle: number };
 type SearchEntry = { label: string; meta: string; point: Point; poi?: Poi };
+type SavedMapView = Point & { scale: number };
 type CustomMarkerColor = "amber" | "teal" | "red" | "blue" | "violet" | "green" | "white";
 type CustomMarker = Point & { id: string; label: string; color: CustomMarkerColor };
 type FilterIcon = PoiCategory | "towns" | "streets" | "buildings";
@@ -120,6 +121,7 @@ const mapColors = {
 } as const;
 
 const customMarkerStorageKey = "knox-atlas.custom-markers.v1";
+const savedMapViewStorageKey = "knox-atlas.saved-map-view.v1";
 const customMarkerLimit = 100;
 const customMarkerPalette: Record<CustomMarkerColor, string> = {
   amber: "#d79a4f",
@@ -178,11 +180,17 @@ app.innerHTML = `
         </label>
         <div id="search-results" class="search-results" hidden></div>
       </div>
-      <form id="coordinate-form" class="coordinate-form" aria-label="Go to coordinates">
-        <label><span>X</span><input id="coordinate-x" inputmode="decimal" placeholder="10820" aria-label="X coordinate" /></label>
-        <label><span>Y</span><input id="coordinate-y" inputmode="decimal" placeholder="9650" aria-label="Y coordinate" /></label>
-        <button type="submit">Go</button>
-      </form>
+      <div class="top-actions">
+        <form id="coordinate-form" class="coordinate-form" aria-label="Go to coordinates">
+          <label><span>X</span><input id="coordinate-x" inputmode="decimal" placeholder="10820" aria-label="X coordinate" /></label>
+          <label><span>Y</span><input id="coordinate-y" inputmode="decimal" placeholder="9650" aria-label="Y coordinate" /></label>
+          <button type="submit">Go</button>
+        </form>
+        <button id="save-map-view" class="save-view-button" type="button" title="Save the current map center and zoom" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 4.5h12v15l-6-3.5-6 3.5z"/></svg>
+          <span id="save-view-label">Save view</span>
+        </button>
+      </div>
       <div class="source-state">
         <span class="status-light"></span>
         <span><strong id="source-status">Reading local data</strong><small id="build-status">Project Zomboid</small></span>
@@ -339,6 +347,7 @@ let selectedPoint: Point | undefined;
 let selectedPoi: Poi | undefined;
 let currentPosition: Point | undefined;
 let destination: Point | undefined;
+let savedMapView = loadSavedMapView();
 let customMarkers = loadCustomMarkers();
 let editingMarkerId: string | undefined;
 let selectedCustomMarkerId: string | undefined;
@@ -1122,6 +1131,37 @@ function persistCustomMarkers(): void {
   }
 }
 
+function loadSavedMapView(): SavedMapView | undefined {
+  try {
+    const value = JSON.parse(localStorage.getItem(savedMapViewStorageKey) ?? "null") as Partial<SavedMapView> | null;
+    if (
+      value
+      && typeof value.x === "number"
+      && typeof value.y === "number"
+      && typeof value.scale === "number"
+      && Number.isFinite(value.x)
+      && Number.isFinite(value.y)
+      && value.scale >= 0.022
+      && value.scale <= 3.2
+    ) return { x: value.x, y: value.y, scale: value.scale };
+  } catch {
+    // Ignore unavailable or invalid app storage and use the game-save view.
+  }
+  return undefined;
+}
+
+function saveMapView(): void {
+  savedMapView = { x: center.x, y: center.y, scale };
+  try {
+    localStorage.setItem(savedMapViewStorageKey, JSON.stringify(savedMapView));
+  } catch {
+    // The saved view still works for this session if storage is unavailable.
+  }
+  const label = must<HTMLElement>("#save-view-label");
+  label.textContent = "Saved";
+  window.setTimeout(() => { label.textContent = "Save view"; }, 1000);
+}
+
 function queueRender(): void {
   if (renderQueued) return;
   renderQueued = true;
@@ -1151,8 +1191,10 @@ function fitMap(): void {
 }
 
 function resetView(): void {
-  center = { ...snapshot.initialCenter };
-  scale = 0.24;
+  center = savedMapView
+    ? { x: savedMapView.x, y: savedMapView.y }
+    : { ...snapshot.initialCenter };
+  scale = savedMapView?.scale ?? 0.24;
   queueRender();
 }
 
@@ -1414,6 +1456,7 @@ function wireInteractions(): void {
   must<HTMLButtonElement>("#zoom-in").addEventListener("click", () => zoomAt(1.35));
   must<HTMLButtonElement>("#zoom-out").addEventListener("click", () => zoomAt(1 / 1.35));
   must<HTMLButtonElement>("#reset-view").addEventListener("click", resetView);
+  must<HTMLButtonElement>("#save-map-view").addEventListener("click", saveMapView);
   must<HTMLButtonElement>("#fit-map").addEventListener("click", fitMap);
   must<HTMLButtonElement>("#copy-selection-coordinates").addEventListener("click", copyCoordinates);
   must<HTMLButtonElement>("#close-selection").addEventListener("click", () => {
@@ -1556,6 +1599,7 @@ function presentSnapshot(data: GameSnapshot): void {
   renderFilters(data);
   renderCustomMarkers();
   wireInteractions();
+  must<HTMLButtonElement>("#save-map-view").disabled = false;
 
   must<HTMLElement>("#source-status").textContent = "Local map ready";
   must<HTMLElement>("#build-status").textContent = data.steamBuildId ? `Steam build ${data.steamBuildId}` : data.gameTitle;

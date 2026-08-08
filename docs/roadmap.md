@@ -19,7 +19,8 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Keep town labels above markers, align layer switches, and add larger tooltipped map controls.
 - [x] Replace raw `building=yes` metadata with an honest unclassified-building label and clarify water-zone counts.
 - [x] Move coordinate copying to stable clicked-place details and add explicit position/destination status and clear controls.
-- [x] Add locally persisted, named custom markers with focus, rename, remove, and collapse actions.
+- [x] Add locally persisted, colored custom markers with emphasized foreground rendering and focus, rename, remove, and collapse actions.
+- [x] Add a persistent saved camera center/zoom and make the target control restore it.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 
@@ -66,6 +67,9 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - Added scalable POI controls, subtype filters, drivable vehicle-pool context, larger coordinate/detail text, and copyable coordinates.
 - Polished map hierarchy and controls: town labels stay above markers, switches align, map buttons are larger and self-describing, and ambiguous source labels are explained.
 - Added up to 100 app-owned named markers that persist between launches without touching game or save data.
+- Added per-marker colors and a larger final annotation pass so user-authored points remain visible across the map.
+- Added a minimal saved-view bookmark containing only world X/Y and zoom.
+- Established `0.1.0` as the first public release baseline across the desktop, frontend, changelog, and packaging workflow.
 
 ## Definition of done for a feature
 

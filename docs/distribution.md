@@ -32,13 +32,13 @@ NSIS is the recommended format for early testers: one familiar executable, curre
 Two workflows live in `.github/workflows/`:
 
 - `ci.yml` runs frontend compilation, Rust formatting, and Rust tests on pushes to `main` and pull requests.
-- `release-windows.yml` is a manual release workflow. It builds the NSIS installer, creates/updates a draft prerelease named from `tauri.conf.json`, uploads build artifacts, and adds a best-effort portable ZIP.
+- `release-windows.yml` is a manual release workflow. It builds the NSIS installer, creates/updates a draft GitHub release named from `tauri.conf.json`, uploads build artifacts, and adds a best-effort portable ZIP.
 
-To publish a test build:
+To publish a release:
 
-1. Bump the version in `package.json` and `src-tauri/tauri.conf.json` together.
+1. Keep the version synchronized in `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and `src-tauri/tauri.conf.json`.
 2. Merge/push the intended code to GitHub.
-3. Open **Actions → Publish Windows preview → Run workflow**.
+3. Open **Actions → Publish Windows release → Run workflow**.
 4. Download and smoke-test both artifacts from the draft release.
 5. Edit the generated notes and publish the draft when ready.
 
@@ -49,7 +49,7 @@ Repeated runs at the same app version update the same draft tag. Bump the versio
 | Format | Recommendation | Notes |
 | --- | --- | --- |
 | NSIS `-setup.exe` | Preferred | Normal install/uninstall experience; can bootstrap WebView2 when required. |
-| Portable ZIP | Friendly testing only | Contains the plain app executable and notes; Tauri does not officially support portable mode. |
+| Portable ZIP | Optional | Contains the plain app executable and notes; Tauri does not officially support portable mode. |
 
 Both builds are currently unsigned. Windows SmartScreen may warn testers because the publisher has no signing reputation. This is acceptable for a few informed testers; obtain a Windows code-signing certificate before broad public distribution.
 

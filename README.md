@@ -2,6 +2,8 @@
 
 > A modern, read-only companion map that renders the Project Zomboid map already installed on your computer.
 
+**Current release:** 0.1.0 for Windows
+
 ![Knox Atlas map interface](docs/images/knox-atlas-ui-baseline.png)
 
 Knox Atlas turns Project Zomboid's own vector map, labels, streets, building metadata, and activity zones into a fast desktop atlas. It is designed for finding towns, roads, businesses, likely resources, and useful coordinates without modifying the game or maintaining a separate hand-authored copy of Knox Country.
@@ -30,10 +32,12 @@ The current goal is intentionally focused: make the local map excellent, dependa
 
 - Jump directly to an X/Y coordinate.
 - Read world, compiled-cell, and chunk coordinates under the pointer.
+- Save the current center and zoom, then return to that view with the target map control.
 - Click any point to open stable X/Y, cell, and chunk details, then copy that selected coordinate with one click.
 - Place distinct **YOU**, destination, and selected-coordinate markers; set or clear either route point from the selected-place card.
 - See direct tile distance between the manual position and destination.
-- Save up to 100 named custom markers locally, then focus, rename, remove, or collapse their map card.
+- Save up to 100 named custom markers locally, choose their colors, and keep their emphasized dots above the game-derived map.
+- Focus, rename, remove, or collapse saved markers from a compact map card.
 
 ### Desktop-friendly UI
 
@@ -60,7 +64,7 @@ Random generation, sandbox settings, mods, player activity, and the current save
 
 ## Quick start
 
-### Windows preview
+### Windows app
 
 With the development prerequisites installed, double-click:
 
@@ -138,8 +142,8 @@ Those limitations are deliberate. A feature moves into the map only when its sou
 - [Map data notes](docs/map-data.md) — source files, coordinate systems, inference rules, and known limits.
 - [Roadmap and progress](docs/roadmap.md) — living backlog and implementation history.
 - [Development guide](docs/development.md) — commands, branch conventions, checks, and maintainer notes.
-- [Windows distribution](docs/distribution.md) — launcher, installer, portable preview, and release workflow.
-- [Changelog](CHANGELOG.md) — user-visible changes during the pre-release period.
+- [Windows distribution](docs/distribution.md) — launcher, installer, portable release, and release workflow.
+- [Changelog](CHANGELOG.md) — versioned user-visible release history.
 
 ## Design principles
 

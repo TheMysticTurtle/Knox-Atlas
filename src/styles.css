@@ -944,7 +944,7 @@ kbd {
   top: 20px;
   left: 20px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 5px;
 }
 
@@ -954,9 +954,9 @@ kbd {
 }
 
 .tool-separator {
-  width: 28px;
-  height: 1px;
-  margin: 3px 5px;
+  width: 1px;
+  height: 28px;
+  margin: 5px 3px;
   background: rgba(50, 52, 47, 0.18);
 }
 
@@ -1011,8 +1011,8 @@ kbd {
   z-index: 8;
   bottom: 64px;
   left: 20px;
-  width: min(340px, calc(100% - 40px));
-  padding: 17px;
+  width: min(410px, calc(100% - 40px));
+  padding: 20px;
   border: 1px solid rgba(230, 237, 231, 0.12);
   border-radius: 10px;
   background: rgba(25, 33, 31, 0.96);
@@ -1023,21 +1023,21 @@ kbd {
 
 .selection-card .eyebrow {
   display: block;
-  margin-bottom: 5px;
-  font-size: 8px;
+  margin-bottom: 7px;
+  font-size: 10px;
 }
 
 .selection-card > strong {
   display: block;
   padding-right: 22px;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 650;
 }
 
 .selection-card p {
-  margin: 6px 0 13px;
+  margin: 8px 0 16px;
   color: #8d9b94;
-  font: 400 9px/1.5 DM Mono, monospace;
+  font: 400 12px/1.55 DM Mono, monospace;
 }
 
 .selection-close {
@@ -1064,12 +1064,12 @@ kbd {
 
 .selection-actions button {
   flex: 1;
-  padding: 8px 9px;
+  padding: 10px 11px;
   border: 1px solid rgba(217, 155, 85, 0.28);
   border-radius: 6px;
   background: rgba(217, 155, 85, 0.08);
   color: #e5b477;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }

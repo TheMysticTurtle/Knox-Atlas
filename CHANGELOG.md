@@ -25,6 +25,7 @@ All notable user-facing changes will be recorded here. The project follows the s
 - Focused drivable vehicle-pool filters for cars/SUVs, vans/shuttles, trucks/utility, and emergency/service vehicles.
 - Expected spawn-pool quality and part-damage context from the game's vehicle distribution definitions; obvious wreck/traffic pools are excluded.
 - Larger coordinate readout with one-click `X, Y` clipboard copy.
+- Larger selected-point information card and a horizontal upper-left map-control strip.
 
 ### Changed
 

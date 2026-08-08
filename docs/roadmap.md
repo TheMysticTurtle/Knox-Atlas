@@ -15,6 +15,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Add scalable POI icons, larger map/menu typography, a building legend, and hierarchical subfilters.
 - [x] Focus the vehicle layer on drivable spawn pools and surface expected pool quality/damage metadata.
 - [x] Enlarge the coordinate HUD and add one-click coordinate copying.
+- [x] Enlarge click-detail cards and align map controls in the upper-left.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 

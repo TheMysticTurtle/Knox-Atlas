@@ -12,12 +12,11 @@
   <img src="docs/images/knox-atlas-ui-baseline.png" alt="Knox Atlas interactive map interface" width="1100">
 </p>
 
-Knox Atlas is a **Project Zomboid interactive map**. It is vector based built from the game's map data already
-installed on your computer. Use it to find towns, streets, businesses, likely resources, building
-types, vehicle zones, and useful world coordinates without installing a game mod or maintaining a
-separate copy of Knox Country.
+Knox Atlas is a **Project Zomboid interactive map** built from the vector map data installed with the
+game. It can help you find towns, streets, businesses, likely resources, building types, vehicle
+zones, and useful world coordinates.
 
-Most importantly, **Knox Atlas is read-only**. It reads the game installation and limited save
+**Knox Atlas is read-only.** It reads the game installation and limited save
 metadata, but it never edits Project Zomboid or writes into a save.
 
 ---
@@ -30,7 +29,7 @@ metadata, but it never edits Project Zomboid or writes into a save.
   zones, or jump directly to an X/Y coordinate.
 - 🏪 **Expandable filters** — show only the businesses, building types, likely-loot categories, or
   vehicle pools you care about.
-- 🎒 **Honest loot hints** — food, medical, tools, security, fuel, and water layers are clearly
+- 🎒 **Likely-loot hints** — food, medical, tools, security, fuel, and water layers are
   presented as game-authored zones rather than guaranteed live inventory.
 - 🚙 **Drivable vehicle pools** — inspect possible car, van, truck, utility, and emergency spawn
   areas with game-defined pool context when available.
@@ -38,7 +37,7 @@ metadata, but it never edits Project Zomboid or writes into a save.
   the map.
 - 🧭 **Distance Measurement** — set a manual position and destination, see direct tile distance, copy
   stable coordinates, and bookmark a favorite center/zoom view.
-- 🖥️ **Desktop companion UI** — designed for a second monitor or a quick alt-tab while playing.
+- 🖥️ **Desktop companion UI** — can remain open on a second monitor or be checked while playing.
 
 ## ⬇️ Releases
 
@@ -167,14 +166,14 @@ Click a location and choose **Add marker** to give it a name and color. Markers 
 own local application storage, never in the Project Zomboid save. **Save view** remembers the current
 center and zoom; the target map control returns to it later.
 
-## 🗺️ What the map is—and is not—telling you
+## 🗺️ Understanding the map layers
 
-Knox Atlas keeps source certainty visible instead of pretending every hint is live save data.
+Knox Atlas distinguishes direct map data, inferred zones, and app-owned information.
 
 | Layer | What it means |
 | --- | --- |
 | **Basemap, streets, and official labels** | Parsed directly from the installed game files. |
-| **Building colors** | Game-authored display categories. `building=yes` is shown honestly as **Unclassified buildings**. |
+| **Building colors** | Game-authored display categories. `building=yes` is labeled **Unclassified buildings**. |
 | **Businesses and likely loot** | Broad hints inferred from game-authored activity and loot zones; actual contents are not guaranteed. |
 | **Water-zone count** | Explicit `WaterZone` records, not every riverbank, well, sink, or usable water tile. Waterways remain visible in the basemap. |
 | **Vehicle pools** | Places where drivable vehicles may spawn, not confirmed live vehicles. |

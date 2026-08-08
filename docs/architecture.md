@@ -31,7 +31,7 @@ No layer writes to the game install or save directory.
 
 **Status:** accepted for the first release.
 
-A Tauri desktop companion gives us local file access and a normal modern interface without injecting code into Project Zomboid or requiring a server mod. The app can remain open next to the game and can later gain an optional, narrow integration for live position.
+A Tauri desktop companion gives us local file access and a desktop interface without injecting code into Project Zomboid or requiring a server mod. The app can remain open next to the game and can later gain an optional, narrow integration for live position.
 
 Tradeoff: exact live player state is not available in the read-only prototype.
 
@@ -83,7 +83,7 @@ Knox Atlas never writes markers into a Project Zomboid save. A future move to a 
 - Save-directory discovery.
 - XML/Lua-shaped text/JSON parsing.
 - Source-specific coordinate normalization.
-- Friendly labels and broad zone categories.
+- Readable labels and broad zone categories.
 - Read errors and source warnings.
 
 ### TypeScript owns

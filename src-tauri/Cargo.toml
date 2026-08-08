@@ -1,7 +1,7 @@
 [package]
 name = "knox-atlas"
 version = "0.1.0"
-description = "A lightweight, read-only Project Zomboid interactive map and companion atlas"
+description = "A read-only Project Zomboid interactive map and companion atlas"
 authors = ["Knox Atlas contributors"]
 edition = "2024"
 

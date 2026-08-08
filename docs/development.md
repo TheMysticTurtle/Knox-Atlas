@@ -23,7 +23,7 @@ This is the quick-reference page for future work.
 └── CHANGELOG.md
 ```
 
-## Fast commands
+## Common commands
 
 From the repository root:
 

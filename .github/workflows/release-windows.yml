@@ -57,9 +57,29 @@ jobs:
           tagName: v__VERSION__
           releaseName: Knox Atlas v__VERSION__
           releaseBody: |
-            Knox Atlas is a read-only Project Zomboid interactive map and companion atlas built from the game data installed on your computer.
+            ## 🗺️ Welcome to Knox Atlas
 
-            The installer is the recommended download. The portable archive is best-effort and requires the Microsoft WebView2 runtime already present on the computer.
+            Knox Atlas is a read-only companion map for Project Zomboid. It presents an interactive atlas from the game data installed on your computer.
+
+            ### ✨ Highlights
+
+            - Explore towns, streets, businesses, buildings, landmarks, and waterways.
+            - Search by name or jump directly to X/Y coordinates.
+            - Filter businesses, likely-loot zones, building types, and vehicle spawn pools.
+            - Save named, color-coded custom markers.
+            - Set a position and destination and view the direct tile distance.
+            - Copy coordinates and save a preferred map view.
+
+            Knox Atlas does not edit Project Zomboid or its save files. Some layers represent game-authored zones and possible spawn locations rather than confirmed live loot, vehicles, or player positions.
+
+            ### 📦 Downloads
+
+            - **Windows installer:** Run the setup EXE and follow the Windows prompts.
+            - **Portable ZIP:** Extract the ZIP into a writable folder and run `Knox-Atlas.exe`. Microsoft WebView2 must already be installed.
+
+            ### 🛡️ Windows notice
+
+            These builds are not code-signed, so Windows SmartScreen may display an **Unknown publisher** warning. The [source code and automated build workflow](https://github.com/TheMysticTurtle/Knox-Atlas) are available for inspection.
           releaseDraft: true
           prerelease: false
           generateReleaseNotes: true

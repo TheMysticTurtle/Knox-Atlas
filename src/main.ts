@@ -20,7 +20,7 @@ type MapLabel = {
 };
 type Poi = {
   label: string;
-  kind: "business" | "vehicle" | "loot" | "water";
+  kind: "business" | "vehicle" | "loot" | "resource";
   category: PoiCategory;
   x: number;
   y: number;
@@ -76,7 +76,7 @@ type FilterKey =
   | "streets"
   | "businesses"
   | "buildings"
-  | PoiCategory;
+  | Exclude<PoiCategory, "business">;
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = Street & { path: Path2D; bounds: Bounds; anchor: Point; angle: number };
 type SearchEntry = { label: string; meta: string; point: Point; poi?: Poi };
@@ -122,7 +122,6 @@ const filters: Record<FilterKey, boolean> = {
   streets: true,
   businesses: true,
   buildings: true,
-  business: true,
   food: false,
   medical: false,
   tools: false,
@@ -131,6 +130,8 @@ const filters: Record<FilterKey, boolean> = {
   water: false,
   vehicles: false,
 };
+
+const lootFilterKeys = ["food", "medical", "tools", "security", "fuel", "water"] as const;
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Application root was not found.");
@@ -574,17 +575,36 @@ function drawStreetLabels(view: Bounds, occupied: Bounds[]): void {
 
 function poiIsVisible(poi: Poi): boolean {
   if (poi.kind === "vehicle") return filters.vehicles && scale >= 0.42;
-  if (poi.kind === "water") return filters.water;
-  if (filters[poi.category]) return true;
-  return poi.kind === "business" && filters.businesses;
+  const isSelectedCategory = poi.category !== "business"
+    && poi.category !== "vehicles"
+    && filters[poi.category];
+  if (poi.kind === "loot" || poi.kind === "resource") return isSelectedCategory;
+  return filters.businesses || isSelectedCategory;
 }
 
 function drawPois(view: Bounds, occupied: Bounds[]): void {
-  const dotRadius = scale > 0.65 ? 4.5 : 3.5;
+  const hasActiveLootFilter = lootFilterKeys.some((key) => filters[key]);
   for (const poi of snapshot.pois) {
     if (!poiIsVisible(poi)) continue;
     if (poi.x < view.minX || poi.x > view.maxX || poi.y < view.minY || poi.y > view.maxY) continue;
+    const isHighlightedLoot = poi.category !== "business"
+      && poi.category !== "vehicles"
+      && filters[poi.category];
     const screen = toScreen(poi);
+    const dotRadius = isHighlightedLoot ? 5 : scale > 0.65 ? 4.5 : 3.5;
+
+    if (hasActiveLootFilter && poi.kind === "business" && !isHighlightedLoot) {
+      context.globalAlpha = 0.18;
+    }
+    if (isHighlightedLoot) {
+      context.beginPath();
+      context.arc(screen.x, screen.y, 9, 0, Math.PI * 2);
+      context.fillStyle = `${categoryColors[poi.category]}33`;
+      context.fill();
+      context.strokeStyle = categoryColors[poi.category];
+      context.lineWidth = 1.5;
+      context.stroke();
+    }
     context.beginPath();
     if (poi.kind === "vehicle") {
       context.rect(screen.x - 3.5, screen.y - 2.5, 7, 5);
@@ -597,10 +617,12 @@ function drawPois(view: Bounds, occupied: Bounds[]): void {
     context.lineWidth = 1.2;
     context.stroke();
 
-    const showLabel = poi.kind === "business" && scale >= 0.52;
+    const showLabel = poi.kind === "business"
+      && ((isHighlightedLoot && scale >= 0.3) || (!hasActiveLootFilter && scale >= 0.52));
     if (showLabel) {
       drawScreenLabel(poi.label, { x: poi.x, y: poi.y - 12 / scale }, 11, 650, mapColors.ink, occupied);
     }
+    context.globalAlpha = 1;
   }
 }
 

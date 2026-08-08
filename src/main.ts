@@ -241,6 +241,7 @@ app.innerHTML = `
           <div><span>Y</span><strong id="pointer-y">—</strong></div>
           <div><span>CELL</span><strong id="pointer-cell">—</strong></div>
           <div><span>CHUNK</span><strong id="pointer-chunk">—</strong></div>
+          <button id="copy-coordinates" type="button" aria-label="Copy current map coordinates"><i class="copy-icon" aria-hidden="true"></i><span id="copy-label">Copy</span></button>
         </div>
 
         <p class="map-credit">Game-derived vector data · Read-only companion</p>
@@ -260,6 +261,7 @@ let preparedStreets: PreparedStreet[] = [];
 let searchEntries: SearchEntry[] = [];
 let center: Point = { x: 0, y: 0 };
 let scale = 0.22;
+let pointerWorld: Point | undefined;
 let selectedPoint: Point | undefined;
 let selectedPoi: Poi | undefined;
 let currentPosition: Point | undefined;
@@ -1009,14 +1011,42 @@ function resetView(): void {
 }
 
 function updatePointer(point?: Point): void {
-  must<HTMLElement>("#pointer-x").textContent = point ? Math.round(point.x).toString() : "—";
-  must<HTMLElement>("#pointer-y").textContent = point ? Math.round(point.y).toString() : "—";
-  must<HTMLElement>("#pointer-cell").textContent = point
-    ? `${Math.floor(point.x / snapshot.compiledCellSize)}, ${Math.floor(point.y / snapshot.compiledCellSize)}`
+  if (point) pointerWorld = point;
+  const displayedPoint = point ?? pointerWorld;
+  must<HTMLElement>("#pointer-x").textContent = displayedPoint ? Math.round(displayedPoint.x).toString() : "—";
+  must<HTMLElement>("#pointer-y").textContent = displayedPoint ? Math.round(displayedPoint.y).toString() : "—";
+  must<HTMLElement>("#pointer-cell").textContent = displayedPoint
+    ? `${Math.floor(displayedPoint.x / snapshot.compiledCellSize)}, ${Math.floor(displayedPoint.y / snapshot.compiledCellSize)}`
     : "—";
-  must<HTMLElement>("#pointer-chunk").textContent = point
-    ? `${Math.floor(point.x / snapshot.chunkSize)}, ${Math.floor(point.y / snapshot.chunkSize)}`
+  must<HTMLElement>("#pointer-chunk").textContent = displayedPoint
+    ? `${Math.floor(displayedPoint.x / snapshot.chunkSize)}, ${Math.floor(displayedPoint.y / snapshot.chunkSize)}`
     : "—";
+}
+
+async function copyCoordinates(): Promise<void> {
+  const point = pointerWorld ?? selectedPoint ?? center;
+  const value = `${Math.round(point.x)}, ${Math.round(point.y)}`;
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    const fallback = document.createElement("textarea");
+    fallback.value = value;
+    fallback.setAttribute("readonly", "");
+    fallback.style.position = "fixed";
+    fallback.style.opacity = "0";
+    document.body.append(fallback);
+    fallback.select();
+    document.execCommand("copy");
+    fallback.remove();
+  }
+  const button = must<HTMLButtonElement>("#copy-coordinates");
+  const label = must<HTMLElement>("#copy-label");
+  button.classList.add("is-copied");
+  label.textContent = "Copied";
+  window.setTimeout(() => {
+    button.classList.remove("is-copied");
+    label.textContent = "Copy";
+  }, 1200);
 }
 
 function nearestPoi(point: Point): Poi | undefined {
@@ -1140,6 +1170,7 @@ function wireInteractions(): void {
   must<HTMLButtonElement>("#zoom-out").addEventListener("click", () => zoomAt(1 / 1.35));
   must<HTMLButtonElement>("#reset-view").addEventListener("click", resetView);
   must<HTMLButtonElement>("#fit-map").addEventListener("click", fitMap);
+  must<HTMLButtonElement>("#copy-coordinates").addEventListener("click", copyCoordinates);
   must<HTMLButtonElement>("#close-selection").addEventListener("click", () => {
     must<HTMLElement>("#selection-card").hidden = true;
     selectedPoint = undefined;

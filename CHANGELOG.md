@@ -24,6 +24,7 @@ All notable user-facing changes will be recorded here. The project follows the s
 - Larger interface, town, area, and street typography with overview-aware town label sizing.
 - Focused drivable vehicle-pool filters for cars/SUVs, vans/shuttles, trucks/utility, and emergency/service vehicles.
 - Expected spawn-pool quality and part-damage context from the game's vehicle distribution definitions; obvious wreck/traffic pools are excluded.
+- Larger coordinate readout with one-click `X, Y` clipboard copy.
 
 ### Changed
 

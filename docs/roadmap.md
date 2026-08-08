@@ -14,6 +14,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Add a one-click Windows development launcher and GitHub verification/release workflows.
 - [x] Add scalable POI icons, larger map/menu typography, a building legend, and hierarchical subfilters.
 - [x] Focus the vehicle layer on drivable spawn pools and surface expected pool quality/damage metadata.
+- [x] Enlarge the coordinate HUD and add one-click coordinate copying.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 

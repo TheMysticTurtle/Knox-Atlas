@@ -1082,7 +1082,7 @@ kbd {
   position: absolute;
   z-index: 6;
   right: 20px;
-  bottom: 64px;
+  bottom: 74px;
   display: flex;
   min-width: 122px;
   flex-direction: column;
@@ -1122,30 +1122,69 @@ kbd {
 
 .coordinate-hud > div {
   display: flex;
-  min-width: 68px;
-  height: 34px;
+  min-width: 80px;
+  height: 44px;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  gap: 7px;
+  padding: 0 12px;
   border-right: 1px solid rgba(48, 51, 46, 0.11);
 }
 
-.coordinate-hud > div:nth-last-child(-n+2) {
-  min-width: 92px;
+.coordinate-hud > div:nth-of-type(n + 3) {
+  min-width: 108px;
 }
 
-.coordinate-hud > div:last-child {
+.coordinate-hud > div:nth-of-type(4) {
   border-right: 0;
 }
 
 .coordinate-hud span {
   color: #9a6d3c;
-  font: 500 7px DM Mono, monospace;
+  font: 500 8.5px DM Mono, monospace;
 }
 
 .coordinate-hud strong {
-  font: 500 10px DM Mono, monospace;
+  font: 500 13px DM Mono, monospace;
   white-space: nowrap;
+}
+
+.coordinate-hud button {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  border-left: 1px solid rgba(48, 51, 46, 0.11);
+  background: rgba(154, 109, 60, 0.08);
+  color: #77532f;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.coordinate-hud button:hover,
+.coordinate-hud button.is-copied {
+  background: rgba(154, 109, 60, 0.17);
+}
+
+.copy-icon {
+  position: relative;
+  width: 11px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.copy-icon::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 8px;
+  height: 9px;
+  border-top: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  border-radius: 2px 0 0;
 }
 
 .map-credit {

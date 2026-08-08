@@ -79,7 +79,11 @@ jobs:
 
             ### 🛡️ Windows notice
 
-            These builds are not code-signed, so Windows SmartScreen may display an **Unknown publisher** warning. The [source code and automated build workflow](https://github.com/TheMysticTurtle/Knox-Atlas) are available for inspection.
+            These builds are not code-signed, so Windows SmartScreen may display an **Unknown publisher** warning.
+
+            ### 📄 Source
+
+            The [source code and automated build workflow](https://github.com/TheMysticTurtle/Knox-Atlas) are available for inspection under the [PolyForm Strict License 1.0.0](https://github.com/TheMysticTurtle/Knox-Atlas/blob/main/LICENSE). GitHub also provides source ZIP and TAR archives with the published release.
           releaseDraft: true
           prerelease: false
           generateReleaseNotes: true
@@ -106,6 +110,7 @@ jobs:
           New-Item -ItemType Directory -Path .release/portable -Force | Out-Null
           Copy-Item -LiteralPath src-tauri/target/release/knox-atlas.exe -Destination .release/portable/Knox-Atlas.exe
           Copy-Item -LiteralPath packaging/PORTABLE-NOTES.txt -Destination .release/portable/README.txt
+          Copy-Item -LiteralPath LICENSE -Destination .release/portable/LICENSE.txt
           $assetName = "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip"
           Compress-Archive -Path .release/portable/* -DestinationPath $assetName -Force
 

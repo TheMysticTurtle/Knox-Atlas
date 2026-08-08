@@ -4,6 +4,10 @@ All notable user-facing changes will be recorded here. The project follows the s
 
 ## [Unreleased]
 
+### Added
+
+- Added PolyForm Strict 1.0.0 source-available licensing and included the license with Windows packages.
+
 ### Changed
 
 - Reworked the README into a friendlier release, installation, security, and source-build guide.

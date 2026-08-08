@@ -44,3 +44,4 @@ The portable build does not create shortcuts or an uninstall entry and requires 
 
 - Source, documentation, and issue tracker: https://github.com/TheMysticTurtle/Knox-Atlas
 - Official GitHub releases: https://github.com/TheMysticTurtle/Knox-Atlas/releases
+- License: https://github.com/TheMysticTurtle/Knox-Atlas/blob/main/LICENSE

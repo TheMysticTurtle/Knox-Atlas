@@ -6,6 +6,7 @@
   <a href="https://github.com/TheMysticTurtle/Knox-Atlas/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.0-d99b55"></a>
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0a7bbd">
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-Rust%20%C2%B7%20Tauri%20%C2%B7%20TypeScript-3b8d95">
+  <img alt="License" src="https://img.shields.io/badge/license-PolyForm%20Strict%201.0.0-6e7a86">
 </p>
 
 <p align="center">
@@ -132,6 +133,7 @@ Then package the executable with its portable notes:
 New-Item -ItemType Directory -Force -Path .release\portable
 Copy-Item src-tauri\target\release\knox-atlas.exe .release\portable\Knox-Atlas.exe
 Copy-Item packaging\PORTABLE-NOTES.txt .release\portable\README.txt
+Copy-Item LICENSE .release\portable\LICENSE.txt
 Compress-Archive -Path .release\portable\* -DestinationPath Knox-Atlas-0.1.0-Windows-x64-portable.zip -Force
 ```
 
@@ -209,14 +211,21 @@ small, and the game installation and save directories remain read-only.
 - [**Nexus Mods description**](docs/NEXUS-DESCRIPTION.bbcode) — ready-to-paste formatted listing copy.
 - [**Nexus upload copy**](docs/NEXUS-UPLOAD-COPY.md) — short description and installer/portable file instructions.
 
-## 🤝 Inspecting and contributing
+## 🤝 Inspecting and feedback
 
-Curious how a map source is interpreted? Please take a look. The source is intentionally kept small,
-documented, and separated into a read-only Rust adapter and a straightforward TypeScript renderer.
-Bug reports, source review, reproducible parser findings, and thoughtful contributions are welcome.
+Curious how a map source is interpreted? Please take a look. The source is documented and separated
+into a read-only Rust adapter and a TypeScript renderer. Bug reports, source review, and reproducible
+parser findings are welcome. Please open an issue before proposing changes or reuse.
 
 When reporting a map mismatch, include the Project Zomboid Steam build number shown by Knox Atlas,
 the approximate coordinates, and whether the location comes from the base map or a mod.
+
+## 📄 License
+
+Knox Atlas is source-available under the [PolyForm Strict License 1.0.0](LICENSE). It may be used for
+permitted personal and noncommercial purposes. Redistribution and modified or derivative versions
+are not permitted without written permission. You may inspect the source and build it for your own
+permitted use. For collaboration or reuse inquiries, please open an issue.
 
 ## 🙏 Disclaimer
 

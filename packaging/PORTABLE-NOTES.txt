@@ -11,4 +11,7 @@ does not modify the game installation or saves.
 
 If Windows SmartScreen warns about the file, that is expected for an unsigned
 build. Confirm the file came from the project's GitHub release. Use
-the signed installer once code signing is added for public distribution.
+the included LICENSE.txt for the source-available terms.
+
+Source code and build instructions:
+https://github.com/TheMysticTurtle/Knox-Atlas

@@ -46,6 +46,8 @@ Repeated runs at the same app version update the same draft tag. Bump the versio
 
 The installer staging step requires exactly one generated NSIS `.exe`; the workflow fails clearly if packaging produces none or more than one. Both release uploads use `--clobber`, so rerunning a corrected workflow repairs the existing draft instead of creating duplicate assets.
 
+When the draft is published, GitHub automatically adds source-code ZIP and TAR archives for the release tag. The repository license and release notes identify the source as available under PolyForm Strict 1.0.0, so a separate source-packaging step is unnecessary. Tauri includes the license in the installer bundle, and the portable ZIP includes `LICENSE.txt`.
+
 ## Installer versus portable
 
 | Format | Recommendation | Notes |

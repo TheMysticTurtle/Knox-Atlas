@@ -1,9 +1,9 @@
 <h1 align="center">Knox Atlas</h1>
 
-<p align="center"><strong>A friendly, read-only companion atlas for Project Zomboid.</strong></p>
+<p align="center"><strong>A friendly, read-only Project Zomboid interactive map and companion atlas.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/TheMysticTurtle/Project-Zomboid-Interactive-Map/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.0-d99b55"></a>
+  <a href="https://github.com/TheMysticTurtle/Knox-Atlas/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.0-d99b55"></a>
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-0a7bbd">
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-Rust%20%C2%B7%20Tauri%20%C2%B7%20TypeScript-3b8d95">
 </p>
@@ -12,10 +12,10 @@
   <img src="docs/images/knox-atlas-ui-baseline.png" alt="Knox Atlas interactive map interface" width="1100">
 </p>
 
-Knox Atlas turns the map data already installed with Project Zomboid into a fast, modern desktop
-atlas. Use it to find towns, streets, businesses, likely resources, building types, vehicle zones,
-and useful world coordinates without installing a game mod or maintaining a separate copy of Knox
-Country.
+Knox Atlas is a fast, modern **Project Zomboid interactive map** built from the game data already
+installed on your computer. Use it to find towns, streets, businesses, likely resources, building
+types, vehicle zones, and useful world coordinates without installing a game mod or maintaining a
+separate copy of Knox Country.
 
 Most importantly, **Knox Atlas is read-only**. It reads the game installation and limited save
 metadata, but it never edits Project Zomboid or writes into a save.
@@ -43,7 +43,7 @@ metadata, but it never edits Project Zomboid or writes into a save.
 ## ⬇️ Releases
 
 Download the latest compiled Windows build from the
-**[GitHub Releases page](https://github.com/TheMysticTurtle/Project-Zomboid-Interactive-Map/releases)**.
+**[GitHub Releases page](https://github.com/TheMysticTurtle/Knox-Atlas/releases)**.
 
 - **Installer — recommended:** download `Knox-Atlas-<version>-Windows-x64-setup.exe`, run it, and
   launch Knox Atlas from the normal Windows shortcuts.
@@ -238,7 +238,8 @@ be represented honestly.
 - [**Development guide**](docs/development.md) — commands, branch conventions, checks, and maintainer notes.
 - [**Windows distribution**](docs/distribution.md) — launcher, installer, portable build, and release workflow.
 - [**Changelog**](CHANGELOG.md) — versioned user-facing release history.
-- [**Nexus Mods description**](docs/NEXUS-DESCRIPTION.bbcode) — ready-to-paste listing copy.
+- [**Nexus Mods description**](docs/NEXUS-DESCRIPTION.bbcode) — ready-to-paste formatted listing copy.
+- [**Nexus upload copy**](docs/NEXUS-UPLOAD-COPY.md) — short description and installer/portable file instructions.
 
 ## 🤝 Inspecting and contributing
 

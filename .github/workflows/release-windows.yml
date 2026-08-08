@@ -57,7 +57,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: Knox Atlas v__VERSION__
           releaseBody: |
-            Knox Atlas is a read-only Project Zomboid companion map built from the game data installed on your computer.
+            Knox Atlas is a read-only Project Zomboid interactive map and companion atlas built from the game data installed on your computer.
 
             The installer is the recommended download. The portable archive is best-effort and requires the Microsoft WebView2 runtime already present on the computer.
           releaseDraft: true

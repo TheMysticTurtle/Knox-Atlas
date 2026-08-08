@@ -66,7 +66,7 @@ git remote -v
 ```
 
 The project repository is hosted at
-[TheMysticTurtle/Project-Zomboid-Interactive-Map](https://github.com/TheMysticTurtle/Project-Zomboid-Interactive-Map).
+[TheMysticTurtle/Knox-Atlas](https://github.com/TheMysticTurtle/Knox-Atlas).
 
 ## Official references
 

@@ -83,7 +83,8 @@ type FilterKey =
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = Street & { path: Path2D; bounds: Bounds; anchor: Point; angle: number };
 type SearchEntry = { label: string; meta: string; point: Point; poi?: Poi };
-type CustomMarker = Point & { id: string; label: string };
+type CustomMarkerColor = "amber" | "teal" | "red" | "blue" | "violet" | "green" | "white";
+type CustomMarker = Point & { id: string; label: string; color: CustomMarkerColor };
 type FilterIcon = PoiCategory | "towns" | "streets" | "buildings";
 type SubfilterItem = {
   id: string;
@@ -116,11 +117,19 @@ const mapColors = {
   selected: "#e19952",
   current: "#37a6a0",
   destination: "#d85f55",
-  customMarker: "#c38a45",
 } as const;
 
 const customMarkerStorageKey = "knox-atlas.custom-markers.v1";
 const customMarkerLimit = 100;
+const customMarkerPalette: Record<CustomMarkerColor, string> = {
+  amber: "#d79a4f",
+  teal: "#3eb4ae",
+  red: "#e2675e",
+  blue: "#5b8fd7",
+  violet: "#9a7bea",
+  green: "#79ad58",
+  white: "#f0eee2",
+};
 
 const categoryColors: Record<PoiCategory, string> = {
   business: "#2c3734",
@@ -256,9 +265,18 @@ app.innerHTML = `
             <button id="copy-selection-coordinates" class="copy-selection"><i class="copy-icon" aria-hidden="true"></i><span id="selection-copy-label">Copy X/Y</span></button>
           </div>
           <form id="marker-form" class="marker-form" hidden>
-            <label for="marker-name">Marker name</label>
+            <label for="marker-name">Marker name and color</label>
             <div>
               <input id="marker-name" maxlength="40" autocomplete="off" placeholder="Safehouse, meetup, supplies&hellip;" />
+              <select id="marker-color" aria-label="Marker color">
+                <option value="amber">Amber</option>
+                <option value="teal">Teal</option>
+                <option value="red">Red</option>
+                <option value="blue">Blue</option>
+                <option value="violet">Violet</option>
+                <option value="green">Green</option>
+                <option value="white">White</option>
+              </select>
               <button id="save-marker" type="submit">Save</button>
               <button id="cancel-marker" type="button">Cancel</button>
             </div>
@@ -954,28 +972,36 @@ function drawPois(view: Bounds, occupied: Bounds[]): void {
   }
 }
 
-function drawMarker(point: Point, color: string, label: string): void {
+function drawMarker(point: Point, color: string, label: string, emphasized = false): void {
   const screen = toScreen(point);
+  const outerRadius = emphasized ? 14 : 10;
+  const innerRadius = emphasized ? 9 : 6;
+  const labelOffset = emphasized ? -23 : -17;
   context.save();
   context.translate(screen.x, screen.y);
+  if (emphasized) {
+    context.shadowColor = "rgba(20, 25, 23, 0.45)";
+    context.shadowBlur = 8;
+  }
   context.beginPath();
-  context.arc(0, 0, 10, 0, Math.PI * 2);
-  context.fillStyle = "rgba(255,255,255,.9)";
+  context.arc(0, 0, outerRadius, 0, Math.PI * 2);
+  context.fillStyle = "rgba(255,255,255,.96)";
   context.fill();
+  context.shadowBlur = 0;
   context.beginPath();
-  context.arc(0, 0, 6, 0, Math.PI * 2);
+  context.arc(0, 0, innerRadius, 0, Math.PI * 2);
   context.fillStyle = color;
   context.fill();
   context.strokeStyle = "rgba(31,39,37,.8)";
-  context.lineWidth = 1.5;
+  context.lineWidth = emphasized ? 2 : 1.5;
   context.stroke();
-  context.font = '700 11px Inter, "Segoe UI", sans-serif';
+  context.font = `${emphasized ? 800 : 700} ${emphasized ? 12 : 11}px Inter, "Segoe UI", sans-serif`;
   context.textAlign = "center";
-  context.strokeStyle = "rgba(219,215,192,.96)";
-  context.lineWidth = 4;
-  context.strokeText(label, 0, -17);
+  context.strokeStyle = "rgba(245,242,224,.98)";
+  context.lineWidth = emphasized ? 5 : 4;
+  context.strokeText(label, 0, labelOffset);
   context.fillStyle = mapColors.ink;
-  context.fillText(label, 0, -17);
+  context.fillText(label, 0, labelOffset);
   context.restore();
 }
 
@@ -1039,10 +1065,6 @@ function draw(): void {
   drawStreetLabels(view, occupied);
   drawPois(view, occupied);
   drawRoute();
-  for (const marker of customMarkers) {
-    const label = marker.label.length > 24 ? `${marker.label.slice(0, 21)}...` : marker.label;
-    drawMarker(marker, mapColors.customMarker, label);
-  }
   if (currentPosition) drawMarker(currentPosition, mapColors.current, "YOU");
   if (destination) drawMarker(destination, mapColors.destination, "DESTINATION");
   const selectedMatchesRoute = selectedPoint
@@ -1053,9 +1075,16 @@ function draw(): void {
     drawMarker(selectedPoint, mapColors.selected, "SELECTED");
   }
 
-  // Towns participate in collision avoidance above, then receive a final topmost
-  // pass so dense POI and vehicle layers can never obscure their names.
+  // Towns participate in collision avoidance above, then receive a final
+  // source-data pass so dense POI and vehicle layers cannot obscure them.
   drawMapLabels([], true);
+
+  // User-authored markers are the final annotation layer by design: they must
+  // remain visible over source-derived geometry, labels, and POI symbols.
+  for (const marker of customMarkers) {
+    const label = marker.label.length > 24 ? `${marker.label.slice(0, 21)}...` : marker.label;
+    drawMarker(marker, customMarkerPalette[marker.color], label, true);
+  }
 }
 
 function loadCustomMarkers(): CustomMarker[] {
@@ -1074,7 +1103,11 @@ function loadCustomMarkers(): CustomMarker[] {
         || !Number.isFinite(candidate.y)
       ) return [];
       const label = candidate.label.trim().slice(0, 40);
-      return label ? [{ id: candidate.id, label, x: candidate.x, y: candidate.y }] : [];
+      const color = typeof candidate.color === "string"
+        && Object.prototype.hasOwnProperty.call(customMarkerPalette, candidate.color)
+        ? candidate.color as CustomMarkerColor
+        : "amber";
+      return label ? [{ id: candidate.id, label, color, x: candidate.x, y: candidate.y }] : [];
     }).slice(0, customMarkerLimit);
   } catch {
     return [];
@@ -1207,6 +1240,7 @@ function hideMarkerForm(): void {
   editingMarkerId = undefined;
   must<HTMLFormElement>("#marker-form").hidden = true;
   must<HTMLInputElement>("#marker-name").value = "";
+  must<HTMLSelectElement>("#marker-color").value = "amber";
   must<HTMLElement>("#marker-form-note").textContent = "Saved locally on this computer.";
   must<HTMLButtonElement>("#save-marker").textContent = "Save";
 }
@@ -1215,8 +1249,10 @@ function showMarkerForm(marker?: CustomMarker): void {
   editingMarkerId = marker?.id;
   const form = must<HTMLFormElement>("#marker-form");
   const input = must<HTMLInputElement>("#marker-name");
+  const color = must<HTMLSelectElement>("#marker-color");
   form.hidden = false;
   input.value = marker?.label ?? selectedPoi?.label ?? "";
+  color.value = marker?.color ?? "amber";
   must<HTMLButtonElement>("#save-marker").textContent = marker ? "Rename" : "Save";
   must<HTMLElement>("#marker-form-note").textContent = marker
     ? "Change the label for this saved point."
@@ -1233,7 +1269,7 @@ function renderCustomMarkers(): void {
   list.innerHTML = customMarkers.map((marker) => `
     <article class="marker-list-item">
       <button class="marker-focus" type="button" data-marker-focus="${escapeHtml(marker.id)}">
-        <i aria-hidden="true"></i>
+        <i aria-hidden="true" style="--marker-color: ${customMarkerPalette[marker.color]}"></i>
         <span><strong>${escapeHtml(marker.label)}</strong><small>${Math.round(marker.x)}, ${Math.round(marker.y)}</small></span>
       </button>
       <button class="marker-list-action" type="button" data-marker-rename="${escapeHtml(marker.id)}" aria-label="Rename ${escapeHtml(marker.label)}" title="Rename marker">&#9998;</button>
@@ -1413,6 +1449,10 @@ function wireInteractions(): void {
     event.preventDefault();
     const input = must<HTMLInputElement>("#marker-name");
     const label = input.value.trim().slice(0, 40);
+    const selectedColor = must<HTMLSelectElement>("#marker-color").value;
+    const color = Object.prototype.hasOwnProperty.call(customMarkerPalette, selectedColor)
+      ? selectedColor as CustomMarkerColor
+      : "amber";
     const note = must<HTMLElement>("#marker-form-note");
     if (!label) {
       note.textContent = "Give this marker a name first.";
@@ -1424,13 +1464,14 @@ function wireInteractions(): void {
     if (editingMarkerId) {
       customMarkers = customMarkers.map((marker) => {
         if (marker.id !== editingMarkerId) return marker;
-        savedMarker = { ...marker, label };
+        savedMarker = { ...marker, label, color };
         return savedMarker;
       });
     } else if (selectedPoint && customMarkers.length < customMarkerLimit) {
       savedMarker = {
         id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
         label,
+        color,
         ...selectedPoint,
       };
       customMarkers = [...customMarkers, savedMarker];

@@ -207,12 +207,22 @@ app.innerHTML = `
         </div>
 
         <div class="map-tools" aria-label="Map controls">
-          <button id="show-filters" class="icon-button layers-button" aria-label="Show map layers">☷</button>
+          <button id="show-filters" class="icon-button layers-button" aria-label="Show map layers" data-tooltip="Show map layers">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="8" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="10" cy="18" r="1.6"/></svg>
+          </button>
           <span class="tool-separator"></span>
-          <button id="zoom-in" class="icon-button" aria-label="Zoom in">+</button>
-          <button id="zoom-out" class="icon-button" aria-label="Zoom out">−</button>
-          <button id="reset-view" class="icon-button reset-icon" aria-label="Return to latest map view">⌖</button>
-          <button id="fit-map" class="icon-button fit-icon" aria-label="Fit the whole map">□</button>
+          <button id="zoom-in" class="icon-button" aria-label="Zoom in" data-tooltip="Zoom in">
+            <svg class="tool-icon tool-icon-large" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button id="zoom-out" class="icon-button" aria-label="Zoom out" data-tooltip="Zoom out">
+            <svg class="tool-icon tool-icon-large" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg>
+          </button>
+          <button id="reset-view" class="icon-button reset-icon" aria-label="Return to latest map view" data-tooltip="Latest saved view">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>
+          </button>
+          <button id="fit-map" class="icon-button fit-icon" aria-label="Fit the whole map" data-tooltip="Fit whole map">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5H5v4M15 5h4v4M19 15v4h-4M9 19H5v-4"/></svg>
+          </button>
         </div>
 
         <div id="save-context" class="save-context" hidden>
@@ -226,14 +236,31 @@ app.innerHTML = `
           <span id="selection-kind" class="eyebrow">SELECTED COORDINATE</span>
           <strong id="selection-title">Map point</strong>
           <p id="selection-detail"></p>
+          <div class="selection-coordinates" aria-label="Selected map coordinates">
+            <div><span>X</span><strong id="selection-x">—</strong></div>
+            <div><span>Y</span><strong id="selection-y">—</strong></div>
+            <div><span>CELL</span><strong id="selection-cell">—</strong></div>
+            <div><span>CHUNK</span><strong id="selection-chunk">—</strong></div>
+          </div>
           <div class="selection-actions">
-            <button id="set-current">Set as my position</button>
-            <button id="set-destination">Set destination</button>
+            <button id="set-current" class="position-action"><i aria-hidden="true"></i>Set position</button>
+            <button id="set-destination" class="destination-action"><i aria-hidden="true"></i>Set destination</button>
+            <button id="copy-selection-coordinates" class="copy-selection"><i class="copy-icon" aria-hidden="true"></i><span id="selection-copy-label">Copy X/Y</span></button>
           </div>
         </div>
 
         <div id="route-readout" class="route-readout" hidden>
-          <span>DIRECT DISTANCE</span><strong id="route-distance">0 tiles</strong>
+          <div class="route-point">
+            <i class="route-dot position-dot" aria-hidden="true"></i>
+            <span>POSITION</span><strong id="current-coordinate">Not set</strong>
+            <button id="clear-current" type="button" aria-label="Clear position">×</button>
+          </div>
+          <div class="route-point">
+            <i class="route-dot destination-dot" aria-hidden="true"></i>
+            <span>DESTINATION</span><strong id="destination-coordinate">Not set</strong>
+            <button id="clear-destination" type="button" aria-label="Clear destination">×</button>
+          </div>
+          <div id="route-distance-row" class="route-distance"><span>DIRECT DISTANCE</span><strong id="route-distance">0 tiles</strong></div>
         </div>
 
         <div class="coordinate-hud">
@@ -241,7 +268,6 @@ app.innerHTML = `
           <div><span>Y</span><strong id="pointer-y">—</strong></div>
           <div><span>CELL</span><strong id="pointer-cell">—</strong></div>
           <div><span>CHUNK</span><strong id="pointer-chunk">—</strong></div>
-          <button id="copy-coordinates" type="button" aria-label="Copy current map coordinates"><i class="copy-icon" aria-hidden="true"></i><span id="copy-label">Copy</span></button>
         </div>
 
         <p class="map-credit">Game-derived vector data · Read-only companion</p>
@@ -395,7 +421,7 @@ const filterDefinitions: Array<{
   { group: "loot", key: "tools", label: "Tools & materials", description: "Industrial and hardware", color: categoryColors.tools, icon: "tools", count: (data) => data.pois.filter((poi) => poi.category === "tools").length },
   { group: "loot", key: "security", label: "Security & services", description: "Police, fire, military", color: categoryColors.security, icon: "security", count: (data) => data.pois.filter((poi) => poi.category === "security").length },
   { group: "loot", key: "fuel", label: "Fuel & gas", description: "Gas station activity zones", color: categoryColors.fuel, icon: "fuel", count: (data) => data.pois.filter((poi) => poi.category === "fuel").length },
-  { group: "loot", key: "water", label: "Water", description: "Water features and zones", color: categoryColors.water, icon: "water", count: (data) => data.pois.filter((poi) => poi.category === "water").length },
+  { group: "loot", key: "water", label: "Water zones", description: "Authored zones; waterways stay visible", color: categoryColors.water, icon: "water", count: (data) => data.pois.filter((poi) => poi.category === "water").length },
 ];
 
 function filterIcon(icon: FilterIcon): string {
@@ -461,7 +487,7 @@ function prepareSubfilters(data: GameSnapshot): void {
   for (const feature of data.features) {
     if (feature.kind === "building") buildingValues.set(feature.value, (buildingValues.get(feature.value) ?? 0) + 1);
   }
-  const buildingOrder = ["Residential", "RetailAndCommercial", "RestaurantsAndEntertainment", "Medical", "CommunityServices", "Hospitality", "Industrial"];
+  const buildingOrder = ["Residential", "RetailAndCommercial", "RestaurantsAndEntertainment", "Medical", "CommunityServices", "Hospitality", "Industrial", "Unclassified"];
   const buildingNames: Record<string, string> = {
     Residential: "Residential",
     RetailAndCommercial: "Retail & commercial",
@@ -470,6 +496,7 @@ function prepareSubfilters(data: GameSnapshot): void {
     CommunityServices: "Community services",
     Hospitality: "Hospitality",
     Industrial: "Industrial",
+    Unclassified: "Unclassified buildings",
   };
   setSubfilterGroup("buildings", [...buildingValues.entries()]
     .map(([value, count]) => ({ id: `buildings:${value}`, label: buildingNames[value] ?? value, count, color: buildingColor(value) }))
@@ -974,7 +1001,9 @@ function draw(): void {
   drawRoute();
   if (currentPosition) drawMarker(currentPosition, mapColors.current, "YOU");
   if (destination) drawMarker(destination, mapColors.destination, "DESTINATION");
-  if (selectedPoint && !selectedPoi) drawMarker(selectedPoint, mapColors.selected, "SELECTED");
+  const selectedMatchesRoute = selectedPoint
+    && [currentPosition, destination].some((point) => point && Math.hypot(point.x - selectedPoint!.x, point.y - selectedPoint!.y) < 0.5);
+  if (selectedPoint && !selectedPoi && !selectedMatchesRoute) drawMarker(selectedPoint, mapColors.selected, "SELECTED");
 
   // Towns participate in collision avoidance above, then receive a final topmost
   // pass so dense POI and vehicle layers can never obscure their names.
@@ -1029,7 +1058,8 @@ function updatePointer(point?: Point): void {
 }
 
 async function copyCoordinates(): Promise<void> {
-  const point = pointerWorld ?? selectedPoint ?? center;
+  if (!selectedPoint) return;
+  const point = selectedPoint;
   const value = `${Math.round(point.x)}, ${Math.round(point.y)}`;
   try {
     await navigator.clipboard.writeText(value);
@@ -1044,13 +1074,13 @@ async function copyCoordinates(): Promise<void> {
     document.execCommand("copy");
     fallback.remove();
   }
-  const button = must<HTMLButtonElement>("#copy-coordinates");
-  const label = must<HTMLElement>("#copy-label");
+  const button = must<HTMLButtonElement>("#copy-selection-coordinates");
+  const label = must<HTMLElement>("#selection-copy-label");
   button.classList.add("is-copied");
-  label.textContent = "Copied";
+  label.textContent = "Copied X/Y";
   window.setTimeout(() => {
     button.classList.remove("is-copied");
-    label.textContent = "Copy";
+    label.textContent = "Copy X/Y";
   }, 1200);
 }
 
@@ -1073,23 +1103,34 @@ function showSelection(point: Point, poi?: Poi): void {
   selectedPoint = { ...point };
   selectedPoi = poi;
   must<HTMLElement>("#selection-kind").textContent = poi ? poi.kind.toUpperCase() : "SELECTED COORDINATE";
-  must<HTMLElement>("#selection-title").textContent = poi?.label ?? `${Math.round(point.x)}, ${Math.round(point.y)}`;
+  must<HTMLElement>("#selection-title").textContent = poi?.label ?? "Selected map point";
   must<HTMLElement>("#selection-detail").textContent = poi
-    ? `${poi.details} · X ${Math.round(poi.x)} / Y ${Math.round(poi.y)} / Z ${poi.z}`
-    : `Cell ${Math.floor(point.x / snapshot.compiledCellSize)}, ${Math.floor(point.y / snapshot.compiledCellSize)} · Chunk ${Math.floor(point.x / snapshot.chunkSize)}, ${Math.floor(point.y / snapshot.chunkSize)}`;
+    ? `${poi.details} · Level ${poi.z}`
+    : "Stable details for this clicked location. Copy it or use it as a route marker.";
+  must<HTMLElement>("#selection-x").textContent = Math.round(point.x).toString();
+  must<HTMLElement>("#selection-y").textContent = Math.round(point.y).toString();
+  must<HTMLElement>("#selection-cell").textContent = `${Math.floor(point.x / snapshot.compiledCellSize)}, ${Math.floor(point.y / snapshot.compiledCellSize)}`;
+  must<HTMLElement>("#selection-chunk").textContent = `${Math.floor(point.x / snapshot.chunkSize)}, ${Math.floor(point.y / snapshot.chunkSize)}`;
   must<HTMLElement>("#selection-card").hidden = false;
   queueRender();
 }
 
 function updateRoute(): void {
   const readout = must<HTMLElement>("#route-readout");
-  if (!currentPosition || !destination) {
-    readout.hidden = true;
-    return;
-  }
+  readout.hidden = !currentPosition && !destination;
+  must<HTMLElement>("#current-coordinate").textContent = currentPosition
+    ? `${Math.round(currentPosition.x)}, ${Math.round(currentPosition.y)}`
+    : "Not set";
+  must<HTMLElement>("#destination-coordinate").textContent = destination
+    ? `${Math.round(destination.x)}, ${Math.round(destination.y)}`
+    : "Not set";
+  must<HTMLButtonElement>("#clear-current").hidden = !currentPosition;
+  must<HTMLButtonElement>("#clear-destination").hidden = !destination;
+  const distanceRow = must<HTMLElement>("#route-distance-row");
+  distanceRow.hidden = !currentPosition || !destination;
+  if (!currentPosition || !destination) return;
   const distance = Math.round(Math.hypot(destination.x - currentPosition.x, destination.y - currentPosition.y));
   must<HTMLElement>("#route-distance").textContent = `${formatCount(distance)} tiles`;
-  readout.hidden = false;
 }
 
 function focusEntry(entry: SearchEntry): void {
@@ -1175,7 +1216,7 @@ function wireInteractions(): void {
   must<HTMLButtonElement>("#zoom-out").addEventListener("click", () => zoomAt(1 / 1.35));
   must<HTMLButtonElement>("#reset-view").addEventListener("click", resetView);
   must<HTMLButtonElement>("#fit-map").addEventListener("click", fitMap);
-  must<HTMLButtonElement>("#copy-coordinates").addEventListener("click", copyCoordinates);
+  must<HTMLButtonElement>("#copy-selection-coordinates").addEventListener("click", copyCoordinates);
   must<HTMLButtonElement>("#close-selection").addEventListener("click", () => {
     must<HTMLElement>("#selection-card").hidden = true;
     selectedPoint = undefined;
@@ -1191,6 +1232,16 @@ function wireInteractions(): void {
   must<HTMLButtonElement>("#set-destination").addEventListener("click", () => {
     if (!selectedPoint) return;
     destination = { ...selectedPoint };
+    updateRoute();
+    queueRender();
+  });
+  must<HTMLButtonElement>("#clear-current").addEventListener("click", () => {
+    currentPosition = undefined;
+    updateRoute();
+    queueRender();
+  });
+  must<HTMLButtonElement>("#clear-destination").addEventListener("click", () => {
+    destination = undefined;
     updateRoute();
     queueRender();
   });

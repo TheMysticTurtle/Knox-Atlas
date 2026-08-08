@@ -179,7 +179,14 @@ fn classify_feature(properties: &HashMap<String, String>) -> Option<(String, Str
                 "natural" => "terrain",
                 other => other,
             };
-            return Some((kind.to_string(), value.to_string()));
+            let value = if key == "building" && value.eq_ignore_ascii_case("yes") {
+                // The world map uses the OpenStreetMap-style `building=yes` flag
+                // when no more specific display category was authored.
+                "Unclassified".to_string()
+            } else {
+                value.to_string()
+            };
+            return Some((kind.to_string(), value));
         }
     }
     None
@@ -728,8 +735,8 @@ fn parse_pois(
             "WaterZone" => (
                 "resource",
                 "water",
-                "Water access".into(),
-                "Game-defined water zone.".into(),
+                "Water zone".into(),
+                "Game-authored water activity/resource zone. This is not a complete list of shorelines, wells, sinks, or other water sources.".into(),
                 Vec::new(),
                 None,
                 None,
@@ -957,9 +964,21 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::{
-        find_game_root, friendly_name, is_drivable_vehicle_zone, load_snapshot, poi_category,
+        classify_feature, find_game_root, friendly_name, is_drivable_vehicle_zone, load_snapshot,
+        poi_category,
     };
+
+    #[test]
+    fn names_unspecified_buildings_instead_of_leaking_boolean_metadata() {
+        let properties = HashMap::from([("building".to_string(), "yes".to_string())]);
+        assert_eq!(
+            classify_feature(&properties),
+            Some(("building".to_string(), "Unclassified".to_string()))
+        );
+    }
 
     #[test]
     fn classifies_game_zones_into_honest_broad_categories() {

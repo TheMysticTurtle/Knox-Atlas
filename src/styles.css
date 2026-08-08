@@ -516,8 +516,9 @@ kbd {
 
 .filter-row {
   position: relative;
-  display: flex;
+  display: grid;
   min-height: 56px;
+  grid-template-columns: minmax(0, 1fr) 27px;
   align-items: center;
   gap: 2px;
   padding: 3px 4px;
@@ -531,8 +532,8 @@ kbd {
 
 .filter-main {
   display: grid;
+  width: 100%;
   min-width: 0;
-  flex: 1;
   grid-template-columns: 30px 1fr auto 32px;
   align-items: center;
   gap: 10px;
@@ -948,6 +949,57 @@ kbd {
   gap: 5px;
 }
 
+.map-tools .icon-button {
+  width: 42px;
+  height: 42px;
+}
+
+.tool-icon {
+  width: 23px;
+  height: 23px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool-icon-large {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2;
+}
+
+.map-tools .icon-button[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 180px;
+  padding: 6px 8px;
+  border: 1px solid rgba(230, 225, 204, 0.16);
+  border-radius: 5px;
+  background: rgba(24, 31, 29, 0.96);
+  color: #edf0e9;
+  font: 500 11px Inter, "Segoe UI", sans-serif;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 5px 16px rgba(20, 24, 22, 0.24);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.map-tools .icon-button[data-tooltip]:hover::after,
+.map-tools .icon-button[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .layers-button,
 .tool-separator {
   display: none;
@@ -958,12 +1010,6 @@ kbd {
   height: 28px;
   margin: 5px 3px;
   background: rgba(50, 52, 47, 0.18);
-}
-
-.reset-icon,
-.fit-icon,
-.layers-button {
-  font-size: 16px;
 }
 
 .save-context {
@@ -1035,9 +1081,46 @@ kbd {
 }
 
 .selection-card p {
-  margin: 8px 0 16px;
+  margin: 8px 0 12px;
   color: #8d9b94;
   font: 400 12px/1.55 DM Mono, monospace;
+}
+
+.selection-coordinates {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(230, 237, 231, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.selection-coordinates > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  border-right: 1px solid rgba(230, 237, 231, 0.08);
+}
+
+.selection-coordinates > div:last-child {
+  border-right: 0;
+}
+
+.selection-coordinates span {
+  color: #8f9a95;
+  font: 500 8px DM Mono, monospace;
+  letter-spacing: 0.08em;
+}
+
+.selection-coordinates strong {
+  overflow: hidden;
+  color: #edf1ed;
+  font: 600 12px DM Mono, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .selection-close {
@@ -1058,12 +1141,17 @@ kbd {
 }
 
 .selection-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
 }
 
 .selection-actions button {
-  flex: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   padding: 10px 11px;
   border: 1px solid rgba(217, 155, 85, 0.28);
   border-radius: 6px;
@@ -1078,31 +1166,121 @@ kbd {
   background: rgba(217, 155, 85, 0.17);
 }
 
+.selection-actions button > i:not(.copy-icon) {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.selection-actions .position-action {
+  border-color: rgba(55, 166, 160, 0.38);
+  background: rgba(55, 166, 160, 0.1);
+  color: #79cbc6;
+}
+
+.selection-actions .position-action:hover {
+  background: rgba(55, 166, 160, 0.2);
+}
+
+.position-action > i,
+.position-dot {
+  background: #37a6a0;
+}
+
+.selection-actions .destination-action {
+  border-color: rgba(216, 95, 85, 0.38);
+  background: rgba(216, 95, 85, 0.1);
+  color: #ef9a92;
+}
+
+.selection-actions .destination-action:hover {
+  background: rgba(216, 95, 85, 0.2);
+}
+
+.destination-action > i,
+.destination-dot {
+  background: #d85f55;
+}
+
+.selection-actions .copy-selection.is-copied {
+  border-color: rgba(115, 165, 139, 0.45);
+  background: rgba(115, 165, 139, 0.16);
+  color: #a8cdbb;
+}
+
 .route-readout {
   position: absolute;
   z-index: 6;
   right: 20px;
   bottom: 74px;
   display: flex;
-  min-width: 122px;
+  width: 276px;
   flex-direction: column;
-  align-items: flex-end;
-  padding: 9px 11px;
+  gap: 2px;
+  padding: 8px;
   border-radius: 7px;
   background: rgba(245, 242, 224, 0.9);
   color: #393c36;
   box-shadow: 0 4px 14px rgba(44, 43, 38, 0.12);
 }
 
-.route-readout span {
+.route-point {
+  display: grid;
+  min-height: 27px;
+  grid-template-columns: 10px 76px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 3px;
+}
+
+.route-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.route-point span,
+.route-distance span {
   color: #8b6439;
   font: 500 7px DM Mono, monospace;
   letter-spacing: 0.1em;
 }
 
-.route-readout strong {
-  margin-top: 2px;
-  font: 600 11px DM Mono, monospace;
+.route-point strong {
+  overflow: hidden;
+  font: 600 10px DM Mono, monospace;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-point button {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: rgba(57, 60, 54, 0.06);
+  color: #7d7d73;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.route-point button:hover {
+  background: rgba(57, 60, 54, 0.14);
+  color: #393c36;
+}
+
+.route-distance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 7px 5px 2px;
+  border-top: 1px solid rgba(48, 51, 46, 0.12);
+}
+
+.route-distance strong {
+  font: 700 11px DM Mono, monospace;
 }
 
 .coordinate-hud {
@@ -1146,25 +1324,6 @@ kbd {
 .coordinate-hud strong {
   font: 500 13px DM Mono, monospace;
   white-space: nowrap;
-}
-
-.coordinate-hud button {
-  display: flex;
-  height: 44px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 13px;
-  border-left: 1px solid rgba(48, 51, 46, 0.11);
-  background: rgba(154, 109, 60, 0.08);
-  color: #77532f;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.coordinate-hud button:hover,
-.coordinate-hud button.is-copied {
-  background: rgba(154, 109, 60, 0.17);
 }
 
 .copy-icon {

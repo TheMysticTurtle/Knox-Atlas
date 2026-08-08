@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "check": "tsc --noEmit && vite build",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build --bundles nsis",
     "preview": "vite preview",
     "tauri": "tauri"
   },

@@ -11,6 +11,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Add search, coordinate jump/readout, manual position/destination, and direct distance.
 - [x] Make selected likely-loot categories visually distinct from the general business layer.
 - [x] Document the map sources, coordinate systems, architectural choices, workflow, and limitations.
+- [x] Add a one-click Windows development launcher and GitHub verification/release workflows.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 
@@ -22,7 +23,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [ ] Let the user choose a non-standard game/save path when discovery fails.
 - [ ] Improve business-name normalization and category coverage from real-world feedback.
 - [ ] Add an explicit map/update compatibility warning when required source shapes change.
-- [ ] Package a Windows development release with a short manual test checklist.
+- [ ] Run the GitHub packaging workflow and smoke-test its NSIS and portable artifacts on a second machine.
 
 ## Later — mod and multiplayer support
 

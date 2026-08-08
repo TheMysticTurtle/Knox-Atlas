@@ -1,0 +1,14 @@
+KNOX ATLAS — PORTABLE PREVIEW
+
+Run Knox-Atlas.exe from any writable folder.
+
+This is a best-effort Windows test build. Tauri does not officially guarantee a
+portable distribution mode. The Microsoft WebView2 runtime must already be
+installed; current Windows 10/11 systems usually have it.
+
+The app reads Project Zomboid data from standard local Steam/save locations. It
+does not modify the game installation or saves.
+
+If Windows SmartScreen warns about the file, that is expected for an unsigned
+pre-release build. Confirm the file came from the project's GitHub release. Use
+the signed installer once code signing is added for public distribution.

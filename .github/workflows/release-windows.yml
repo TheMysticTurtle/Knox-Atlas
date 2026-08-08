@@ -1,0 +1,79 @@
+name: Publish Windows preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Build installer and portable preview
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build NSIS installer and create draft release
+        id: tauri
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: knox-atlas-v__VERSION__
+          releaseName: Knox Atlas v__VERSION__
+          releaseBody: |
+            Windows preview build for friendly testing.
+
+            The installer is the recommended download. The portable archive is best-effort and requires the Microsoft WebView2 runtime already present on the test machine.
+          releaseDraft: true
+          prerelease: true
+          generateReleaseNotes: true
+          args: --bundles nsis
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: Knox-Atlas-[version]-Windows-[arch]-[bundle]
+          releaseAssetNamePattern: Knox-Atlas-[version]-Windows-[arch][setup].[ext]
+
+      - name: Package best-effort portable build
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path .release/portable -Force | Out-Null
+          Copy-Item -LiteralPath src-tauri/target/release/knox-atlas.exe -Destination .release/portable/Knox-Atlas.exe
+          Copy-Item -LiteralPath packaging/PORTABLE-NOTES.txt -Destination .release/portable/README.txt
+          Compress-Archive -Path .release/portable/* -DestinationPath "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip" -Force
+
+      - name: Upload portable workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable
+          path: Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip
+          if-no-files-found: error
+
+      - name: Add portable archive to draft release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "knox-atlas-v${{ steps.tauri.outputs.appVersion }}" "Knox-Atlas-${{ steps.tauri.outputs.appVersion }}-Windows-x64-portable.zip" --clobber

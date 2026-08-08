@@ -15,6 +15,9 @@ All notable user-facing changes will be recorded here. The project follows the s
 - Manual current-position and destination markers with direct tile distance.
 - Latest-save discovery and last-map-view centering with an explicit non-live-position notice.
 - Architecture, map-data, roadmap, development, and visual-baseline documentation.
+- One-click Windows development launcher.
+- GitHub Actions verification and draft Windows release pipelines.
+- NSIS installer packaging and a best-effort portable test archive.
 
 ### Changed
 

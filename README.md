@@ -29,6 +29,8 @@ npm install
 npm run tauri dev
 ```
 
+On Windows, `Launch Knox Atlas.cmd` provides the same development session as a double-clickable launcher and keeps all preview processes attached to one console.
+
 Production checks:
 
 ```powershell
@@ -52,6 +54,7 @@ The last map center stored in `InGameMap.ini` is used only as a convenient openi
 - [Map data notes](docs/map-data.md) — what the game files contain and how their coordinate systems relate.
 - [Roadmap](docs/roadmap.md) — living backlog, priorities, and progress history.
 - [Development guide](docs/development.md) — quick commands, branch conventions, checks, and maintainer notes.
+- [Windows distribution](docs/distribution.md) — local launcher, installer, portable preview, and GitHub release workflow.
 - [Changelog](CHANGELOG.md) — user-visible progress by version.
 
 ## Principles

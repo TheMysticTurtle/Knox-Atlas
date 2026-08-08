@@ -1,6 +1,6 @@
 <h1 align="center">Knox Atlas</h1>
 
-<p align="center"><strong>A friendly, read-only Project Zomboid interactive map and companion atlas.</strong></p>
+<p align="center"><strong>A read-only Project Zomboid interactive map and companion atlas.</strong></p>
 
 <p align="center">
   <a href="https://github.com/TheMysticTurtle/Knox-Atlas/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.0-d99b55"></a>
@@ -12,7 +12,7 @@
   <img src="docs/images/knox-atlas-ui-baseline.png" alt="Knox Atlas interactive map interface" width="1100">
 </p>
 
-Knox Atlas is a fast, modern **Project Zomboid interactive map** built from the game data already
+Knox Atlas is a **Project Zomboid interactive map**. It is vector based built from the game's map data already
 installed on your computer. Use it to find towns, streets, businesses, likely resources, building
 types, vehicle zones, and useful world coordinates without installing a game mod or maintaining a
 separate copy of Knox Country.
@@ -36,7 +36,7 @@ metadata, but it never edits Project Zomboid or writes into a save.
   areas with game-defined pool context when available.
 - 📍 **Personal markers** — save up to 100 named, colored markers locally and keep them visible over
   the map.
-- 🧭 **Simple navigation** — set a manual position and destination, see direct tile distance, copy
+- 🧭 **Distance Measurement** — set a manual position and destination, see direct tile distance, copy
   stable coordinates, and bookmark a favorite center/zoom view.
 - 🖥️ **Desktop companion UI** — designed for a second monitor or a quick alt-tab while playing.
 
@@ -52,19 +52,16 @@ Download the latest compiled Windows build from the
 
 The portable package is a best-effort convenience. Tauri does not officially define a portable
 distribution mode, and the portable executable expects the Microsoft WebView2 runtime to already be
-installed. The installer is the friendliest choice for most people.
+installed on the machine.
 
 ### 🛡️ Windows SmartScreen and antivirus
 
 Knox Atlas is not currently code-signed. Windows SmartScreen or antivirus software may therefore
 warn about an unfamiliar or unsigned application, especially immediately after a new release. That
-is common for small independent projects, but you should still download builds only from the
-official Releases page.
+is common for small independent projects.
 
-The complete source used to build Knox Atlas is in this repository. You are warmly invited to read
-it, inspect the release workflow, and build the app yourself if you would rather not trust a
-precompiled executable. If a warning looks unusual or you are uncertain about a download, do not run
-it until you are comfortable with its source.
+The complete source used to build Knox Atlas is in this repository. Please feel free to inspect and compile the app yourself if you would rather not trust a
+precompiled executable. (I don't blame ya) 
 
 ## 🚀 Running from a source checkout
 
@@ -86,8 +83,7 @@ npm install
 npm run desktop:dev
 ```
 
-You can open the `.cmd` file in any text editor before running it; there is no hidden launcher
-binary.
+You can open the `.cmd` file in any text editor before running it to verify its exact functions. 
 
 ## 🛠️ Building from source
 
@@ -152,19 +148,6 @@ cargo fmt --all -- --check
 cargo test
 ```
 
-Every pushed branch and pull request automatically runs the frontend check, Rust formatting check,
-and Rust tests on GitHub Actions. The manual **Publish Windows release** workflow repeats those
-checks before it performs the official Windows build, creates a reviewable draft release, and
-attaches both installer and portable artifacts.
-
-### Publish through GitHub Actions
-
-1. Push the intended release commit and version tag to GitHub.
-2. Open **Actions → Publish Windows release → Run workflow**.
-3. Wait for the frontend check, Rust formatting check, Rust tests, and Windows packaging to finish.
-4. Download and smoke-test the attached installer and portable ZIP from the generated draft.
-5. Edit the release notes if desired, then publish the draft release.
-
 ## 🧭 Using the atlas
 
 ### **Explore and filter**
@@ -215,20 +198,6 @@ flowchart LR
 The Rust side owns file discovery and source-specific parsing. The TypeScript side owns map state,
 prepared geometry, labels, filters, search, markers, and interaction. The boundary is intentionally
 small, and the game installation and save directories remain read-only.
-
-## 📌 Current scope
-
-Knox Atlas `0.1.0` targets the base English map in common Steam library locations and reads its game
-data once at startup. It does not yet:
-
-- track the live player or other multiplayer players;
-- identify randomized survivor houses or claimed safehouses from authoritative save data;
-- show live container inventories, vehicle condition, or vehicle-key locations;
-- discover every non-standard Steam library or enabled map mod;
-- persist temporary route points or layer preferences.
-
-Those limits are deliberate. A feature moves into the atlas only when its source and certainty can
-be represented honestly.
 
 ## 📚 Project documentation
 

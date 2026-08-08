@@ -1142,7 +1142,7 @@ kbd {
 
 .selection-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -1203,10 +1203,282 @@ kbd {
   background: #d85f55;
 }
 
+.selection-actions .clear-route-action {
+  background: rgba(255, 255, 255, 0.045);
+  color: #9ba7a1;
+}
+
+.selection-actions .clear-route-action:hover {
+  background: rgba(255, 255, 255, 0.095);
+}
+
+.selection-actions .position-clear-action {
+  border-color: rgba(55, 166, 160, 0.2);
+}
+
+.selection-actions .destination-clear-action {
+  border-color: rgba(216, 95, 85, 0.2);
+}
+
+.selection-actions .clear-route-action > span {
+  font-size: 16px;
+  line-height: 0.8;
+}
+
+.selection-actions .marker-action {
+  border-color: rgba(195, 138, 69, 0.42);
+  background: rgba(195, 138, 69, 0.12);
+  color: #e4b87e;
+}
+
+.selection-actions .marker-action:hover {
+  background: rgba(195, 138, 69, 0.23);
+}
+
+.selection-actions .marker-action > i,
+.marker-focus > i {
+  background: #c38a45;
+}
+
+.selection-actions button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .selection-actions .copy-selection.is-copied {
   border-color: rgba(115, 165, 139, 0.45);
   background: rgba(115, 165, 139, 0.16);
   color: #a8cdbb;
+}
+
+.marker-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(230, 237, 231, 0.1);
+}
+
+.marker-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: #a9b3ad;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.marker-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.marker-form input {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(230, 237, 231, 0.17);
+  border-radius: 6px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.055);
+  color: #edf1ed;
+  font: 500 11px DM Mono, monospace;
+}
+
+.marker-form input:focus {
+  border-color: rgba(195, 138, 69, 0.7);
+  box-shadow: 0 0 0 2px rgba(195, 138, 69, 0.12);
+}
+
+.marker-form button {
+  padding: 0 10px;
+  border-radius: 6px;
+  background: rgba(195, 138, 69, 0.16);
+  color: #e4b87e;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.marker-form #cancel-marker {
+  background: rgba(255, 255, 255, 0.055);
+  color: #9da8a2;
+}
+
+.marker-form > span {
+  display: block;
+  margin-top: 6px;
+  color: #74827b;
+  font: 400 9px/1.4 DM Mono, monospace;
+}
+
+.marker-panel {
+  position: absolute;
+  z-index: 7;
+  top: 18px;
+  right: 20px;
+  width: 292px;
+  overflow: hidden;
+  border: 1px solid rgba(230, 237, 231, 0.12);
+  border-radius: 9px;
+  background: rgba(25, 33, 31, 0.94);
+  box-shadow: 0 12px 30px rgba(24, 27, 25, 0.24);
+  color: #dce3de;
+  backdrop-filter: blur(10px);
+}
+
+.marker-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 13px 10px;
+  border-bottom: 1px solid rgba(230, 237, 231, 0.09);
+}
+
+.marker-panel-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.marker-panel-heading .eyebrow {
+  color: #c38a45;
+  font-size: 7px;
+}
+
+.marker-panel-heading strong {
+  font-size: 13px;
+}
+
+.marker-panel-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.marker-panel-heading .marker-collapse {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #96a29c;
+  cursor: pointer;
+  place-items: center;
+}
+
+.marker-panel-heading .marker-collapse:hover {
+  background: rgba(255, 255, 255, 0.065);
+  color: #dce3de;
+}
+
+.marker-collapse svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transition: transform 160ms ease;
+}
+
+.marker-panel.is-collapsed {
+  width: 230px;
+}
+
+.marker-panel.is-collapsed .marker-list {
+  display: none;
+}
+
+.marker-panel.is-collapsed .marker-panel-heading {
+  border-bottom: 0;
+}
+
+.marker-panel.is-collapsed .marker-collapse svg {
+  transform: rotate(180deg);
+}
+
+.marker-list {
+  max-height: min(430px, 50vh);
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.marker-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+  align-items: center;
+  gap: 3px;
+  border-radius: 6px;
+}
+
+.marker-list-item:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.marker-focus {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.marker-focus > i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(195, 138, 69, 0.6);
+}
+
+.marker-focus > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.marker-focus strong,
+.marker-focus small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marker-focus strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.marker-focus small {
+  color: #85918b;
+  font: 400 9px DM Mono, monospace;
+}
+
+.marker-list-action {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: transparent;
+  color: #829089;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.marker-list-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #dce3de;
+}
+
+.marker-list-action.marker-remove:hover {
+  background: rgba(216, 95, 85, 0.16);
+  color: #ef9a92;
 }
 
 .route-readout {

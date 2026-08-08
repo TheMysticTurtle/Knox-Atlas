@@ -26,6 +26,7 @@ All notable user-facing changes will be recorded here. The project follows the s
 - Expected spawn-pool quality and part-damage context from the game's vehicle distribution definitions; obvious wreck/traffic pools are excluded.
 - Larger coordinate readout with one-click `X, Y` clipboard copy.
 - Larger selected-point information card and a horizontal upper-left map-control strip.
+- Up to 100 locally persisted named markers with focus, rename, remove, and collapsible-list actions.
 
 ### Changed
 
@@ -36,11 +37,12 @@ All notable user-facing changes will be recorded here. The project follows the s
 - The water filter says **Water zones** and explains that its count covers authored zone records while waterways remain part of the basemap.
 - Coordinate copying now belongs to the stable clicked-location card instead of the continuously changing pointer HUD.
 - Position and destination use distinct colored actions plus a route-status card with coordinates, clear controls, and direct distance.
+- Selected-place actions now pair set/clear controls for position and destination, followed by marker and coordinate-copy actions.
 
 ### Known limitations
 
 - Standard Steam library discovery only; no path picker yet.
 - Reads the base English map/labels once at startup.
 - No live player or party locations.
-- No persisted custom markers or preferences.
+- No persisted route points or filter preferences.
 - Loot and vehicle layers are possible zones, not live save contents.

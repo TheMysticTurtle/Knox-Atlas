@@ -31,8 +31,9 @@ The current goal is intentionally focused: make the local map excellent, dependa
 - Jump directly to an X/Y coordinate.
 - Read world, compiled-cell, and chunk coordinates under the pointer.
 - Click any point to open stable X/Y, cell, and chunk details, then copy that selected coordinate with one click.
-- Place distinct **YOU**, destination, and selected-coordinate markers; clear either route marker from the route status card.
+- Place distinct **YOU**, destination, and selected-coordinate markers; set or clear either route point from the selected-place card.
 - See direct tile distance between the manual position and destination.
+- Save up to 100 named custom markers locally, then focus, rename, remove, or collapse their map card.
 
 ### Desktop-friendly UI
 
@@ -53,6 +54,7 @@ Knox Atlas keeps source certainty visible instead of pretending every hint is li
 | Water-zone count | Explicit `WaterZone` records—not every riverbank, well, sink, or usable water tile. Waterways remain visible in the basemap. |
 | Vehicle pools | Places where drivable vehicles may spawn, with game-defined pool metadata when available—not confirmed live vehicles. |
 | Latest save location | The last saved in-game map view used as a convenient starting camera, not the player's live position. |
+| Custom markers | User-created labels stored by Knox Atlas on the local computer; never written into the game or save. |
 
 Random generation, sandbox settings, mods, player activity, and the current save determine what is actually present in the world.
 
@@ -126,7 +128,7 @@ Knox Atlas currently targets the base English map in common Steam library locati
 - identify randomized survivor houses or claimed safehouses from authoritative save data;
 - show live container inventories, vehicle condition, or vehicle-key locations;
 - discover every non-standard Steam library or enabled map mod;
-- persist custom markers and filter preferences.
+- persist route points or filter preferences.
 
 Those limitations are deliberate. A feature moves into the map only when its source and certainty can be represented honestly.
 

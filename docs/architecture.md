@@ -12,7 +12,9 @@ flowchart LR
     C -->|one Tauri command| D["TypeScript map model"]
     D --> E["Canvas renderer"]
     D --> F["Search and layer controls"]
-    U["Manual markers"] --> E
+    L["App-owned local storage"] <--> D
+    U["Route and custom markers"] --> D
+    D --> U
 ```
 
 There are three purposeful layers:
@@ -69,7 +71,9 @@ Business/activity and spawn-zone metadata can suggest useful loot or possible ve
 
 **Status:** accepted.
 
-Manual position and destination markers currently live only in memory. If persistence is added, it belongs in an app-owned settings file or database. Knox Atlas must never write markers into a Project Zomboid save unless a future feature explicitly designs and validates that workflow.
+Named custom markers are stored as a small, versioned JSON record in the desktop WebView's app-owned local storage. Records are validated and capped at 100 when loaded. Manual position and destination remain session-only because they describe temporary navigation state.
+
+Knox Atlas never writes markers into a Project Zomboid save. A future move to a settings file or database should preserve that boundary and include an explicit migration from the versioned browser-storage key.
 
 ## Runtime boundaries
 
@@ -89,7 +93,7 @@ Manual position and destination markers currently live only in memory. If persis
 - Prepared render geometry and viewport culling.
 - Label collision and density thresholds.
 - Search index and selection.
-- Manual markers and direct distance.
+- Session route markers, persisted custom markers, and direct distance.
 
 ### CSS owns
 
@@ -114,6 +118,7 @@ Before adding a dependency, record what maintained code it replaces and whether 
 - Missing save: open the map using map metadata and warn that no save was found.
 - Missing optional labels or metadata: prefer a partial useful map where the parser can safely continue.
 - Changed required map format: fail at the adapter boundary with a source-specific message.
+- Unavailable or malformed app-owned marker storage: ignore invalid records and keep the map usable.
 
 ## Next architectural seam
 

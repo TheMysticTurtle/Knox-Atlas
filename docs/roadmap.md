@@ -19,13 +19,14 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [x] Keep town labels above markers, align layer switches, and add larger tooltipped map controls.
 - [x] Replace raw `building=yes` metadata with an honest unclassified-building label and clarify water-zone counts.
 - [x] Move coordinate copying to stable clicked-place details and add explicit position/destination status and clear controls.
+- [x] Add locally persisted, named custom markers with focus, rename, remove, and collapse actions.
 - [ ] Add small fixture-based parser tests that can run without a local game installation.
 - [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
 
 ## Next — practical daily-use improvements
 
 - [ ] Add a reload-data action so a user can refresh without restarting.
-- [ ] Persist layer preferences and manual markers in app-owned storage.
+- [ ] Persist layer preferences and temporary route points in app-owned storage.
 - [x] Add a clear building-color legend with per-type visibility controls.
 - [ ] Let the user choose a non-standard game/save path when discovery fails.
 - [ ] Improve business-name normalization and category coverage from real-world feedback.
@@ -40,7 +41,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - [ ] Design an optional tiny client mod that exports only the local player's position.
 - [ ] Evaluate server-authorized party positions with privacy and permission controls.
 - [ ] Evaluate authorized live vehicle condition and vehicle-to-key locations for single-player/server providers.
-- [ ] Consider saved custom marker collections and import/export.
+- [ ] Consider custom-marker collection import/export and higher-level organization.
 
 ## Deliberately deferred
 
@@ -64,6 +65,7 @@ This is the living backlog. Keep it brief, ordered, and honest. Move completed w
 - Added the initial project handbook and replaced the scaffold README.
 - Added scalable POI controls, subtype filters, drivable vehicle-pool context, larger coordinate/detail text, and copyable coordinates.
 - Polished map hierarchy and controls: town labels stay above markers, switches align, map buttons are larger and self-describing, and ambiguous source labels are explained.
+- Added up to 100 app-owned named markers that persist between launches without touching game or save data.
 
 ## Definition of done for a feature
 

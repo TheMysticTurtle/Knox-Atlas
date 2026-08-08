@@ -83,6 +83,7 @@ type FilterKey =
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = Street & { path: Path2D; bounds: Bounds; anchor: Point; angle: number };
 type SearchEntry = { label: string; meta: string; point: Point; poi?: Poi };
+type CustomMarker = Point & { id: string; label: string };
 type FilterIcon = PoiCategory | "towns" | "streets" | "buildings";
 type SubfilterItem = {
   id: string;
@@ -115,7 +116,11 @@ const mapColors = {
   selected: "#e19952",
   current: "#37a6a0",
   destination: "#d85f55",
+  customMarker: "#c38a45",
 } as const;
+
+const customMarkerStorageKey = "knox-atlas.custom-markers.v1";
+const customMarkerLimit = 100;
 
 const categoryColors: Record<PoiCategory, string> = {
   business: "#2c3734",
@@ -244,10 +249,34 @@ app.innerHTML = `
           </div>
           <div class="selection-actions">
             <button id="set-current" class="position-action"><i aria-hidden="true"></i>Set position</button>
+            <button id="clear-current-selection" class="clear-route-action position-clear-action" disabled><span aria-hidden="true">&times;</span>Clear position</button>
             <button id="set-destination" class="destination-action"><i aria-hidden="true"></i>Set destination</button>
+            <button id="clear-destination-selection" class="clear-route-action destination-clear-action" disabled><span aria-hidden="true">&times;</span>Clear destination</button>
+            <button id="add-custom-marker" class="marker-action"><i aria-hidden="true"></i>Add marker</button>
             <button id="copy-selection-coordinates" class="copy-selection"><i class="copy-icon" aria-hidden="true"></i><span id="selection-copy-label">Copy X/Y</span></button>
           </div>
+          <form id="marker-form" class="marker-form" hidden>
+            <label for="marker-name">Marker name</label>
+            <div>
+              <input id="marker-name" maxlength="40" autocomplete="off" placeholder="Safehouse, meetup, supplies&hellip;" />
+              <button id="save-marker" type="submit">Save</button>
+              <button id="cancel-marker" type="button">Cancel</button>
+            </div>
+            <span id="marker-form-note">Saved locally on this computer.</span>
+          </form>
         </div>
+
+        <section id="marker-panel" class="marker-panel" aria-label="Custom map markers" hidden>
+          <div class="marker-panel-heading">
+            <div><span class="eyebrow">CUSTOM MARKERS</span><strong id="marker-panel-title">Saved places</strong></div>
+            <div class="marker-panel-controls">
+              <button id="toggle-markers" class="marker-collapse" type="button" aria-label="Collapse custom markers" aria-expanded="true" title="Collapse custom markers">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 7.5 5 5 5-5"/></svg>
+              </button>
+            </div>
+          </div>
+          <div id="marker-list" class="marker-list"></div>
+        </section>
 
         <div id="route-readout" class="route-readout" hidden>
           <div class="route-point">
@@ -292,6 +321,9 @@ let selectedPoint: Point | undefined;
 let selectedPoi: Poi | undefined;
 let currentPosition: Point | undefined;
 let destination: Point | undefined;
+let customMarkers = loadCustomMarkers();
+let editingMarkerId: string | undefined;
+let selectedCustomMarkerId: string | undefined;
 let dragging = false;
 let dragMoved = false;
 let dragOrigin = { x: 0, y: 0 };
@@ -962,6 +994,14 @@ function drawRoute(): void {
   context.restore();
 }
 
+function customMarkerAt(point: Point): CustomMarker | undefined {
+  const radius = Math.max(18 / scale, 16);
+  return customMarkers
+    .map((marker) => ({ marker, distance: Math.hypot(point.x - marker.x, point.y - marker.y) }))
+    .filter(({ distance }) => distance < radius)
+    .sort((left, right) => left.distance - right.distance)[0]?.marker;
+}
+
 function draw(): void {
   renderQueued = false;
   if (!snapshot) return;
@@ -999,15 +1039,54 @@ function draw(): void {
   drawStreetLabels(view, occupied);
   drawPois(view, occupied);
   drawRoute();
+  for (const marker of customMarkers) {
+    const label = marker.label.length > 24 ? `${marker.label.slice(0, 21)}...` : marker.label;
+    drawMarker(marker, mapColors.customMarker, label);
+  }
   if (currentPosition) drawMarker(currentPosition, mapColors.current, "YOU");
   if (destination) drawMarker(destination, mapColors.destination, "DESTINATION");
   const selectedMatchesRoute = selectedPoint
     && [currentPosition, destination].some((point) => point && Math.hypot(point.x - selectedPoint!.x, point.y - selectedPoint!.y) < 0.5);
-  if (selectedPoint && !selectedPoi && !selectedMatchesRoute) drawMarker(selectedPoint, mapColors.selected, "SELECTED");
+  const selectedMatchesCustomMarker = selectedPoint
+    && customMarkers.some((marker) => Math.hypot(marker.x - selectedPoint!.x, marker.y - selectedPoint!.y) < 0.5);
+  if (selectedPoint && !selectedPoi && !selectedMatchesRoute && !selectedMatchesCustomMarker) {
+    drawMarker(selectedPoint, mapColors.selected, "SELECTED");
+  }
 
   // Towns participate in collision avoidance above, then receive a final topmost
   // pass so dense POI and vehicle layers can never obscure their names.
   drawMapLabels([], true);
+}
+
+function loadCustomMarkers(): CustomMarker[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(customMarkerStorageKey) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((value): CustomMarker[] => {
+      if (!value || typeof value !== "object") return [];
+      const candidate = value as Partial<CustomMarker>;
+      if (
+        typeof candidate.id !== "string"
+        || typeof candidate.label !== "string"
+        || typeof candidate.x !== "number"
+        || typeof candidate.y !== "number"
+        || !Number.isFinite(candidate.x)
+        || !Number.isFinite(candidate.y)
+      ) return [];
+      const label = candidate.label.trim().slice(0, 40);
+      return label ? [{ id: candidate.id, label, x: candidate.x, y: candidate.y }] : [];
+    }).slice(0, customMarkerLimit);
+  } catch {
+    return [];
+  }
+}
+
+function persistCustomMarkers(): void {
+  try {
+    localStorage.setItem(customMarkerStorageKey, JSON.stringify(customMarkers));
+  } catch {
+    // The map remains usable if app-owned WebView storage is unavailable.
+  }
 }
 
 function queueRender(): void {
@@ -1102,6 +1181,7 @@ function nearestPoi(point: Point): Poi | undefined {
 function showSelection(point: Point, poi?: Poi): void {
   selectedPoint = { ...point };
   selectedPoi = poi;
+  selectedCustomMarkerId = undefined;
   must<HTMLElement>("#selection-kind").textContent = poi ? poi.kind.toUpperCase() : "SELECTED COORDINATE";
   must<HTMLElement>("#selection-title").textContent = poi?.label ?? "Selected map point";
   must<HTMLElement>("#selection-detail").textContent = poi
@@ -1112,6 +1192,70 @@ function showSelection(point: Point, poi?: Poi): void {
   must<HTMLElement>("#selection-cell").textContent = `${Math.floor(point.x / snapshot.compiledCellSize)}, ${Math.floor(point.y / snapshot.compiledCellSize)}`;
   must<HTMLElement>("#selection-chunk").textContent = `${Math.floor(point.x / snapshot.chunkSize)}, ${Math.floor(point.y / snapshot.chunkSize)}`;
   must<HTMLElement>("#selection-card").hidden = false;
+  queueRender();
+}
+
+function showCustomMarkerSelection(marker: CustomMarker): void {
+  showSelection(marker);
+  selectedCustomMarkerId = marker.id;
+  must<HTMLElement>("#selection-kind").textContent = "CUSTOM MARKER";
+  must<HTMLElement>("#selection-title").textContent = marker.label;
+  must<HTMLElement>("#selection-detail").textContent = "Saved locally by Knox Atlas. Use this point as a route marker or copy its coordinates.";
+}
+
+function hideMarkerForm(): void {
+  editingMarkerId = undefined;
+  must<HTMLFormElement>("#marker-form").hidden = true;
+  must<HTMLInputElement>("#marker-name").value = "";
+  must<HTMLElement>("#marker-form-note").textContent = "Saved locally on this computer.";
+  must<HTMLButtonElement>("#save-marker").textContent = "Save";
+}
+
+function showMarkerForm(marker?: CustomMarker): void {
+  editingMarkerId = marker?.id;
+  const form = must<HTMLFormElement>("#marker-form");
+  const input = must<HTMLInputElement>("#marker-name");
+  form.hidden = false;
+  input.value = marker?.label ?? selectedPoi?.label ?? "";
+  must<HTMLButtonElement>("#save-marker").textContent = marker ? "Rename" : "Save";
+  must<HTMLElement>("#marker-form-note").textContent = marker
+    ? "Change the label for this saved point."
+    : `Saved locally on this computer. ${customMarkers.length}/${customMarkerLimit} used.`;
+  input.focus();
+  input.select();
+}
+
+function renderCustomMarkers(): void {
+  const panel = must<HTMLElement>("#marker-panel");
+  const list = must<HTMLElement>("#marker-list");
+  panel.hidden = customMarkers.length === 0;
+  must<HTMLElement>("#marker-panel-title").textContent = `Saved places (${customMarkers.length})`;
+  list.innerHTML = customMarkers.map((marker) => `
+    <article class="marker-list-item">
+      <button class="marker-focus" type="button" data-marker-focus="${escapeHtml(marker.id)}">
+        <i aria-hidden="true"></i>
+        <span><strong>${escapeHtml(marker.label)}</strong><small>${Math.round(marker.x)}, ${Math.round(marker.y)}</small></span>
+      </button>
+      <button class="marker-list-action" type="button" data-marker-rename="${escapeHtml(marker.id)}" aria-label="Rename ${escapeHtml(marker.label)}" title="Rename marker">&#9998;</button>
+      <button class="marker-list-action marker-remove" type="button" data-marker-remove="${escapeHtml(marker.id)}" aria-label="Remove ${escapeHtml(marker.label)}" title="Remove marker">&times;</button>
+    </article>
+  `).join("");
+
+  const addButton = must<HTMLButtonElement>("#add-custom-marker");
+  addButton.disabled = customMarkers.length >= customMarkerLimit;
+  addButton.title = addButton.disabled ? `Maximum of ${customMarkerLimit} custom markers reached` : "Save a named marker at this point";
+}
+
+function removeCustomMarker(markerId: string): void {
+  customMarkers = customMarkers.filter((marker) => marker.id !== markerId);
+  persistCustomMarkers();
+  renderCustomMarkers();
+  if (selectedCustomMarkerId === markerId) {
+    selectedCustomMarkerId = undefined;
+    selectedPoint = undefined;
+    must<HTMLElement>("#selection-card").hidden = true;
+  }
+  if (editingMarkerId === markerId) hideMarkerForm();
   queueRender();
 }
 
@@ -1126,11 +1270,25 @@ function updateRoute(): void {
     : "Not set";
   must<HTMLButtonElement>("#clear-current").hidden = !currentPosition;
   must<HTMLButtonElement>("#clear-destination").hidden = !destination;
+  must<HTMLButtonElement>("#clear-current-selection").disabled = !currentPosition;
+  must<HTMLButtonElement>("#clear-destination-selection").disabled = !destination;
   const distanceRow = must<HTMLElement>("#route-distance-row");
   distanceRow.hidden = !currentPosition || !destination;
   if (!currentPosition || !destination) return;
   const distance = Math.round(Math.hypot(destination.x - currentPosition.x, destination.y - currentPosition.y));
   must<HTMLElement>("#route-distance").textContent = `${formatCount(distance)} tiles`;
+}
+
+function clearCurrentPosition(): void {
+  currentPosition = undefined;
+  updateRoute();
+  queueRender();
+}
+
+function clearDestination(): void {
+  destination = undefined;
+  updateRoute();
+  queueRender();
 }
 
 function focusEntry(entry: SearchEntry): void {
@@ -1197,8 +1355,13 @@ function wireInteractions(): void {
   canvas.addEventListener("pointerup", (event) => {
     if (!dragMoved) {
       const point = toWorld(event.clientX, event.clientY);
-      const poi = nearestPoi(point);
-      showSelection(poi ?? point, poi);
+      const marker = customMarkerAt(point);
+      if (marker) {
+        showCustomMarkerSelection(marker);
+      } else {
+        const poi = nearestPoi(point);
+        showSelection(poi ?? point, poi);
+      }
     }
     dragging = false;
     canvas.classList.remove("is-dragging");
@@ -1221,6 +1384,8 @@ function wireInteractions(): void {
     must<HTMLElement>("#selection-card").hidden = true;
     selectedPoint = undefined;
     selectedPoi = undefined;
+    selectedCustomMarkerId = undefined;
+    hideMarkerForm();
     queueRender();
   });
   must<HTMLButtonElement>("#set-current").addEventListener("click", () => {
@@ -1235,15 +1400,74 @@ function wireInteractions(): void {
     updateRoute();
     queueRender();
   });
-  must<HTMLButtonElement>("#clear-current").addEventListener("click", () => {
-    currentPosition = undefined;
-    updateRoute();
+  must<HTMLButtonElement>("#clear-current").addEventListener("click", clearCurrentPosition);
+  must<HTMLButtonElement>("#clear-current-selection").addEventListener("click", clearCurrentPosition);
+  must<HTMLButtonElement>("#clear-destination").addEventListener("click", clearDestination);
+  must<HTMLButtonElement>("#clear-destination-selection").addEventListener("click", clearDestination);
+  must<HTMLButtonElement>("#add-custom-marker").addEventListener("click", () => {
+    if (!selectedPoint || customMarkers.length >= customMarkerLimit) return;
+    showMarkerForm();
+  });
+  must<HTMLButtonElement>("#cancel-marker").addEventListener("click", hideMarkerForm);
+  must<HTMLFormElement>("#marker-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = must<HTMLInputElement>("#marker-name");
+    const label = input.value.trim().slice(0, 40);
+    const note = must<HTMLElement>("#marker-form-note");
+    if (!label) {
+      note.textContent = "Give this marker a name first.";
+      input.focus();
+      return;
+    }
+
+    let savedMarker: CustomMarker | undefined;
+    if (editingMarkerId) {
+      customMarkers = customMarkers.map((marker) => {
+        if (marker.id !== editingMarkerId) return marker;
+        savedMarker = { ...marker, label };
+        return savedMarker;
+      });
+    } else if (selectedPoint && customMarkers.length < customMarkerLimit) {
+      savedMarker = {
+        id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        label,
+        ...selectedPoint,
+      };
+      customMarkers = [...customMarkers, savedMarker];
+    }
+
+    if (!savedMarker) return;
+    persistCustomMarkers();
+    renderCustomMarkers();
+    hideMarkerForm();
+    showCustomMarkerSelection(savedMarker);
     queueRender();
   });
-  must<HTMLButtonElement>("#clear-destination").addEventListener("click", () => {
-    destination = undefined;
-    updateRoute();
-    queueRender();
+
+  must<HTMLElement>("#marker-list").addEventListener("click", (event) => {
+    const target = event.target as Element;
+    const focusId = target.closest<HTMLButtonElement>("[data-marker-focus]")?.dataset.markerFocus;
+    const renameId = target.closest<HTMLButtonElement>("[data-marker-rename]")?.dataset.markerRename;
+    const removeId = target.closest<HTMLButtonElement>("[data-marker-remove]")?.dataset.markerRemove;
+    const markerId = focusId ?? renameId;
+    if (markerId) {
+      const marker = customMarkers.find((candidate) => candidate.id === markerId);
+      if (!marker) return;
+      center = { x: marker.x, y: marker.y };
+      scale = Math.max(scale, 0.55);
+      showCustomMarkerSelection(marker);
+      if (renameId) showMarkerForm(marker);
+      queueRender();
+    }
+    if (removeId) removeCustomMarker(removeId);
+  });
+  must<HTMLButtonElement>("#toggle-markers").addEventListener("click", () => {
+    const panel = must<HTMLElement>("#marker-panel");
+    const button = must<HTMLButtonElement>("#toggle-markers");
+    const collapsed = panel.classList.toggle("is-collapsed");
+    button.setAttribute("aria-expanded", String(!collapsed));
+    button.setAttribute("aria-label", collapsed ? "Expand custom markers" : "Collapse custom markers");
+    button.title = collapsed ? "Expand custom markers" : "Collapse custom markers";
   });
 
   const panel = must<HTMLElement>(".filter-panel");
@@ -1289,6 +1513,7 @@ function presentSnapshot(data: GameSnapshot): void {
   center = { ...data.initialCenter };
   prepareData(data);
   renderFilters(data);
+  renderCustomMarkers();
   wireInteractions();
 
   must<HTMLElement>("#source-status").textContent = "Local map ready";

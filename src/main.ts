@@ -704,12 +704,13 @@ function drawScreenLabel(text: string, point: Point, size: number, weight: numbe
   context.fillText(label, screen.x, screen.y);
 }
 
-function drawMapLabels(occupied: Bounds[]): void {
+function drawMapLabels(occupied: Bounds[], townsOnly = false): void {
   for (const label of snapshot.labels) {
     const isTown = label.kind === "town";
     const isArea = label.kind === "area";
     const isWater = label.kind === "water";
     const isBusiness = label.kind === "landmark";
+    if (townsOnly && !isTown) continue;
     if (isTown && !subfilterEnabled("towns:town")) continue;
     if (isArea && !subfilterEnabled("towns:area")) continue;
     if (isWater && !subfilterEnabled("towns:water")) continue;
@@ -974,6 +975,10 @@ function draw(): void {
   if (currentPosition) drawMarker(currentPosition, mapColors.current, "YOU");
   if (destination) drawMarker(destination, mapColors.destination, "DESTINATION");
   if (selectedPoint && !selectedPoi) drawMarker(selectedPoint, mapColors.selected, "SELECTED");
+
+  // Towns participate in collision avoidance above, then receive a final topmost
+  // pass so dense POI and vehicle layers can never obscure their names.
+  drawMapLabels([], true);
 }
 
 function queueRender(): void {

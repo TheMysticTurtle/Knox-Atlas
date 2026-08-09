@@ -1,6 +1,6 @@
-<h1 align="center">Knox Atlas</h1>
-
-<p align="center"><strong>A read-only Project Zomboid interactive map and companion atlas.</strong></p>
+<p align="center">
+  <img src="docs/images/Knox-Atlas-Banner-Picture.png" alt="Knox Atlas — Project Zomboid Interactive Map" width="1200">
+</p>
 
 <p align="center">
   <a href="https://github.com/TheMysticTurtle/Knox-Atlas/releases"><img alt="Release" src="https://img.shields.io/badge/release-0.1.1-d99b55"></a>

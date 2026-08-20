@@ -13,6 +13,18 @@ what/issues/tested/found/fixed). Newest worklog entry on top.
 skeleton stands up and builds end-to-end** (core + Tauri desktop + React web). Next: port the parsers
 into `core` and the canvas engine into `web/`, then hit the parity gate.
 
+> **▶ RESUME HERE (next session):** Everything is committed; working tree clean; on
+> `feature/core-evolution` (2 commits: `22db614` quarantine+docs+spike, `30959dd` skeleton). Next task
+> is the **parity port** (Phase S backlog below):
+> 1. Port Rust parsers `legacy/src-tauri/src/lib.rs` → `crates/core` modules; re-expose typed `GameSnapshot`.
+> 2. Port the canvas engine `legacy/src/main.ts` → `web/`; build the React shell (filters/search/
+>    selection/markers/measure) wired through the Zustand store.
+> 3. Parity gate: new app renders today's map from real game files; launch `tauri dev` window; diff vs `legacy/`.
+>
+> **Open question to settle first (owner was asked, then went to bed):** roll straight through the whole
+> parity port and checkpoint at parity, OR pause after step 1 (Rust `core`) so the owner can eyeball the
+> data boundary before the frontend? Default if unspecified: pause after step 1 for a look.
+
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
 `docs/reference/lot_enum.py`. Work is committed as milestones (owner asked for a clean audit trail).

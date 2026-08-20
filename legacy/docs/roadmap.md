@@ -1,0 +1,97 @@
+# Roadmap and progress
+
+This is the living backlog. Keep it brief, ordered, and honest. Move completed work into the history rather than leaving stale checked boxes everywhere.
+
+## Now — make the prototype dependable
+
+- [x] Parse the installed base vector map, streets, labels, and useful zones.
+- [x] Read current Steam build metadata and latest-save map view.
+- [x] Render a polished, responsive canvas map.
+- [x] Add towns/areas, streets, business, building, likely-loot, and vehicle filters.
+- [x] Add search, coordinate jump/readout, multi-point measurement, and saved named paths.
+- [x] Make selected likely-loot categories visually distinct from the general business layer.
+- [x] Document the map sources, coordinate systems, architectural choices, workflow, and limitations.
+- [x] Add a one-click Windows development launcher and GitHub verification/release workflows.
+- [x] Add scalable POI icons, larger map/menu typography, a building legend, and hierarchical subfilters.
+- [x] Focus the vehicle layer on drivable spawn pools and surface expected pool quality/damage metadata.
+- [x] Enlarge the coordinate HUD and add one-click coordinate copying.
+- [x] Enlarge click-detail cards and align map controls in the upper-left.
+- [x] Keep town labels above markers, align layer switches, and add larger tooltipped map controls.
+- [x] Replace raw `building=yes` metadata with an honest unclassified-building label and clarify water-zone counts.
+- [x] Move coordinate copying to stable clicked-place details.
+- [x] Add locally persisted, colored custom markers with emphasized foreground rendering and focus, rename, remove, and collapse actions.
+- [x] Add a persistent saved camera center/zoom and make the target control restore it.
+- [x] Discover configured Steam libraries and let users select a validated alternate game installation from the source card.
+- [x] Replace temporary position/destination pins with multi-point measurement and locally persisted named, colored paths.
+- [x] Record the installed-data and architectural feasibility of a future floor-level detail renderer.
+- [x] Document portable WebView2 checks, per-user saved-item persistence, and best-effort backup behavior.
+- [x] Document Nexus/Vortex delivery as a manual download with optional Dashboard tool registration.
+- [ ] Add small fixture-based parser tests that can run without a local game installation.
+- [ ] Add an app-level smoke test for snapshot-to-first-render behavior.
+
+## Next — practical daily-use improvements
+
+- [ ] Add a reload-data action so a user can refresh without restarting.
+- [ ] Persist layer preferences in app-owned storage.
+- [x] Add a clear building-color legend with per-type visibility controls.
+- [x] Let the user choose a non-standard game installation path when discovery fails.
+- [ ] Improve business-name normalization and category coverage from real-world feedback.
+- [ ] Add an explicit map/update compatibility warning when required source shapes change.
+- [ ] Investigate save-backed claimed safehouses and randomized survivor houses; never infer them from ordinary residential polygons.
+- [ ] Run the GitHub packaging workflow and smoke-test its NSIS and portable artifacts on a second machine.
+- [ ] Add first-class export/import for markers and saved paths before promising cross-computer portability.
+
+## Later — mod and multiplayer support
+
+- [ ] Discover enabled map mods and resolve their declared map dependencies/order.
+- [ ] Read mod-provided world map, street, annotation, and object sources through the same adapter boundary.
+- [ ] Design an optional tiny client mod that exports only the local player's position.
+- [ ] Evaluate server-authorized party positions with privacy and permission controls.
+- [ ] Evaluate authorized live vehicle condition and vehicle-to-key locations for single-player/server providers.
+- [ ] Consider higher-level marker/path collections and organization after basic export/import exists.
+- [ ] Revisit automatic Vortex tool discovery only if maintaining a separate integration is justified.
+- [ ] Run a one-cell decoder spike for compiled lot data before committing to floor-level rendering.
+
+## Deliberately deferred
+
+- Exact live container inventories.
+- Reading process memory.
+- Editing Project Zomboid saves.
+- A hosted/shared browser map until the local companion map is polished and dependable.
+- Full road routing before the map has suitable navigation topology.
+- Exact textured isometric rendering before a viewport-limited floor-plan spike proves the compiled data path.
+- A database/cache layer before startup and render profiling justifies one.
+
+## Progress history
+
+### 2026-08-08
+
+- Inspected the installed Project Zomboid map definitions, vector sources, annotations, translation labels, object zones, Steam manifest, and latest local save metadata.
+- Confirmed the distinction between 300-unit vector cell origins and 256-unit compiled map cells in the installed Build 42 data.
+- Chose a read-only Tauri companion and custom canvas renderer.
+- Added the local map/save adapter in `451a261` (`feat(data): read local Project Zomboid map sources`).
+- Added the first working interactive atlas and visual baseline in `ec22f08` (`feat(map): add interactive local atlas interface`).
+- Corrected likely-loot filter emphasis in `8432027` (`fix(filters): make loot categories visually distinct`).
+- Added the initial project handbook and replaced the scaffold README.
+- Added scalable POI controls, subtype filters, drivable vehicle-pool context, larger coordinate/detail text, and copyable coordinates.
+- Polished map hierarchy and controls: town labels stay above markers, switches align, map buttons are larger and self-describing, and ambiguous source labels are explained.
+- Added up to 100 app-owned named markers that persist between launches without touching game or save data.
+- Added per-marker colors and a larger final annotation pass so user-authored points remain visible across the map.
+- Added a minimal saved-view bookmark containing only world X/Y and zoom.
+- Established `0.1.0` as the first public release baseline across the desktop, frontend, changelog, and packaging workflow.
+- Hardened Windows publishing so the validated installer and portable ZIP are each retained as workflow artifacts and attached explicitly to the draft release; updated official GitHub actions to their Node 24-based versions.
+- Prepared `0.1.1` with Steam-library discovery, a clickable/visible local game source, native alternate-folder selection, larger supporting text, and saved multi-point measurements.
+- Inspected the installed compiled lot/tile sources and documented a staged floor-plan/isometric feasibility path.
+- Replaced the main release screenshot and added focused marker/path, filter, and game-source images.
+- Recorded the WebView2 runtime checks and `%LOCALAPPDATA%\com.pzcompanion.map` persistence boundary for portable users and future maintainers.
+- Defined the Nexus/Vortex release boundary: manual download, normal extraction, and optional Dashboard tool registration without deployment into Project Zomboid.
+
+## Definition of done for a feature
+
+A feature is done when:
+
+1. Its user-facing behavior works with real installed data.
+2. Empty/error cases are understandable and do not touch game files.
+3. `npm run build`, Rust formatting, and Rust tests pass.
+4. Relevant limitations or decisions are documented.
+5. The commit is focused and `main` remains runnable.

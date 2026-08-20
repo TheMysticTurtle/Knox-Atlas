@@ -1,0 +1,7 @@
+# Knox Atlas Cargo workspace.
+# - crates/core : shared library (coord model, types, Project Zomboid parsers/decoders)
+# - src-tauri   : desktop app (Tauri v2) — the CLI marker crate; depends on core
+# crates/server (share module) is added in Phase P4.
+[workspace]
+resolver = "2"
+members = ["crates/core", "src-tauri"]

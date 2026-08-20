@@ -1,0 +1,29 @@
+{
+  "name": "knox-atlas-web",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Knox Atlas frontend — React shell + custom canvas map engine (builds to the Tauri webview and a served bundle)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "react": "^19",
+    "react-dom": "^19",
+    "zustand": "^5"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4",
+    "typescript": "~5.9.2",
+    "vite": "^7"
+  }
+}

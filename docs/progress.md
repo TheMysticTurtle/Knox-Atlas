@@ -9,7 +9,9 @@ what/issues/tested/found/fixed). Newest worklog entry on top.
 ## Current state — 2026-08-19
 
 **Branch:** `feature/core-evolution` (replaces the abandoned `feature/business-loot-categories`).
-**Phase:** S (scaffold + parity), just started. Prototype quarantined; fresh docs written; spike done.
+**Phase:** S (scaffold + parity). Prototype quarantined; fresh docs written; spike done; **workspace
+skeleton stands up and builds end-to-end** (core + Tauri desktop + React web). Next: port the parsers
+into `core` and the canvas engine into `web/`, then hit the parity gate.
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
@@ -20,20 +22,20 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ## Backlog / TODO
 
 ### Phase S — scaffold + parity (current)
-- [ ] Root workspace `Cargo.toml` (verify current Tauri v2 workspace conventions vs official docs first).
-- [ ] `crates/core`: coord model (256 lotheader / 300 vector), types (`GameSnapshot`, `Poi`, …).
+- [x] Root workspace `Cargo.toml` (members `crates/core`, `src-tauri`). Tauri v2 conventions verified vs official docs.
+- [x] `crates/core`: coord constants (256 lotheader / 300 vector) + `version()` smoke + guard test. Types/parsers still to port.
+- [x] `src-tauri` (kept default name, not `crates/desktop`, = Tauri CLI marker): Tauri v2 app, `core_version` command, id `com.pzcompanion.map` + prototype icons/capabilities preserved.
+- [x] `web/`: React 19 + Vite 7 + TS scaffold; Zustand store; placeholder App (paper-map palette).
 - [ ] Port parsers from `legacy/src-tauri/src/lib.rs` → `core` modules: worldmap.xml, streets.xml,
       annotations+MapLabel, objects.lua zones, VehicleZoneDefinition, install discovery/validation,
-      `friendly_name`, category colors mirrored from `ISMapDefinitions`.
-- [ ] `crates/desktop`: Tauri v2 binary; thin command layer over `core`; preserve id
-      `com.pzcompanion.map`.
-- [ ] `web/`: React + Vite + TS scaffold; pick state approach (Zustand vs context) during scaffold.
+      `friendly_name`, category colors mirrored from `ISMapDefinitions`. Re-expose typed `GameSnapshot`.
 - [ ] Port canvas engine from `legacy/src/main.ts` as a framework-agnostic module (base + overlay,
       pan/zoom, culling, label collision, hit-testing).
 - [ ] React shell around the engine: filter panel, search, selection card, saved markers/paths,
-      measure; small shared store (filters/view down, hit-test/selection up).
+      measure; wire via the Zustand store (filters/view down, hit-test/selection up).
 - [ ] Preserve ADR-006 storage keys (read existing markers/paths/view); migration only if design
       diverges (discuss if it would compromise design).
+- [ ] Verify `tauri dev` launches a window rendering the app (integration; nail beforeDevCommand cwd).
 - [ ] **Parity gate:** new app reproduces today's overview map (features/streets/labels/vehicle
       zones/markers/measure/storage); still builds/packages. Diff vs `legacy/`.
 
@@ -57,6 +59,23 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-19 — Phase S: workspace skeleton stands up & builds
+- **Did:** Verified Tauri v2 workspace conventions vs official docs (src-tauri is the CLI marker;
+  frontend can live in its own folder via `frontendDist`). Created the Cargo workspace: `crates/core`
+  (coord constants + `version()` + guard test) and `src-tauri` (Tauri v2 app depending on core,
+  `core_version` command, reusing the `com.pzcompanion.map` id + prototype icons/capabilities). Stood
+  up `web/` (React 19 + Vite 7 + TS + Zustand store + placeholder App). Reconciled docs (desktop crate
+  is `src-tauri`, not `crates/desktop`).
+- **Tested (toolchain present: cargo 1.97, node 24, npm 11):**
+  - `cargo test -p knox-atlas-core` → builds; 1/1 test passes (cell-size guard).
+  - `web`: `npm install` (75 pkgs, 0 vulns) + `npm run build` (`tsc --noEmit` + `vite build`) → clean, dist emitted.
+  - `cargo build -p knox-atlas` (Tauri v2 + plugins + core) → compiles clean in ~48s. tauri.conf.json
+    + icons validated by tauri-codegen.
+- **Not yet verified:** live `tauri dev` window (integration) — deferred to parity, once the ported
+  engine renders something worth seeing; will nail beforeDevCommand cwd then.
+- **Decision:** desktop crate kept as `src-tauri/` (Tauri CLI marker convention) over the planned
+  `crates/desktop/` — avoids tooling friction. Docs updated to match.
 
 ### 2026-08-19 — Phase S groundwork: quarantine + fresh docs
 - **Did:** Cut branch `feature/core-evolution`. `git mv` old `src/`, `src-tauri/`, `docs/`, build

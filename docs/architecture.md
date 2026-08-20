@@ -69,13 +69,15 @@ Reading arbitrary process memory is out of scope. Live per-second positions requ
 ```
 crates/
   core/     # shared Rust: coord model, types, parsers, RoomDef + save decoders (lib, unit-tested)
-  desktop/  # Tauri v2 binary; thin command layer over core (embeds the server module for Share)
-  server/   # share module: view-only HTTP/WS, auth (link/pw), admin gates; also builds standalone headless
+  server/   # (Phase P4) share module: view-only HTTP/WS, auth (link/pw), admin gates; embedded + standalone headless
+src-tauri/  # Tauri v2 desktop app — the CLI marker crate; thin command layer over core; embeds server for Share
 web/        # React + Vite + TS; the canvas engine lives here; builds to (a) Tauri webview (b) served bundle
 legacy/     # quarantined prototype + its old docs (reference only)
 docs/       # this design set
 README.md, CHANGELOG.md, LICENSE, .github/
 ```
+> Note: the Tauri desktop crate is `src-tauri/` (not `crates/desktop/`) because that folder name is
+> the marker the Tauri CLI auto-detects; keeping the convention avoids tooling friction.
 
 ## Category model (multi-tag, non-exclusive)
 

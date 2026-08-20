@@ -5,7 +5,7 @@ Phased, incremental. **Parity before features.** Each phase keeps the desktop ap
 | Phase | Deliverable | Status |
 |---|---|---|
 | **Spike** | Reverse-engineer + validate `.lotheader` RoomDef format; confirm 256 cell size; enumerate vocabulary | ✅ done (see `lotheader-format.md`) |
-| **S — Scaffold + parity** | Branch `feature/core-evolution`; quarantine prototype → `legacy/`; stand up Cargo workspace (`crates/core`, `crates/desktop`) + `web/` (React+Vite+TS + ported canvas engine); render **today's overview map at parity** (features, streets, labels, vehicle zones, markers, measure, storage; same identifier/keys). Gate: visual + behavioral parity, still builds/packages. | ▶ in progress |
+| **S — Scaffold + parity** | Branch `feature/core-evolution`; quarantine prototype → `legacy/`; stand up Cargo workspace (`crates/core`, `src-tauri`) + `web/` (React+Vite+TS + ported canvas engine); render **today's overview map at parity** (features, streets, labels, vehicle zones, markers, measure, storage; same identifier/keys). Gate: visual + behavioral parity, still builds/packages. | ▶ in progress |
 | **P0 — Real categories** | RoomDef parser in `core`; multi-tag categories (gun/hunting/auto/grocery/food/alcohol/medical/books-video-knowledge/fishing/tools/electronics/clothing/fuel); rename Orientation→**Map visibility**; split zombie-theme zones into opt-in layer; **bigger text**; accuracy pass. | pending |
 | **P1 — Satellite view** | Flat top-down "map vs satellite" toggle: engine paints shipped `worldmap.png` / `pyramid.zip` raster as the base layer (no `.lotpack` decode). | pending |
 | **P2 — Floors/levels** | Z-level selector from RoomDef floor + rects (floor-plan room outlines; textures deferred). | pending |

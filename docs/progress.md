@@ -10,20 +10,18 @@ what/issues/tested/found/fixed). Newest worklog entry on top.
 
 **Branch:** `feature/core-evolution` (replaces the abandoned `feature/business-loot-categories`).
 **Phase:** S (scaffold + parity). Prototype quarantined; fresh docs written; spike done; **workspace
-skeleton stands up and builds end-to-end** (core + Tauri desktop + React web). Next: port the parsers
-into `core` and the canvas engine into `web/`, then hit the parity gate.
+skeleton stands up and builds end-to-end** (core + Tauri desktop + React web); **Rust `core` parsers
+ported + tested** (parity step 1). Next: port the canvas engine into `web/` + build the React shell,
+then hit the parity gate.
 
-> **▶ RESUME HERE (next session):** Everything is committed; working tree clean; on
-> `feature/core-evolution` (2 commits: `22db614` quarantine+docs+spike, `30959dd` skeleton). Next task
-> is the **parity port** (Phase S backlog below):
-> 1. Port Rust parsers `legacy/src-tauri/src/lib.rs` → `crates/core` modules; re-expose typed `GameSnapshot`.
+> **▶ RESUME HERE:** On `feature/core-evolution`. Parity port **step 1 DONE** (Rust `core` parsers
+> ported + tested; commit pending/landed). Remaining:
 > 2. Port the canvas engine `legacy/src/main.ts` → `web/`; build the React shell (filters/search/
 >    selection/markers/measure) wired through the Zustand store.
 > 3. Parity gate: new app renders today's map from real game files; launch `tauri dev` window; diff vs `legacy/`.
 >
-> **Open question to settle first (owner was asked, then went to bed):** roll straight through the whole
-> parity port and checkpoint at parity, OR pause after step 1 (Rust `core`) so the owner can eyeball the
-> data boundary before the frontend? Default if unspecified: pause after step 1 for a look.
+> **Currently paused** after step 1 so the owner can eyeball the data boundary (two Tauri commands +
+> the `GameSnapshot` shape) before the frontend port begins.
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
@@ -38,9 +36,9 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 - [x] `crates/core`: coord constants (256 lotheader / 300 vector) + `version()` smoke + guard test. Types/parsers still to port.
 - [x] `src-tauri` (kept default name, not `crates/desktop`, = Tauri CLI marker): Tauri v2 app, `core_version` command, id `com.pzcompanion.map` + prototype icons/capabilities preserved.
 - [x] `web/`: React 19 + Vite 7 + TS scaffold; Zustand store; placeholder App (paper-map palette).
-- [ ] Port parsers from `legacy/src-tauri/src/lib.rs` → `core` modules: worldmap.xml, streets.xml,
-      annotations+MapLabel, objects.lua zones, VehicleZoneDefinition, install discovery/validation,
-      `friendly_name`, category colors mirrored from `ISMapDefinitions`. Re-expose typed `GameSnapshot`.
+- [x] Port parsers from `legacy/src-tauri/src/lib.rs` → `core` modules (types, util, worldmap,
+      streets, annotations, vehicles, zones, install, snapshot); re-expose typed `GameSnapshot` +
+      `load_snapshot_from` + `validated_game_root`; wire the two Tauri commands. Verbatim logic (parity).
 - [ ] Port canvas engine from `legacy/src/main.ts` as a framework-agnostic module (base + overlay,
       pan/zoom, culling, label collision, hit-testing).
 - [ ] React shell around the engine: filter panel, search, selection card, saved markers/paths,
@@ -71,6 +69,21 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-20 — Phase S: Rust `core` parser port (parity step 1)
+- **Did:** Ported the monolithic `legacy/src-tauri/src/lib.rs` into 9 focused `crates/core` modules
+  (`types`, `util`, `worldmap`, `streets`, `annotations`, `vehicles`, `zones`, `install`, `snapshot`)
+  — **verbatim logic**, only reorganized. Public API: `GameSnapshot` (+ nested types),
+  `load_snapshot_from`, `validated_game_root`. Rewrote `src-tauri/src/lib.rs` to wire the two real
+  commands (`load_game_snapshot`, `validate_game_install_path`), dropping the scaffold smoke command.
+- **Tested:** `cargo test -p knox-atlas-core` → 6/6 pass, incl. `reads_an_installed_game_when_available`
+  which parses the REAL installed game (asserts features > 1000, streets/labels non-empty, vehicle
+  pools present with types + expected quality, no wreck/traffic pools). `cargo build -p knox-atlas`
+  (Tauri crate) → compiles clean, no warnings.
+- **Note:** carried a `TODO` in `zones.rs` — these `ZombiesType` "businesses" are actually zombie
+  theme zones; P0 replaces them with `.lotheader` RoomDefs and demotes them to an opt-in layer.
+- **Pause point (per handoff default):** stopping before the frontend so the owner can eyeball the
+  data boundary (two commands + `GameSnapshot` shape) before step 2.
 
 ### 2026-08-19 — Phase S: workspace skeleton stands up & builds
 - **Did:** Verified Tauri v2 workspace conventions vs official docs (src-tauri is the CLI marker;

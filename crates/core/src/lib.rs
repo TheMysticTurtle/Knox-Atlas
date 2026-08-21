@@ -1,12 +1,29 @@
 //! Knox Atlas shared core.
 //!
-//! Reads the locally installed Project Zomboid game (and, later, a save) read-only and returns
-//! normalized, serializable data for the desktop app and the share server. Parsers are ported from
-//! the quarantined prototype (`legacy/src-tauri/src/lib.rs`) into focused modules during Phase S.
+//! Reads the locally installed Project Zomboid game (and, later, a save) read-only and returns a
+//! normalized, serializable [`GameSnapshot`] for the desktop app and the share server. Parsers are
+//! split into focused modules, ported verbatim from the quarantined prototype
+//! (`legacy/src-tauri/src/lib.rs`) — behavior is unchanged for the Phase S parity gate.
 //!
 //! Coordinate model — do NOT conflate these two cell grids (see `docs/map-data.md`):
 //! - `worldmap.xml` vector cells are **300** tiles: `worldX = cellX * WORLD_MAP_CELL_SIZE + pointX`.
 //! - `.lotheader` / compiled cells are **256** tiles: `worldX = cellX * COMPILED_CELL_SIZE + roomX`.
+
+mod annotations;
+mod install;
+mod snapshot;
+mod streets;
+mod types;
+mod util;
+mod vehicles;
+mod worldmap;
+mod zones;
+
+pub use install::validated_game_root;
+pub use snapshot::load_snapshot_from;
+pub use types::{
+    Bounds, GameSnapshot, MapFeature, MapLabel, Point, Poi, SaveInfo, SnapshotCounts, Street,
+};
 
 /// Vector `worldmap.xml` cell size, in world tiles.
 pub const WORLD_MAP_CELL_SIZE: f32 = 300.0;
@@ -15,14 +32,24 @@ pub const COMPILED_CELL_SIZE: u32 = 256;
 /// Chunk size, in world tiles.
 pub const CHUNK_SIZE: u32 = 8;
 
-/// Crate version, surfaced as a smoke-test command by the desktop shell during scaffolding.
+/// Crate version, surfaced by the desktop shell for diagnostics.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::HashMap;
+
+    use crate::install::find_game_root;
+    use crate::vehicles::is_drivable_vehicle_zone;
+    use crate::worldmap::classify_feature;
+    use crate::zones::{friendly_name, poi_category};
+    use crate::{COMPILED_CELL_SIZE, GameSnapshot, WORLD_MAP_CELL_SIZE, load_snapshot_from};
+
+    fn load_snapshot() -> Result<GameSnapshot, String> {
+        load_snapshot_from(None)
+    }
 
     #[test]
     fn vector_and_compiled_cell_sizes_are_distinct() {
@@ -31,5 +58,68 @@ mod tests {
         assert_eq!(WORLD_MAP_CELL_SIZE as u32, 300);
         assert_eq!(COMPILED_CELL_SIZE, 256);
         assert_ne!(WORLD_MAP_CELL_SIZE as u32, COMPILED_CELL_SIZE);
+    }
+
+    #[test]
+    fn names_unspecified_buildings_instead_of_leaking_boolean_metadata() {
+        let properties = HashMap::from([("building".to_string(), "yes".to_string())]);
+        assert_eq!(
+            classify_feature(&properties),
+            Some(("building".to_string(), "Unclassified".to_string()))
+        );
+    }
+
+    #[test]
+    fn classifies_game_zones_into_honest_broad_categories() {
+        assert_eq!(poi_category("Spiffo"), "food");
+        assert_eq!(poi_category("Pharmacist"), "medical");
+        assert_eq!(poi_category("ConstructionSite"), "tools");
+        assert_eq!(poi_category("Police"), "security");
+        assert_eq!(poi_category("Fossoil"), "fuel");
+    }
+
+    #[test]
+    fn makes_internal_zone_names_readable() {
+        assert_eq!(friendly_name("CarRepair"), "Auto repair");
+        assert_eq!(friendly_name("PizzaWhirled"), "Pizza Whirled");
+        assert_eq!(friendly_name("FancyHotel"), "Fancy Hotel");
+    }
+
+    #[test]
+    fn excludes_obvious_wreck_and_traffic_vehicle_pools() {
+        assert!(!is_drivable_vehicle_zone("burnt"));
+        assert!(!is_drivable_vehicle_zone("rtrafficjamw"));
+        assert!(!is_drivable_vehicle_zone("junkyard"));
+        assert!(is_drivable_vehicle_zone(""));
+        assert!(is_drivable_vehicle_zone("police"));
+        assert!(is_drivable_vehicle_zone("sport"));
+    }
+
+    #[test]
+    fn reads_an_installed_game_when_available() {
+        if find_game_root().is_none() {
+            return;
+        }
+
+        let snapshot = load_snapshot().expect("installed game data should parse");
+        assert!(!snapshot.features.is_empty());
+        assert!(!snapshot.streets.is_empty());
+        assert!(!snapshot.labels.is_empty());
+        assert!(snapshot.counts.buildings > 1_000);
+        let vehicles: Vec<_> = snapshot
+            .pois
+            .iter()
+            .filter(|poi| poi.kind == "vehicle")
+            .collect();
+        assert!(!vehicles.is_empty());
+        assert!(vehicles.iter().all(|poi| !poi.vehicle_types.is_empty()));
+        assert!(vehicles.iter().any(|poi| poi.expected_quality.is_some()));
+        assert!(vehicles.iter().all(|poi| {
+            let label = poi.label.to_ascii_lowercase();
+            !label.contains("burnt")
+                && !label.contains("traffic jam")
+                && !label.contains("trafficjam")
+                && !label.contains("junkyard")
+        }));
     }
 }

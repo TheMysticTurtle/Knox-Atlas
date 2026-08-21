@@ -14,14 +14,14 @@ skeleton stands up and builds end-to-end** (core + Tauri desktop + React web); *
 ported + tested** (parity step 1). Next: port the canvas engine into `web/` + build the React shell,
 then hit the parity gate.
 
-> **▶ RESUME HERE:** On `feature/core-evolution`. Parity port **step 1 DONE** (Rust `core` parsers
-> ported + tested; commit pending/landed). Remaining:
-> 2. Port the canvas engine `legacy/src/main.ts` → `web/`; build the React shell (filters/search/
->    selection/markers/measure) wired through the Zustand store.
-> 3. Parity gate: new app renders today's map from real game files; launch `tauri dev` window; diff vs `legacy/`.
->
-> **Currently paused** after step 1 so the owner can eyeball the data boundary (two Tauri commands +
-> the `GameSnapshot` shape) before the frontend port begins.
+> **▶ RESUME HERE:** On `feature/core-evolution`. **Data-first plan:** finish the Rust data engine
+> (map full detail + save detail) before any UI.
+> - ✅ Overview parsers ported + tested. ✅ **RoomDef reader** (`rooms.rs`) — full map detail, tested
+>   against all 4,065 installed lotheaders.
+> - ⏳ **Save reader** — BLOCKED on a real test save (local saves are thin MP client caches). Owner to
+>   pick: spin up a single-player save / point at their dedicated-server save dir / accept partial
+>   from the MP cache. Build once decided.
+> - Then: typed-errors + async provider cleanup pass; then the UI (canvas engine + React shell → parity).
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
@@ -69,6 +69,24 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-20 — Data-first re-sequence + RoomDef reader in the engine
+- **Decision (owner):** build the complete Rust data **engine** first — read the installed map with
+  FULL detail (RoomDefs) + read a save with all detail extracted, best-practice — *then* the UI.
+  Frontend parity port is deferred behind the data engine. Best-practice = tiered/separate providers
+  (not one growing blob); typed-errors + async-command cleanup is a dedicated whole-`core` pass to run
+  when wiring providers (kept consistent, not half-migrated).
+- **Did:** Ported the validated `.lotheader` RoomDef decoder (was `docs/reference/lot_enum.py`) into
+  Rust `crates/core/rooms.rs`: safe cursor-based parser (no panics on truncation), `RoomDef`/`RoomRect`
+  types (absolute world coords via the 256-cell conversion), `parse_lot_header` + `load_rooms(map_dir)`.
+  Exposed from the crate. This is a **separate provider** (not folded into `GameSnapshot`).
+- **Tested:** `cargo test -p knox-atlas-core` → 7/7 pass; new
+  `reads_lotheader_roomdefs_from_installed_game_when_available` parses ALL 4,065 installed lotheaders
+  cleanly → 80k+ rooms, 400+ distinct names, contains gunstore/bookstore/grocery/pharmacy/fishingstorage
+  with sane world coords. `cargo build` (workspace) → clean.
+- **Save reader — BLOCKED on test data:** only local saves are thin multiplayer *client* caches
+  (empty vehicles.db; server owns loot/vehicles/positions). Need a real save (single-player, or the
+  owner's dedicated-server save dir) to build + verify "all detail". Awaiting owner's choice.
 
 ### 2026-08-20 — Phase S: Rust `core` parser port (parity step 1)
 - **Did:** Ported the monolithic `legacy/src-tauri/src/lib.rs` into 9 focused `crates/core` modules

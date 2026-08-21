@@ -11,6 +11,7 @@
 
 mod annotations;
 mod install;
+mod rooms;
 mod snapshot;
 mod streets;
 mod types;
@@ -20,6 +21,7 @@ mod worldmap;
 mod zones;
 
 pub use install::validated_game_root;
+pub use rooms::{RoomDef, RoomRect, load_rooms, parse_lot_header};
 pub use snapshot::load_snapshot_from;
 pub use types::{
     Bounds, GameSnapshot, MapFeature, MapLabel, Point, Poi, SaveInfo, SnapshotCounts, Street,
@@ -45,7 +47,10 @@ mod tests {
     use crate::vehicles::is_drivable_vehicle_zone;
     use crate::worldmap::classify_feature;
     use crate::zones::{friendly_name, poi_category};
-    use crate::{COMPILED_CELL_SIZE, GameSnapshot, WORLD_MAP_CELL_SIZE, load_snapshot_from};
+    use crate::{
+        COMPILED_CELL_SIZE, GameSnapshot, WORLD_MAP_CELL_SIZE, load_rooms, load_snapshot_from,
+    };
+    use std::collections::HashSet;
 
     fn load_snapshot() -> Result<GameSnapshot, String> {
         load_snapshot_from(None)
@@ -93,6 +98,33 @@ mod tests {
         assert!(is_drivable_vehicle_zone(""));
         assert!(is_drivable_vehicle_zone("police"));
         assert!(is_drivable_vehicle_zone("sport"));
+    }
+
+    #[test]
+    fn reads_lotheader_roomdefs_from_installed_game_when_available() {
+        let Some(root) = find_game_root() else {
+            return;
+        };
+        let map_dir = root.join("media").join("maps").join("Muldraugh, KY");
+        let rooms = load_rooms(&map_dir).expect("all installed lotheaders should parse cleanly");
+
+        // Corpus scale validated during the spike (~90,827 rooms, ~586 distinct names).
+        assert!(rooms.len() > 80_000, "expected many rooms, got {}", rooms.len());
+        let names: HashSet<&str> = rooms.iter().map(|room| room.name.as_str()).collect();
+        assert!(names.len() > 400, "expected a rich room vocabulary, got {}", names.len());
+
+        // The real building/room identity the prototype could not see is present…
+        for expected in ["gunstore", "bookstore", "grocery", "pharmacy", "fishingstorage"] {
+            assert!(names.contains(expected), "missing room type: {expected}");
+        }
+        // …with sane world coordinates (256-cell conversion) on a known store.
+        let gun = rooms
+            .iter()
+            .find(|room| room.name == "gunstore")
+            .expect("a gunstore RoomDef");
+        assert!(!gun.rects.is_empty());
+        let bounds = gun.bounds();
+        assert!(bounds.min_x >= 0.0 && bounds.min_y >= 0.0);
     }
 
     #[test]

@@ -6,7 +6,7 @@ what/issues/tested/found/fixed). Newest worklog entry on top.
 
 ---
 
-## Current state — 2026-08-19
+## Current state — 2026-08-21
 
 **Branch:** `feature/core-evolution` (replaces the abandoned `feature/business-loot-categories`).
 **Phase:** S (scaffold + parity). Prototype quarantined; fresh docs written; spike done; **workspace
@@ -18,9 +18,10 @@ then hit the parity gate.
 > (map full detail + save detail) before any UI.
 > - ✅ Overview parsers ported + tested. ✅ **RoomDef reader** (`rooms.rs`) — full map detail, tested
 >   against all 4,065 installed lotheaders.
-> - ⏳ **Save reader** — BLOCKED on a real test save (local saves are thin MP client caches). Owner to
->   pick: spin up a single-player save / point at their dedicated-server save dir / accept partial
->   from the MP cache. Build once decided.
+> - ✅ **Save reader — positions layer** (`save.rs`): player + vehicle positions via SQLite, verified
+>   against the owner's hosted `servertest` save (real player + 5 vehicles). Unblocked — owner made a save.
+> - ⏳ Save reader deeper layers: vehicle/player `data` blobs (type/condition/keys), then container loot.
+> - ⏳ RoomDef → category taxonomy (turn raw rooms into multi-tagged Weapons/Food/Skills… POIs).
 > - Then: typed-errors + async provider cleanup pass; then the UI (canvas engine + React shell → parity).
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
@@ -70,7 +71,22 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ## Worklog
 
-### 2026-08-20 — Data-first re-sequence + RoomDef reader in the engine
+### 2026-08-21 — Save reader: positions layer (players + vehicles)
+- **Test data:** owner hosted a local server save `servertest` (Saves/Multiplayer/servertest) — a
+  *hosted* save, so authoritative data is on this disk (unlike the thin remote-client caches):
+  non-empty `players.db` (networkPlayers) + `vehicles.db` (5 vehicles) + `map/` loot chunks.
+- **Did:** added `rusqlite` (bundled — no system SQLite dep) to core; `crates/core/save.rs` reads
+  `players.db` (localPlayers = SP / networkPlayers = hosted) and `vehicles.db` read-only via an
+  **immutable snapshot** (reads even if the game holds the file). Types `PlayerPosition` /
+  `VehiclePosition` / `SaveDetail`; `load_save_detail(save_dir)` (source-agnostic) + `default_save_dir()`.
+- **Tested:** `cargo test -p knox-atlas-core` → 8/8. New test read the real save: player
+  "Rodney Remmington" (GeckoMage) @ (7342, 5982) z0 + 5 vehicles @ ~(6080–7414, 5398–6032) — matches
+  the raw SQLite exactly. `cargo build` (workspace, incl. Tauri) → clean.
+- **Layered plan (by difficulty):** ✅ positions → ⏳ vehicle/player `data` blobs (type/condition/keys,
+  Java-serialized) → ⏳ container loot (`map/<x>/<y>` binary chunks). PZ generates world data lazily as
+  chunks are seen; flushed to disk on autosave / quit-to-menu.
+
+### 2026-08-21 — Data-first re-sequence + RoomDef reader in the engine
 - **Decision (owner):** build the complete Rust data **engine** first — read the installed map with
   FULL detail (RoomDefs) + read a save with all detail extracted, best-practice — *then* the UI.
   Frontend parity port is deferred behind the data engine. Best-practice = tiered/separate providers
@@ -88,7 +104,7 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
   (empty vehicles.db; server owns loot/vehicles/positions). Need a real save (single-player, or the
   owner's dedicated-server save dir) to build + verify "all detail". Awaiting owner's choice.
 
-### 2026-08-20 — Phase S: Rust `core` parser port (parity step 1)
+### 2026-08-21 — Phase S: Rust `core` parser port (parity step 1)
 - **Did:** Ported the monolithic `legacy/src-tauri/src/lib.rs` into 9 focused `crates/core` modules
   (`types`, `util`, `worldmap`, `streets`, `annotations`, `vehicles`, `zones`, `install`, `snapshot`)
   — **verbatim logic**, only reorganized. Public API: `GameSnapshot` (+ nested types),

@@ -12,6 +12,7 @@
 mod annotations;
 mod install;
 mod rooms;
+mod save;
 mod snapshot;
 mod streets;
 mod types;
@@ -22,6 +23,7 @@ mod zones;
 
 pub use install::validated_game_root;
 pub use rooms::{RoomDef, RoomRect, load_rooms, parse_lot_header};
+pub use save::{PlayerPosition, SaveDetail, VehiclePosition, default_save_dir, load_save_detail};
 pub use snapshot::load_snapshot_from;
 pub use types::{
     Bounds, GameSnapshot, MapFeature, MapLabel, Point, Poi, SaveInfo, SnapshotCounts, Street,
@@ -48,7 +50,8 @@ mod tests {
     use crate::worldmap::classify_feature;
     use crate::zones::{friendly_name, poi_category};
     use crate::{
-        COMPILED_CELL_SIZE, GameSnapshot, WORLD_MAP_CELL_SIZE, load_rooms, load_snapshot_from,
+        COMPILED_CELL_SIZE, GameSnapshot, WORLD_MAP_CELL_SIZE, default_save_dir, load_rooms,
+        load_save_detail, load_snapshot_from,
     };
     use std::collections::HashSet;
 
@@ -125,6 +128,34 @@ mod tests {
         assert!(!gun.rects.is_empty());
         let bounds = gun.bounds();
         assert!(bounds.min_x >= 0.0 && bounds.min_y >= 0.0);
+    }
+
+    #[test]
+    fn reads_positions_from_the_latest_save_when_available() {
+        let Some(save_dir) = default_save_dir() else {
+            return; // no local save to read
+        };
+        let detail = load_save_detail(&save_dir).expect("save positions should parse");
+
+        // The reader is robust to thin client caches; when data is present it must be sane world coords.
+        for player in &detail.players {
+            assert!(player.x.is_finite() && player.y.is_finite());
+        }
+        for vehicle in &detail.vehicles {
+            assert!(vehicle.x.is_finite() && vehicle.x > 0.0 && vehicle.y > 0.0);
+        }
+        eprintln!(
+            "save {:?}: {} player(s), {} vehicle(s)",
+            save_dir.file_name().unwrap_or_default(),
+            detail.players.len(),
+            detail.vehicles.len()
+        );
+        for player in &detail.players {
+            eprintln!("  player {} ({}) @ ({:.0}, {:.0}) z{}", player.name, player.username, player.x, player.y, player.z);
+        }
+        for vehicle in &detail.vehicles {
+            eprintln!("  vehicle #{} @ ({:.0}, {:.0})", vehicle.id, vehicle.x, vehicle.y);
+        }
     }
 
     #[test]

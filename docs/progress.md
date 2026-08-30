@@ -8,25 +8,27 @@ what/issues/tested/found/fixed). Newest worklog entry on top.
 
 ## Current state — 2026-08-21
 
-**Branch:** `feature/core-evolution` (replaces the abandoned `feature/business-loot-categories`).
-**Phase:** S (scaffold + parity). Prototype quarantined; fresh docs written; spike done; **workspace
-skeleton stands up and builds end-to-end** (core + Tauri desktop + React web); **Rust `core` parsers
-ported + tested** (parity step 1). Next: port the canvas engine into `web/` + build the React shell,
-then hit the parity gate.
+**Branch:** `feature/core-evolution`. **The intel map is a working app** — Rust `core` data engine
+(overview + RoomDefs + categories + loot, typed/tested/clippy-clean) → React + canvas renderer with
+base map, pan/zoom, categorized POI dots, hierarchical loot filters, click-a-dot→expected-loot, labels
+(towns/streets/business), and a VIEW section. Dev: `cd web && npm run dev` → localhost:1420
+(reads live in Tauri, or `web/public/*.json` from `cargo run -p knox-atlas-core --example dump_snapshot`).
 
-> **▶ RESUME HERE:** On `feature/core-evolution`. **Data-first plan:** finish the Rust data engine
-> (map full detail + save detail) before any UI.
-> - ✅ Overview parsers ported + tested. ✅ **RoomDef reader** (`rooms.rs`) — full map detail, tested
->   against all 4,065 installed lotheaders.
-> - ✅ **RoomDef categorizer** (`category.rs`) — multi-tag; 73% of real rooms categorized.
-> - ✅ **Distributions loot** (`distributions.rs`) — expected loot per room type, install-only,
->   verified (police→guns, pharmacy→meds, bookstore→books). Ranking = honest raw weight; headline
->   presentation (group-by-container) deferred to UX phase.
-> - **Default-map DATA engine is now essentially complete** (overview + RoomDefs + categories + loot).
-> - ⏳ **NEXT: satellite** raster + base-map **renderer** (canvas engine → React shell). Owner owns UX flow.
-> - Parked (future, maybe-dropped): save reader (positions ✅ built), live positions (server mod),
->   server sidecar, `.lotpack` detailed-map decoder (→ furniture search). Kept isolated / additive.
-> - ✅ Code beauty pass done: typed `CoreError`, async `load_game_snapshot`, rustfmt + clippy(-D warnings) clean.
+> **▶ RESUME HERE:** On `feature/core-evolution`, ~15 commits, tree clean. Intel map works end-to-end.
+> **Owner's up-next list (in order):**
+> 1. **Business names** on the map (landmark labels — verify they show useful names; the toggle exists).
+> 2. **Satellite view** — load the game's `worldmap.png`/`pyramid.zip` raster as a base layer; light up
+>    the (currently disabled) Satellite toggle in the VIEW section.
+> 3. **Quick business-type filter** — the "Quick finds" panel section: one-click toggles for common
+>    places (Police, Gun/Book/Video stores, Supermarkets, Gas, Schools, Hotels, Houses, Factories,
+>    Warehouses…). Then a **World utilities** section (Vehicles by type, greenhouses, pottery).
+> 4. **Highlight-selected-over-the-rest** — when filtered/focused to a specific thing, highlight/enlarge
+>    matches and dim the rest (the old-app highlight-not-hide behaviour; also the loot-item search).
+> Also queued: loot-card ordering by "what people want" (item categorizer → surface room-matching items
+> first) instead of raw weight; item search ("chisel" → spawn locations).
+> Parked/future: `.lotpack` **local decoder** (owner's plan: on-demand render from the user's install →
+> satellite/floors/object-locations/furniture-search, mod-compatible) — the flagship next phase after
+> wrap-up. Save reader (built, isolated) / live positions (server mod) / server sidecar.
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
@@ -74,6 +76,13 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-21 — Garage/shed categorization fix
+- **Owner caught:** garages/sheds had no markers. They were filed Homes-only (garage) / uncategorized
+  (shed), so excluded from POIs — but they hold real loot (tools, car parts, gardening).
+- **Fix:** `category.rs` adds `garage`/`shed` to Tools (garages become Tools+Homes → surface as Tools
+  POIs; sheds → Tools). `subcategories.ts` adds a **Garages & sheds** sub-bucket under Tools.
+  Regenerated dev data: POIs 13,149 → **15,405**. Core tests 11/11, web tsc clean.
 
 ### 2026-08-21 — Labels + View section (towns / streets / buildings)
 - **Did:** Engine renders town/area/water labels + street-name labels (rotated, along the longest

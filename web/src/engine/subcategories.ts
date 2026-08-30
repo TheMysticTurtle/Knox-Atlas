@@ -65,6 +65,7 @@ const SUBS: Record<Category, Sub[]> = {
       match: has("factory", "warehouse", "industry", "logging"),
     },
     { id: "auto", label: "Auto & mechanic", match: has("mechanic", "carsupply") },
+    { id: "garages", label: "Garages & sheds", match: has("garage", "shed") },
     { id: "construction", label: "Construction", match: has("construction") },
   ],
   knowledge: [

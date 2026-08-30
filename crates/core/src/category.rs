@@ -158,6 +158,8 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
             "logging",
             "industry",
             "hardware",
+            "garage",
+            "shed",
         ],
     ) {
         add(&mut categories, Category::Tools);

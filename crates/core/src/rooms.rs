@@ -16,8 +16,9 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::COMPILED_CELL_SIZE;
+use crate::error::{CoreError, Result};
 use crate::types::Bounds;
+use crate::COMPILED_CELL_SIZE;
 
 /// A room rectangle in absolute world-tile coordinates.
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -69,11 +70,14 @@ struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    fn truncated(&self, what: &str) -> String {
-        format!("{}: truncated while reading {what} at offset {}", self.file, self.offset)
+    fn truncated(&self, what: &str) -> CoreError {
+        CoreError::parse(
+            self.file,
+            format!("truncated while reading {what} at offset {}", self.offset),
+        )
     }
 
-    fn take(&mut self, n: usize) -> Result<&'a [u8], String> {
+    fn take(&mut self, n: usize) -> Result<&'a [u8]> {
         let slice = self
             .bytes
             .get(self.offset..self.offset + n)
@@ -82,16 +86,16 @@ impl<'a> Cursor<'a> {
         Ok(slice)
     }
 
-    fn u32(&mut self) -> Result<u32, String> {
+    fn u32(&mut self) -> Result<u32> {
         Ok(u32::from_le_bytes(self.take(4)?.try_into().unwrap()))
     }
 
-    fn i32(&mut self) -> Result<i32, String> {
+    fn i32(&mut self) -> Result<i32> {
         Ok(i32::from_le_bytes(self.take(4)?.try_into().unwrap()))
     }
 
     /// Read a `\n`-terminated string (as the tile/room tables store them).
-    fn string(&mut self) -> Result<String, String> {
+    fn string(&mut self) -> Result<String> {
         let end = self.bytes[self.offset..]
             .iter()
             .position(|&byte| byte == b'\n')
@@ -104,10 +108,19 @@ impl<'a> Cursor<'a> {
 }
 
 /// Parse one `.lotheader`'s RoomDefs into absolute-world-coordinate rooms.
-pub fn parse_lot_header(bytes: &[u8], cell_x: i32, cell_y: i32, file: &str) -> Result<Vec<RoomDef>, String> {
-    let mut cursor = Cursor { bytes, offset: 0, file };
+pub fn parse_lot_header(
+    bytes: &[u8],
+    cell_x: i32,
+    cell_y: i32,
+    file: &str,
+) -> Result<Vec<RoomDef>> {
+    let mut cursor = Cursor {
+        bytes,
+        offset: 0,
+        file,
+    };
     if cursor.take(4)? != b"LOTH" {
-        return Err(format!("{file}: not a LOTH lotheader"));
+        return Err(CoreError::parse(file, "not a LOTH lotheader"));
     }
     let _version = cursor.u32()?;
     let tile_count = cursor.u32()?;
@@ -163,9 +176,9 @@ fn cell_from_name(name: &str) -> Option<(i32, i32)> {
 }
 
 /// Read every `.lotheader` under a map directory into RoomDefs (absolute world coordinates).
-pub fn load_rooms(map_dir: &Path) -> Result<Vec<RoomDef>, String> {
+pub fn load_rooms(map_dir: &Path) -> Result<Vec<RoomDef>> {
     let entries = fs::read_dir(map_dir)
-        .map_err(|error| format!("Could not read map directory for room data: {error}"))?;
+        .map_err(|error| CoreError::io("the map directory for room data", error))?;
     let mut rooms = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
@@ -178,8 +191,7 @@ pub fn load_rooms(map_dir: &Path) -> Result<Vec<RoomDef>, String> {
         let Some((cell_x, cell_y)) = cell_from_name(name) else {
             continue;
         };
-        let bytes = fs::read(&path)
-            .map_err(|error| format!("Could not read {name}: {error}"))?;
+        let bytes = fs::read(&path).map_err(|error| CoreError::io(name, error))?;
         rooms.extend(parse_lot_header(&bytes, cell_x, cell_y, name)?);
     }
     Ok(rooms)

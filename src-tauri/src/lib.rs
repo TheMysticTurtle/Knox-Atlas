@@ -9,15 +9,25 @@ use std::path::Path;
 
 use knox_atlas_core::GameSnapshot;
 
+/// Parse the installed game (optionally a user-chosen root) into a `GameSnapshot`. The parse is
+/// CPU/IO-heavy, so it runs on the blocking pool and the command is `async` — the WebView never
+/// blocks. `CoreError` is flattened to a user-facing string for the frontend.
 #[tauri::command]
-fn load_game_snapshot(game_root: Option<String>) -> Result<GameSnapshot, String> {
-    knox_atlas_core::load_snapshot_from(game_root.as_deref().map(Path::new))
+async fn load_game_snapshot(game_root: Option<String>) -> Result<GameSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        knox_atlas_core::load_snapshot_from(game_root.as_deref().map(Path::new))
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
+/// Validate a folder the user picked before it is remembered. Cheap, so it stays synchronous.
 #[tauri::command]
 fn validate_game_install_path(path: String) -> Result<String, String> {
     knox_atlas_core::validated_game_root(Path::new(&path))
         .map(|root| root.to_string_lossy().into_owned())
+        .map_err(|error| error.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

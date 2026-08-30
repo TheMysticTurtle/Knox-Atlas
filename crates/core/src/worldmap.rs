@@ -5,12 +5,13 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use quick_xml::Reader;
 use quick_xml::events::Event;
+use quick_xml::Reader;
 
-use crate::WORLD_MAP_CELL_SIZE;
+use crate::error::{CoreError, Result};
 use crate::types::{Bounds, MapFeature, Point};
 use crate::util::{attribute, parse_f32};
+use crate::WORLD_MAP_CELL_SIZE;
 
 #[derive(Default)]
 struct TempFeature {
@@ -19,7 +20,9 @@ struct TempFeature {
 }
 
 pub(crate) fn classify_feature(properties: &HashMap<String, String>) -> Option<(String, String)> {
-    for key in ["water", "highway", "railway", "building", "natural", "place"] {
+    for key in [
+        "water", "highway", "railway", "building", "natural", "place",
+    ] {
         if let Some(value) = properties.get(key) {
             let kind = match key {
                 "highway" => "road",
@@ -39,8 +42,8 @@ pub(crate) fn classify_feature(properties: &HashMap<String, String>) -> Option<(
     None
 }
 
-pub(crate) fn parse_world_map(path: &Path, bounds: &mut Bounds) -> Result<Vec<MapFeature>, String> {
-    let file = File::open(path).map_err(|error| format!("Could not open world map: {error}"))?;
+pub(crate) fn parse_world_map(path: &Path, bounds: &mut Bounds) -> Result<Vec<MapFeature>> {
+    let file = File::open(path).map_err(|error| CoreError::io("the world map", error))?;
     let mut reader = Reader::from_reader(BufReader::new(file));
     reader.config_mut().trim_text(true);
     let mut buffer = Vec::new();
@@ -92,7 +95,7 @@ pub(crate) fn parse_world_map(path: &Path, bounds: &mut Bounds) -> Result<Vec<Ma
                 }
             }
             Ok(Event::Eof) => break,
-            Err(error) => return Err(format!("Could not parse world map: {error}")),
+            Err(error) => return Err(CoreError::parse("worldmap.xml", error.to_string())),
             _ => {}
         }
         buffer.clear();

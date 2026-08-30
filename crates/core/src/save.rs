@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, OpenFlags};
 use serde::Serialize;
 
+use crate::error::{CoreError, Result};
+
 /// A player's last-saved position. From `localPlayers` (single-player) or `networkPlayers` (hosted).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,7 +53,9 @@ fn open_read_only(path: &Path) -> Option<Connection> {
     // game holds the file open (the data may be slightly stale until the game's next autosave/quit).
     let uri = format!(
         "file:{}?immutable=1",
-        path.to_string_lossy().replace('\\', "/").replace(' ', "%20")
+        path.to_string_lossy()
+            .replace('\\', "/")
+            .replace(' ', "%20")
     );
     Connection::open_with_flags(
         uri,
@@ -72,7 +76,7 @@ fn table_exists(connection: &Connection, name: &str) -> bool {
         .is_ok()
 }
 
-fn read_players(save_dir: &Path) -> Result<Vec<PlayerPosition>, String> {
+fn read_players(save_dir: &Path) -> Result<Vec<PlayerPosition>> {
     let Some(connection) = open_read_only(&save_dir.join("players.db")) else {
         return Ok(Vec::new());
     };
@@ -82,7 +86,7 @@ fn read_players(save_dir: &Path) -> Result<Vec<PlayerPosition>, String> {
     if table_exists(&connection, "networkPlayers") {
         let mut statement = connection
             .prepare("SELECT id, username, name, x, y, z, isDead FROM networkPlayers")
-            .map_err(|error| format!("players.db query failed: {error}"))?;
+            .map_err(|error| CoreError::parse("players.db", error.to_string()))?;
         let rows = statement
             .query_map([], |row| {
                 Ok(PlayerPosition {
@@ -95,9 +99,9 @@ fn read_players(save_dir: &Path) -> Result<Vec<PlayerPosition>, String> {
                     is_dead: row.get::<_, i64>(6)? != 0,
                 })
             })
-            .map_err(|error| format!("players.db read failed: {error}"))?;
+            .map_err(|error| CoreError::parse("players.db", error.to_string()))?;
         for row in rows {
-            players.push(row.map_err(|error| format!("players.db row failed: {error}"))?);
+            players.push(row.map_err(|error| CoreError::parse("players.db", error.to_string()))?);
         }
     }
 
@@ -105,7 +109,7 @@ fn read_players(save_dir: &Path) -> Result<Vec<PlayerPosition>, String> {
     if table_exists(&connection, "localPlayers") {
         let mut statement = connection
             .prepare("SELECT id, name, x, y, z, isDead FROM localPlayers")
-            .map_err(|error| format!("players.db query failed: {error}"))?;
+            .map_err(|error| CoreError::parse("players.db", error.to_string()))?;
         let rows = statement
             .query_map([], |row| {
                 let name = row.get::<_, Option<String>>(1)?.unwrap_or_default();
@@ -119,16 +123,16 @@ fn read_players(save_dir: &Path) -> Result<Vec<PlayerPosition>, String> {
                     is_dead: row.get::<_, i64>(5)? != 0,
                 })
             })
-            .map_err(|error| format!("players.db read failed: {error}"))?;
+            .map_err(|error| CoreError::parse("players.db", error.to_string()))?;
         for row in rows {
-            players.push(row.map_err(|error| format!("players.db row failed: {error}"))?);
+            players.push(row.map_err(|error| CoreError::parse("players.db", error.to_string()))?);
         }
     }
 
     Ok(players)
 }
 
-fn read_vehicles(save_dir: &Path) -> Result<Vec<VehiclePosition>, String> {
+fn read_vehicles(save_dir: &Path) -> Result<Vec<VehiclePosition>> {
     let Some(connection) = open_read_only(&save_dir.join("vehicles.db")) else {
         return Ok(Vec::new());
     };
@@ -137,7 +141,7 @@ fn read_vehicles(save_dir: &Path) -> Result<Vec<VehiclePosition>, String> {
     }
     let mut statement = connection
         .prepare("SELECT id, x, y FROM vehicles")
-        .map_err(|error| format!("vehicles.db query failed: {error}"))?;
+        .map_err(|error| CoreError::parse("vehicles.db", error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
             Ok(VehiclePosition {
@@ -146,16 +150,16 @@ fn read_vehicles(save_dir: &Path) -> Result<Vec<VehiclePosition>, String> {
                 y: row.get::<_, f64>(2)? as f32,
             })
         })
-        .map_err(|error| format!("vehicles.db read failed: {error}"))?;
+        .map_err(|error| CoreError::parse("vehicles.db", error.to_string()))?;
     let mut vehicles = Vec::new();
     for row in rows {
-        vehicles.push(row.map_err(|error| format!("vehicles.db row failed: {error}"))?);
+        vehicles.push(row.map_err(|error| CoreError::parse("vehicles.db", error.to_string()))?);
     }
     Ok(vehicles)
 }
 
 /// Read the extractable detail from a save directory (positions layer).
-pub fn load_save_detail(save_dir: &Path) -> Result<SaveDetail, String> {
+pub fn load_save_detail(save_dir: &Path) -> Result<SaveDetail> {
     Ok(SaveDetail {
         players: read_players(save_dir)?,
         vehicles: read_vehicles(save_dir)?,

@@ -10,7 +10,8 @@ use std::path::Path;
 
 use regex::Regex;
 
-use crate::types::{Bounds, Point, Poi};
+use crate::error::{CoreError, Result};
+use crate::types::{Bounds, Poi, Point};
 use crate::vehicles::{is_drivable_vehicle_zone, parse_vehicle_zone_definitions, vehicle_types};
 
 pub(crate) fn friendly_name(value: &str) -> String {
@@ -70,9 +71,15 @@ pub(crate) fn poi_category(value: &str) -> &'static str {
     .any(|name| value.contains(name))
     {
         "food"
-    } else if ["doctor", "pharmacist", "nursinghome", "hospital", "ambulance"]
-        .iter()
-        .any(|name| value.contains(name))
+    } else if [
+        "doctor",
+        "pharmacist",
+        "nursinghome",
+        "hospital",
+        "ambulance",
+    ]
+    .iter()
+    .any(|name| value.contains(name))
     {
         "medical"
     } else if [
@@ -116,9 +123,9 @@ pub(crate) fn parse_pois(
     path: &Path,
     vehicle_definitions_path: &Path,
     bounds: &mut Bounds,
-) -> Result<Vec<Poi>, String> {
+) -> Result<Vec<Poi>> {
     let source =
-        fs::read_to_string(path).map_err(|error| format!("Could not read game zones: {error}"))?;
+        fs::read_to_string(path).map_err(|error| CoreError::io("the game zones", error))?;
     let pattern = Regex::new(
         r#"\{\s*name\s*=\s*\"([^\"]*)\",\s*type\s*=\s*\"([^\"]*)\",\s*x\s*=\s*(-?\d+),\s*y\s*=\s*(-?\d+),\s*z\s*=\s*(-?\d+),\s*width\s*=\s*(\d+),\s*height\s*=\s*(\d+)"#,
     )

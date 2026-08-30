@@ -38,7 +38,16 @@ fn add(categories: &mut Vec<Category>, category: Category) {
 fn is_alcohol(name: &str) -> bool {
     if contains_any(
         name,
-        &["liquor", "brewery", "distiller", "whiske", "whisky", "winery", "viplounge", "stripclub"],
+        &[
+            "liquor",
+            "brewery",
+            "distiller",
+            "whiske",
+            "whisky",
+            "winery",
+            "viplounge",
+            "stripclub",
+        ],
     ) {
         return true;
     }
@@ -55,8 +64,16 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
     if contains_any(
         &name,
         &[
-            "gun", "hunting", "armory", "armysurplus", "armystorage", "armytent", "oldarmy",
-            "knifestore", "knifeshipping", "pawnshop",
+            "gun",
+            "hunting",
+            "armory",
+            "armysurplus",
+            "armystorage",
+            "armytent",
+            "oldarmy",
+            "knifestore",
+            "knifeshipping",
+            "pawnshop",
         ],
     ) {
         add(&mut categories, Category::Weapons);
@@ -69,10 +86,36 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
     if contains_any(
         &name,
         &[
-            "grocery", "gigamart", "conveniencestore", "cornerstore", "generalstore", "produce",
-            "restaurant", "diner", "cafe", "cafeteria", "bakery", "butcher", "spiffo", "burger",
-            "pizza", "candystore", "icecream", "donut", "seafood", "sushi", "chinese", "mexican",
-            "italian", "chili", "taco", "hotdog", "kitchen", "dining", "foodcourt", "jayschicken",
+            "grocery",
+            "gigamart",
+            "conveniencestore",
+            "cornerstore",
+            "generalstore",
+            "produce",
+            "restaurant",
+            "diner",
+            "cafe",
+            "cafeteria",
+            "bakery",
+            "butcher",
+            "spiffo",
+            "burger",
+            "pizza",
+            "candystore",
+            "icecream",
+            "donut",
+            "seafood",
+            "sushi",
+            "chinese",
+            "mexican",
+            "italian",
+            "chili",
+            "taco",
+            "hotdog",
+            "kitchen",
+            "dining",
+            "foodcourt",
+            "jayschicken",
             "crepe",
         ],
     ) {
@@ -82,7 +125,13 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
     if contains_any(
         &name,
         &[
-            "pharmacy", "medical", "medclinic", "clinic", "hospital", "dentist", "optometrist",
+            "pharmacy",
+            "medical",
+            "medclinic",
+            "clinic",
+            "hospital",
+            "dentist",
+            "optometrist",
             "morgue",
         ],
     ) || name == "vet"
@@ -93,9 +142,22 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
     if contains_any(
         &name,
         &[
-            "toolstore", "toolstorage", "workshop", "metalshop", "welding", "carpentry", "factory",
-            "warehouse", "mechanic", "carsupply", "masonry", "paintershop", "construction",
-            "logging", "industry", "hardware",
+            "toolstore",
+            "toolstorage",
+            "workshop",
+            "metalshop",
+            "welding",
+            "carpentry",
+            "factory",
+            "warehouse",
+            "mechanic",
+            "carsupply",
+            "masonry",
+            "paintershop",
+            "construction",
+            "logging",
+            "industry",
+            "hardware",
         ],
     ) {
         add(&mut categories, Category::Tools);
@@ -104,8 +166,18 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
     if contains_any(
         &name,
         &[
-            "bookstore", "bookstorage", "library", "classroom", "school", "movierental",
-            "musicstore", "comicstore", "cdstore", "daycare", "university", "gallery",
+            "bookstore",
+            "bookstorage",
+            "library",
+            "classroom",
+            "school",
+            "movierental",
+            "musicstore",
+            "comicstore",
+            "cdstore",
+            "daycare",
+            "university",
+            "gallery",
         ],
     ) {
         add(&mut categories, Category::Knowledge);
@@ -113,20 +185,42 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
 
     if contains_any(
         &name,
-        &["fishing", "bait", "camping", "gardenstore", "gardening", "greenhouse", "boathouse"],
+        &[
+            "fishing",
+            "bait",
+            "camping",
+            "gardenstore",
+            "gardening",
+            "greenhouse",
+            "boathouse",
+        ],
     ) {
         add(&mut categories, Category::Fishing);
     }
 
-    if contains_any(&name, &["electronic", "camerastore", "radioshipping", "serverroom"]) {
+    if contains_any(
+        &name,
+        &["electronic", "camerastore", "radioshipping", "serverroom"],
+    ) {
         add(&mut categories, Category::Electronics);
     }
 
     if contains_any(
         &name,
         &[
-            "clothes", "clothing", "shoestore", "shoestorage", "department", "jewelry", "giftstore",
-            "toystore", "sewing", "tobacco", "walletshop", "glassesstore", "leatherclothes",
+            "clothes",
+            "clothing",
+            "shoestore",
+            "shoestorage",
+            "department",
+            "jewelry",
+            "giftstore",
+            "toystore",
+            "sewing",
+            "tobacco",
+            "walletshop",
+            "glassesstore",
+            "leatherclothes",
         ],
     ) {
         add(&mut categories, Category::Clothing);
@@ -137,13 +231,20 @@ pub fn categorize_room(raw_name: &str) -> Vec<Category> {
     }
 
     // Residential rooms — the "Homes" layer, and a food source (kitchens) per the taxonomy.
-    if contains_any(&name, &["bedroom", "bathroom", "livingroom", "closet", "laundry"])
-        || matches!(
-            name.as_str(),
-            "kitchen" | "hall" | "hallway" | "diningroom" | "garage" | "garagestorage" | "foyer"
-                | "attic"
-        )
-    {
+    if contains_any(
+        &name,
+        &["bedroom", "bathroom", "livingroom", "closet", "laundry"],
+    ) || matches!(
+        name.as_str(),
+        "kitchen"
+            | "hall"
+            | "hallway"
+            | "diningroom"
+            | "garage"
+            | "garagestorage"
+            | "foyer"
+            | "attic"
+    ) {
         add(&mut categories, Category::Homes);
     }
 

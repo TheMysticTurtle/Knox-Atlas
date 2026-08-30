@@ -26,7 +26,7 @@ then hit the parity gate.
 > - ⏳ **NEXT: satellite** raster + base-map **renderer** (canvas engine → React shell). Owner owns UX flow.
 > - Parked (future, maybe-dropped): save reader (positions ✅ built), live positions (server mod),
 >   server sidecar, `.lotpack` detailed-map decoder (→ furniture search). Kept isolated / additive.
-> - Also pending: typed-errors + async provider cleanup pass (before the UI) — for code beauty.
+> - ✅ Code beauty pass done: typed `CoreError`, async `load_game_snapshot`, rustfmt + clippy(-D warnings) clean.
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
@@ -74,6 +74,23 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-21 — Code beauty pass + B42-scene alignment check
+- **B42 alignment research:** every B42 map tool reverse-engineers the same files we do
+  (`.lotheader`/`worldmap.xml`/map objects — Unjammer's exporter, pzmap2dzi, CalvyPZ/PZmap); newest
+  ones advertise our exact feature set ("All Floors & Basements, Loot Search, GPS Routing"). Our
+  *structured* data (room→category→expected-loot as queryable data) is arguably ahead. One real
+  difference: the community renders the *detailed* map (`.lotpack`+textures) offline into Deep-Zoom
+  tiles (Leaflet slippy map); we chose lighter live vector + the game's own raster. Conscious
+  tradeoff; the detailed look = the deferred `.lotpack` decoder (pzmap2dzi is the proven blueprint).
+- **Beauty pass (best practice):**
+  - Typed errors: new `crates/core/error.rs` → `CoreError` (thiserror) with variants InstallNotFound /
+    InvalidInstall / Io{context,source} / Parse{file,reason}; migrated the whole core off
+    stringly-typed `Result<_, String>`. Tauri commands flatten `CoreError` → user string at the boundary.
+  - `load_game_snapshot` is now **async** (runs the heavy parse via `spawn_blocking`; WebView never blocks).
+  - `cargo fmt` applied repo-wide; `cargo clippy --workspace --all-targets -D warnings` → clean;
+    refreshed the `lib.rs` module doc to describe the real provider set (not "parity port").
+- **Tested:** `cargo test --workspace` → 11/11. `cargo fmt --check` clean. clippy clean with -D warnings.
 
 ### 2026-08-21 — Distributions parser: expected loot per room type (crown jewel)
 - **Did:** `crates/core/distributions.rs` — parses the game's loot tables (`ProceduralDistributions`,

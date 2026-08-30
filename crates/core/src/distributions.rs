@@ -15,6 +15,8 @@ use std::path::Path;
 use regex::Regex;
 use serde::Serialize;
 
+use crate::error::{CoreError, Result};
+
 /// One expected item and the game's spawn weight for it (higher = more likely).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,7 +129,7 @@ fn rank(items: HashMap<String, f32>) -> Vec<LootItem> {
 }
 
 /// Build `room type → expected loot` from the installed game (`<root>/media/lua/server/Items`).
-pub fn load_distributions(game_root: &Path) -> Result<RoomLoot, String> {
+pub fn load_distributions(game_root: &Path) -> Result<RoomLoot> {
     let dir = game_root
         .join("media")
         .join("lua")
@@ -136,7 +138,10 @@ pub fn load_distributions(game_root: &Path) -> Result<RoomLoot, String> {
     let read = |name: &str| -> String { fs::read_to_string(dir.join(name)).unwrap_or_default() };
     let procedural_src = read("ProceduralDistributions.lua");
     if procedural_src.is_empty() {
-        return Err("ProceduralDistributions.lua was not found or was empty".into());
+        return Err(CoreError::parse(
+            "ProceduralDistributions.lua",
+            "not found or empty",
+        ));
     }
     let room_sources = [read("SuburbsDistributions.lua"), read("Distributions.lua")];
 

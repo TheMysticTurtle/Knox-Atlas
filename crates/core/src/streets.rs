@@ -4,14 +4,15 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use quick_xml::Reader;
 use quick_xml::events::Event;
+use quick_xml::Reader;
 
+use crate::error::{CoreError, Result};
 use crate::types::{Bounds, Point, Street};
 use crate::util::{attribute, parse_f32};
 
-pub(crate) fn parse_streets(path: &Path, bounds: &mut Bounds) -> Result<Vec<Street>, String> {
-    let file = File::open(path).map_err(|error| format!("Could not open street data: {error}"))?;
+pub(crate) fn parse_streets(path: &Path, bounds: &mut Bounds) -> Result<Vec<Street>> {
+    let file = File::open(path).map_err(|error| CoreError::io("the street data", error))?;
     let mut reader = Reader::from_reader(BufReader::new(file));
     reader.config_mut().trim_text(true);
     let mut buffer = Vec::new();
@@ -45,7 +46,7 @@ pub(crate) fn parse_streets(path: &Path, bounds: &mut Bounds) -> Result<Vec<Stre
                 }
             }
             Ok(Event::Eof) => break,
-            Err(error) => return Err(format!("Could not parse street data: {error}")),
+            Err(error) => return Err(CoreError::parse("streets.xml", error.to_string())),
             _ => {}
         }
         buffer.clear();

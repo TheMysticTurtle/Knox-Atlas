@@ -7,6 +7,8 @@ use std::time::SystemTime;
 
 use regex::Regex;
 
+use crate::error::{CoreError, Result};
+
 pub(crate) fn read_key_value(path: &Path) -> HashMap<String, String> {
     fs::read_to_string(path)
         .unwrap_or_default()
@@ -79,15 +81,12 @@ pub(crate) fn find_game_root() -> Option<PathBuf> {
         .find(|candidate| is_game_root(candidate))
 }
 
-pub fn validated_game_root(path: &Path) -> Result<PathBuf, String> {
+pub fn validated_game_root(path: &Path) -> Result<PathBuf> {
     if !is_game_root(path) {
-        return Err(
-            "That folder is not a Project Zomboid installation. Choose the ProjectZomboid folder that contains projectzomboid.jar and media\\maps."
-                .to_string(),
-        );
+        return Err(CoreError::InvalidInstall);
     }
     path.canonicalize()
-        .map_err(|error| format!("The Project Zomboid folder could not be opened: {error}"))
+        .map_err(|error| CoreError::io("the Project Zomboid folder", error))
 }
 
 pub(crate) fn steam_build_id(game_root: &Path) -> Option<String> {

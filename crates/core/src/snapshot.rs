@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::annotations::parse_annotations;
+use crate::error::{CoreError, Result};
 use crate::install::{
     find_game_root, newest_save, read_key_value, steam_build_id, validated_game_root,
 };
@@ -14,13 +15,10 @@ use crate::{CHUNK_SIZE, COMPILED_CELL_SIZE};
 
 /// Load and normalize the full snapshot. `selected_root` overrides Steam discovery when the user
 /// picked an install folder; `None` auto-discovers.
-pub fn load_snapshot_from(selected_root: Option<&Path>) -> Result<GameSnapshot, String> {
+pub fn load_snapshot_from(selected_root: Option<&Path>) -> Result<GameSnapshot> {
     let game_root = match selected_root {
         Some(path) => validated_game_root(path)?,
-        None => find_game_root().ok_or_else(|| {
-            "Project Zomboid was not found in your Steam libraries. Choose the ProjectZomboid installation folder from the Local game source card."
-                .to_string()
-        })?,
+        None => find_game_root().ok_or(CoreError::InstallNotFound)?,
     };
     let map_root = game_root.join("media").join("maps").join("Muldraugh, KY");
     let mut bounds = Bounds::empty();

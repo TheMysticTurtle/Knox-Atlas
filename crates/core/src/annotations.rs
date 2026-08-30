@@ -6,6 +6,7 @@ use std::path::Path;
 
 use regex::Regex;
 
+use crate::error::{CoreError, Result};
 use crate::types::{Bounds, MapLabel, Point};
 
 fn clean_label(value: &str) -> String {
@@ -21,9 +22,9 @@ pub(crate) fn parse_annotations(
     path: &Path,
     translations_path: &Path,
     bounds: &mut Bounds,
-) -> Result<Vec<MapLabel>, String> {
-    let source = fs::read_to_string(path)
-        .map_err(|error| format!("Could not read map annotations: {error}"))?;
+) -> Result<Vec<MapLabel>> {
+    let source =
+        fs::read_to_string(path).map_err(|error| CoreError::io("the map annotations", error))?;
     let translations: HashMap<String, String> = fs::read_to_string(translations_path)
         .ok()
         .and_then(|contents| serde_json::from_str(&contents).ok())

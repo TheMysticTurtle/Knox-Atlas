@@ -1,9 +1,14 @@
 //! Knox Atlas shared core.
 //!
-//! Reads the locally installed Project Zomboid game (and, later, a save) read-only and returns a
-//! normalized, serializable [`GameSnapshot`] for the desktop app and the share server. Parsers are
-//! split into focused modules, ported verbatim from the quarantined prototype
-//! (`legacy/src-tauri/src/lib.rs`) — behavior is unchanged for the Phase S parity gate.
+//! Reads the locally installed Project Zomboid game read-only (and, optionally, a save) and returns
+//! normalized, serializable data for the desktop app and the share server. Everything is split into
+//! focused, independently-callable providers so heavy or optional data never loads as one blob:
+//! - **Installed map** (no save needed): [`load_snapshot_from`] (overview geometry/streets/labels/
+//!   zones), [`load_rooms`] (`.lotheader` RoomDefs) + [`categorize_room`], and [`load_distributions`]
+//!   (the game's own expected loot per room type).
+//! - **Save** (isolated so it can never compromise the map engine): [`load_save_detail`].
+//!
+//! Errors are typed ([`CoreError`]). The core does not write to the game install or a save.
 //!
 //! Coordinate model — do NOT conflate these two cell grids (see `docs/map-data.md`):
 //! - `worldmap.xml` vector cells are **300** tiles: `worldX = cellX * WORLD_MAP_CELL_SIZE + pointX`.
@@ -12,6 +17,7 @@
 mod annotations;
 mod category;
 mod distributions;
+mod error;
 mod install;
 mod rooms;
 mod save;
@@ -23,14 +29,15 @@ mod vehicles;
 mod worldmap;
 mod zones;
 
-pub use category::{Category, categorize_room};
-pub use distributions::{LootItem, RoomLoot, load_distributions};
+pub use category::{categorize_room, Category};
+pub use distributions::{load_distributions, LootItem, RoomLoot};
+pub use error::CoreError;
 pub use install::validated_game_root;
-pub use rooms::{RoomDef, RoomRect, load_rooms, parse_lot_header};
-pub use save::{PlayerPosition, SaveDetail, VehiclePosition, default_save_dir, load_save_detail};
+pub use rooms::{load_rooms, parse_lot_header, RoomDef, RoomRect};
+pub use save::{default_save_dir, load_save_detail, PlayerPosition, SaveDetail, VehiclePosition};
 pub use snapshot::load_snapshot_from;
 pub use types::{
-    Bounds, GameSnapshot, MapFeature, MapLabel, Point, Poi, SaveInfo, SnapshotCounts, Street,
+    Bounds, GameSnapshot, MapFeature, MapLabel, Poi, Point, SaveInfo, SnapshotCounts, Street,
 };
 
 /// Vector `worldmap.xml` cell size, in world tiles.
@@ -54,12 +61,12 @@ mod tests {
     use crate::worldmap::classify_feature;
     use crate::zones::{friendly_name, poi_category};
     use crate::{
-        COMPILED_CELL_SIZE, Category, GameSnapshot, WORLD_MAP_CELL_SIZE, categorize_room,
-        default_save_dir, load_distributions, load_rooms, load_save_detail, load_snapshot_from,
+        categorize_room, default_save_dir, load_distributions, load_rooms, load_save_detail,
+        load_snapshot_from, Category, GameSnapshot, COMPILED_CELL_SIZE, WORLD_MAP_CELL_SIZE,
     };
     use std::collections::HashSet;
 
-    fn load_snapshot() -> Result<GameSnapshot, String> {
+    fn load_snapshot() -> Result<GameSnapshot, crate::CoreError> {
         load_snapshot_from(None)
     }
 
@@ -113,7 +120,11 @@ mod tests {
             return;
         };
         let loot = load_distributions(&root).expect("distribution tables should parse");
-        assert!(loot.len() > 100, "expected many room types, got {}", loot.len());
+        assert!(
+            loot.len() > 100,
+            "expected many room types, got {}",
+            loot.len()
+        );
 
         // Data correctness: each room's complete loot set must contain its characteristic items
         // (whatever the display order). This is the game's own tables, so it is authoritative.
@@ -126,19 +137,38 @@ mod tests {
             })
         };
         assert!(
-            has_any("policegunstorage", &["pistol", "shotgun", "revolver", "rifle", "ammo"]),
+            has_any(
+                "policegunstorage",
+                &["pistol", "shotgun", "revolver", "rifle", "ammo"]
+            ),
             "police gun storage should contain firearms"
         );
         assert!(
-            has_any("pharmacy", &["pills", "antibiotic", "bandage", "disinfectant", "painkiller"]),
+            has_any(
+                "pharmacy",
+                &[
+                    "pills",
+                    "antibiotic",
+                    "bandage",
+                    "disinfectant",
+                    "painkiller"
+                ]
+            ),
             "pharmacy should contain medicine: {:?}",
-            loot.get("pharmacy").map(|v| v.iter().map(|i| &i.item).collect::<Vec<_>>())
+            loot.get("pharmacy")
+                .map(|v| v.iter().map(|i| &i.item).collect::<Vec<_>>())
         );
         assert!(
             has_any("bookstore", &["book", "paperback", "magazine"]),
             "bookstore should contain reading material"
         );
-        for room in ["policegunstorage", "gunstore", "pharmacy", "bookstore", "bakery"] {
+        for room in [
+            "policegunstorage",
+            "gunstore",
+            "pharmacy",
+            "bookstore",
+            "bakery",
+        ] {
             if let Some(items) = loot.get(room) {
                 let top: Vec<&str> = items.iter().take(8).map(|i| i.item.as_str()).collect();
                 eprintln!("{room} → {top:?}");
@@ -187,8 +217,10 @@ mod tests {
         let rooms = load_rooms(&map_dir).expect("rooms parse");
 
         let mut categorized = 0usize;
-        let mut per_category: std::collections::HashMap<Category, usize> = std::collections::HashMap::new();
-        let mut uncategorized_names: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        let mut per_category: std::collections::HashMap<Category, usize> =
+            std::collections::HashMap::new();
+        let mut uncategorized_names: std::collections::HashMap<&str, usize> =
+            std::collections::HashMap::new();
         for room in &rooms {
             let cats = categorize_room(&room.name);
             if cats.is_empty() {
@@ -214,7 +246,10 @@ mod tests {
             eprintln!("  {name}: {n}");
         }
 
-        assert!(categorized > 10_000, "categorizer should cover many rooms, got {categorized}");
+        assert!(
+            categorized > 10_000,
+            "categorizer should cover many rooms, got {categorized}"
+        );
     }
 
     #[test]
@@ -226,12 +261,26 @@ mod tests {
         let rooms = load_rooms(&map_dir).expect("all installed lotheaders should parse cleanly");
 
         // Corpus scale validated during the spike (~90,827 rooms, ~586 distinct names).
-        assert!(rooms.len() > 80_000, "expected many rooms, got {}", rooms.len());
+        assert!(
+            rooms.len() > 80_000,
+            "expected many rooms, got {}",
+            rooms.len()
+        );
         let names: HashSet<&str> = rooms.iter().map(|room| room.name.as_str()).collect();
-        assert!(names.len() > 400, "expected a rich room vocabulary, got {}", names.len());
+        assert!(
+            names.len() > 400,
+            "expected a rich room vocabulary, got {}",
+            names.len()
+        );
 
         // The real building/room identity the prototype could not see is present…
-        for expected in ["gunstore", "bookstore", "grocery", "pharmacy", "fishingstorage"] {
+        for expected in [
+            "gunstore",
+            "bookstore",
+            "grocery",
+            "pharmacy",
+            "fishingstorage",
+        ] {
             assert!(names.contains(expected), "missing room type: {expected}");
         }
         // …with sane world coordinates (256-cell conversion) on a known store.
@@ -265,10 +314,16 @@ mod tests {
             detail.vehicles.len()
         );
         for player in &detail.players {
-            eprintln!("  player {} ({}) @ ({:.0}, {:.0}) z{}", player.name, player.username, player.x, player.y, player.z);
+            eprintln!(
+                "  player {} ({}) @ ({:.0}, {:.0}) z{}",
+                player.name, player.username, player.x, player.y, player.z
+            );
         }
         for vehicle in &detail.vehicles {
-            eprintln!("  vehicle #{} @ ({:.0}, {:.0})", vehicle.id, vehicle.x, vehicle.y);
+            eprintln!(
+                "  vehicle #{} @ ({:.0}, {:.0})",
+                vehicle.id, vehicle.x, vehicle.y
+            );
         }
     }
 

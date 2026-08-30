@@ -1,8 +1,9 @@
 import { create } from "zustand";
 
+import { allSubIds, subBucketsFor } from "./engine/subcategories";
 import type { Category } from "./engine/types";
 
-/** Likely-loot categories, in display order. Homes last (it's the noisy residential layer). */
+/** Likely-loot categories, in display order. Homes last (the noisy residential layer). */
 export const LOOT_CATEGORIES: Category[] = [
   "weapons",
   "medical",
@@ -17,7 +18,6 @@ export const LOOT_CATEGORIES: Category[] = [
   "homes",
 ];
 
-/** Human labels for each category (the filter rows). */
 export const CATEGORY_LABELS: Record<Category, string> = {
   weapons: "Weapons & ammo",
   medical: "Medical",
@@ -32,23 +32,40 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   homes: "Homes",
 };
 
+// Sub-buckets that would flood the map, off by default.
+const OFF_BY_DEFAULT = new Set(["food:homeKitchens", "homes:homes", "homes:other"]);
+
+function defaultEnabled(): Set<string> {
+  return new Set(allSubIds().filter((id) => !OFF_BY_DEFAULT.has(id)));
+}
+
 type FilterState = {
-  /** Which categories are shown on the map. */
-  enabled: Record<Category, boolean>;
-  toggle: (category: Category) => void;
+  /** Enabled `<category>:<sub>` ids. */
+  enabled: Set<string>;
+  toggleSub: (id: string) => void;
+  toggleCategory: (category: Category) => void;
   setAll: (value: boolean) => void;
 };
 
-function everyCategory(value: boolean): Record<Category, boolean> {
-  return Object.fromEntries(LOOT_CATEGORIES.map((c) => [c, value])) as Record<Category, boolean>;
-}
-
-// Homes starts off — it's every house kitchen/bedroom and would flood the map.
-const initialEnabled: Record<Category, boolean> = { ...everyCategory(true), homes: false };
-
 export const useFilters = create<FilterState>((set) => ({
-  enabled: initialEnabled,
-  toggle: (category) =>
-    set((state) => ({ enabled: { ...state.enabled, [category]: !state.enabled[category] } })),
-  setAll: (value) => set(() => ({ enabled: everyCategory(value) })),
+  enabled: defaultEnabled(),
+  toggleSub: (id) =>
+    set((state) => {
+      const next = new Set(state.enabled);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { enabled: next };
+    }),
+  toggleCategory: (category) =>
+    set((state) => {
+      const subs = subBucketsFor(category).map((sub) => sub.id);
+      const allOn = subs.every((id) => state.enabled.has(id));
+      const next = new Set(state.enabled);
+      for (const id of subs) {
+        if (allOn) next.delete(id);
+        else next.add(id);
+      }
+      return { enabled: next };
+    }),
+  setAll: (value) => set(() => ({ enabled: value ? new Set(allSubIds()) : new Set() })),
 }));

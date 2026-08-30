@@ -4,6 +4,7 @@
 // in later steps. Ported from the prototype renderer into a self-contained, disposable class.
 
 import { buildingColor, categoryColors, mapColors } from "./colors";
+import { poiSubIds } from "./subcategories";
 import type { Bounds, Category, GameSnapshot, MapFeature, MapPoi, Point } from "./types";
 
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
@@ -18,8 +19,8 @@ export class MapEngine {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly snapshot: GameSnapshot;
   private prepared: PreparedFeature[] = [];
-  private pois: MapPoi[] = [];
-  private enabledCategories: Set<Category> | null = null;
+  private pois: { poi: MapPoi; subIds: string[] }[] = [];
+  private enabledSubs: Set<string> | null = null;
 
   private center: Point;
   private scale = 0.22;
@@ -53,13 +54,13 @@ export class MapEngine {
 
   /** Provide the categorized RoomDef POIs to draw (loaded separately by React). */
   setPois(pois: MapPoi[]): void {
-    this.pois = pois;
+    this.pois = pois.map((poi) => ({ poi, subIds: poiSubIds(poi) }));
     this.queueRender();
   }
 
-  /** Show only POIs that carry at least one of these categories. */
-  setEnabledCategories(categories: Category[]): void {
-    this.enabledCategories = new Set(categories);
+  /** Show only POIs whose `<category>:<sub>` id is in this enabled set. */
+  setEnabledSubs(enabled: Set<string>): void {
+    this.enabledSubs = enabled;
     this.queueRender();
   }
 
@@ -185,18 +186,17 @@ export class MapEngine {
     if (this.scale < 0.3 || this.pois.length === 0) return; // declutter until zoomed into a town
     const { ctx } = this;
     const radius = this.scale > 0.7 ? 4 : 3;
-    const enabled = this.enabledCategories;
-    for (const poi of this.pois) {
+    const enabled = this.enabledSubs;
+    for (const { poi, subIds } of this.pois) {
       if (poi.x < view.minX || poi.x > view.maxX || poi.y < view.minY || poi.y > view.maxY) continue;
-      if (enabled && !poi.categories.some((category) => enabled.has(category))) continue;
+      // Show if any of the POI's sub-buckets is enabled; colour by the first enabled one.
+      const shownId = enabled ? subIds.find((id) => enabled.has(id)) : subIds[0];
+      if (!shownId) continue;
+      const category = shownId.slice(0, shownId.indexOf(":")) as Category;
       const screen = this.toScreen(poi);
-      // Colour by the first *enabled* category so a filtered view reads by what you asked for.
-      const shown = enabled
-        ? (poi.categories.find((category) => enabled.has(category)) ?? poi.categories[0])
-        : poi.categories[0];
       ctx.beginPath();
       ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = categoryColors[shown] ?? mapColors.mutedInk;
+      ctx.fillStyle = categoryColors[category] ?? mapColors.mutedInk;
       ctx.fill();
       ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(255, 248, 233, 0.85)";

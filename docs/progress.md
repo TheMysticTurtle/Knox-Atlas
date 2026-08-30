@@ -75,6 +75,22 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ## Worklog
 
+### 2026-08-21 — Loot sub-toggles (hierarchical filters) + decoder plan
+- **Direction (owner):** wrap up the intel map into a working state, THEN build the local `.lotpack`
+  decoder — a tool users run on-demand (behind a button) that renders satellite/floors/object-locations
+  from THEIR install (mod-compatible, nothing huge to ship/maintain). Referencing the open-source
+  decoders (pzmap2dzi, vanilla-map exporters). Effort isn't a concern; owner does direction, not code.
+- **Did:** `engine/subcategories.ts` — per-category sub-buckets keyed by room-def name (Food →
+  Groceries/Restaurants/Bakeries/Butchers/Home kitchens; Weapons → Gun stores/Hunting/Military/Police;
+  etc.) + `poiSubIds`/`subBucketsFor`/`allSubIds`. `store.ts` reworked to `enabled: Set<"cat:sub">`
+  (Home kitchens + Homes off by default). `FilterPanel` — expandable categories with indeterminate
+  parent checkboxes + sub-toggle rows + live counts. Engine filters POIs by enabled sub-id (colours by
+  first enabled sub's category). App computes per-sub counts.
+- **Tested:** `tsc --noEmit` clean. Verified live: Food expands to Groceries 283 / Restaurants 802 /
+  Bakeries 62 / Butchers 32 / Home kitchens (off); parent shows indeterminate; toggles drive the map.
+- **Next (wrap-up):** item search ("chisel" → spawn locations) · labels · Map-visibility + Quick-finds
+  + World-utilities sections · then the `.lotpack` decoder (objects first, textured render second).
+
 ### 2026-08-21 — Filter panel (top-level categories) + engine filtering
 - **Did:** `store.ts` (Zustand) — enabled-categories state (Homes off by default). `FilterPanel`
   (React) — Likely-loot section: category rows with colour swatch, label, live POI count, checkbox,

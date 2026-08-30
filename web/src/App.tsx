@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { FilterPanel } from "./components/FilterPanel";
 import { MapStage } from "./components/MapStage";
 import { loadPois, loadSnapshot } from "./data";
-import type { Category, GameSnapshot, MapPoi } from "./engine/types";
-import { LOOT_CATEGORIES } from "./store";
+import { poiSubIds } from "./engine/subcategories";
+import type { GameSnapshot, MapPoi } from "./engine/types";
 
 export function App() {
   const [snapshot, setSnapshot] = useState<GameSnapshot>();
@@ -28,20 +28,18 @@ export function App() {
     };
   }, []);
 
-  // POI counts per category for the filter rows.
-  const counts = useMemo(() => {
-    const tally = Object.fromEntries(LOOT_CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
+  // POI counts per sub-bucket id (`<category>:<sub>`) for the filter rows.
+  const subCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const poi of pois) {
-      for (const category of poi.categories) {
-        if (category in tally) tally[category] += 1;
-      }
+      for (const id of poiSubIds(poi)) counts[id] = (counts[id] ?? 0) + 1;
     }
-    return tally;
+    return counts;
   }, [pois]);
 
   return (
     <div className="app-shell">
-      <FilterPanel counts={counts} />
+      <FilterPanel subCounts={subCounts} />
       <MapStage snapshot={snapshot} pois={pois} error={error} />
     </div>
   );

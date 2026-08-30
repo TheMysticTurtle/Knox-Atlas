@@ -81,23 +81,66 @@ body {
   flex-direction: column;
   gap: 0.15rem;
 }
+.filter-group {
+  border-radius: 7px;
+  opacity: 0.5;
+  transition: opacity 0.12s ease;
+}
+.filter-group.is-on {
+  opacity: 1;
+}
 .filter-item {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto auto;
   align-items: center;
   gap: 0.55rem;
   padding: 0.42rem 0.5rem;
   border-radius: 7px;
   cursor: pointer;
   font-size: 0.92rem;
-  opacity: 0.5;
-  transition: opacity 0.12s ease, background 0.12s ease;
+  transition: background 0.12s ease;
 }
-.filter-item.is-on {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.45);
+.filter-group.is-on > .filter-item {
+  background: rgba(255, 255, 255, 0.42);
 }
 .filter-item:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.filter-expand {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0.15rem;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: #8a8571;
+  transition: transform 0.12s ease;
+}
+.filter-expand.is-open {
+  transform: rotate(90deg);
+}
+.subfilter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.15rem 0 0.35rem 1.7rem;
+}
+.subfilter-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  opacity: 0.55;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.subfilter-item.is-on {
+  opacity: 1;
+}
+.subfilter-item:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 .filter-swatch {

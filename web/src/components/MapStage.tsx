@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { MapEngine } from "../engine/mapEngine";
-import type { Category, GameSnapshot, MapPoi } from "../engine/types";
+import type { GameSnapshot, MapPoi } from "../engine/types";
 import { useFilters } from "../store";
 
 type MapStageProps = {
@@ -32,8 +32,7 @@ export function MapStage({ snapshot, pois, error }: MapStageProps) {
   }, [pois, snapshot]);
 
   useEffect(() => {
-    const active = (Object.keys(enabled) as Category[]).filter((category) => enabled[category]);
-    engineRef.current?.setEnabledCategories(active);
+    engineRef.current?.setEnabledSubs(enabled);
   }, [enabled, snapshot]);
 
   return (

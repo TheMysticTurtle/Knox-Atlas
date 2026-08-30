@@ -18,11 +18,13 @@ then hit the parity gate.
 > (map full detail + save detail) before any UI.
 > - ✅ Overview parsers ported + tested. ✅ **RoomDef reader** (`rooms.rs`) — full map detail, tested
 >   against all 4,065 installed lotheaders.
-> - ✅ **Save reader — positions layer** (`save.rs`): player + vehicle positions via SQLite, verified
->   against the owner's hosted `servertest` save (real player + 5 vehicles). Unblocked — owner made a save.
-> - ⏳ Save reader deeper layers: vehicle/player `data` blobs (type/condition/keys), then container loot.
-> - ⏳ RoomDef → category taxonomy (turn raw rooms into multi-tagged Weapons/Food/Skills… POIs).
-> - Then: typed-errors + async provider cleanup pass; then the UI (canvas engine + React shell → parity).
+> - ✅ **RoomDef categorizer** (`category.rs`) — multi-tag; 73% of real rooms categorized.
+> - ⏳ **NEXT: Distributions loot** — parse `Distributions.lua` × `ProceduralDistributions.lua` →
+>   expected loot per room type (gun store → guns/ammo), install-only. The crown-jewel data feature.
+> - ⏳ Then **satellite** raster + base-map **renderer** (canvas engine → React shell). Owner owns UX flow.
+> - Parked (future, maybe-dropped): save reader (positions layer ✅ built), live positions (server mod),
+>   server sidecar. Kept isolated so they never compromise the map engine.
+> - Also pending: typed-errors + async provider cleanup pass (before the UI) — for code beauty.
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
 `.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
@@ -70,6 +72,21 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-21 — Re-prioritize to default-map data; RoomDef categorizer
+- **Direction (owner):** focus on extracting *default-map* (install-only) data first → then satellite
+  → save reading is a *future* goal and may be dropped (save formats break every update + mods; the
+  isolated-provider design means we can park/drop it with zero impact on the map engine). Big untapped
+  install source found: `Distributions.lua` × `ProceduralDistributions.lua` = **expected loot per room
+  type** (gun store → guns/ammo), no save needed — the crown jewel, next up.
+- **Did:** `crates/core/category.rs` — `Category` enum (Food/Alcohol/Weapons/Medical/Tools/Knowledge/
+  Fishing/Electronics/Clothing/Fuel/Homes) + `categorize_room(name)` multi-tag classifier grounded in
+  the real 586-name vocabulary. Careful edge handling (barn ≠ bar; house kitchen = Food + Homes;
+  unknown/modded rooms → no category rather than a wrong guess).
+- **Tested:** `cargo test -p knox-atlas-core` → 9/9 (incl. multi-tag + edge cases). Coverage over the
+  real install: **66,331 / 90,827 rooms categorized (73%)** — Homes 61.6k, Food 9.7k, Tools 1.1k,
+  Medical 567, Knowledge 565, Clothing 356, Alcohol 282, Weapons 215, Fuel 168, Electronics 86,
+  Fishing 83. Uncategorized 27% are correctly-generic rooms (empty/office/lobby/elevator/storage).
 
 ### 2026-08-21 — Save reader: positions layer (players + vehicles)
 - **Test data:** owner hosted a local server save `servertest` (Saves/Multiplayer/servertest) — a

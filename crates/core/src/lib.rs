@@ -10,6 +10,7 @@
 //! - `.lotheader` / compiled cells are **256** tiles: `worldX = cellX * COMPILED_CELL_SIZE + roomX`.
 
 mod annotations;
+mod category;
 mod install;
 mod rooms;
 mod save;
@@ -21,6 +22,7 @@ mod vehicles;
 mod worldmap;
 mod zones;
 
+pub use category::{Category, categorize_room};
 pub use install::validated_game_root;
 pub use rooms::{RoomDef, RoomRect, load_rooms, parse_lot_header};
 pub use save::{PlayerPosition, SaveDetail, VehiclePosition, default_save_dir, load_save_detail};
@@ -50,8 +52,8 @@ mod tests {
     use crate::worldmap::classify_feature;
     use crate::zones::{friendly_name, poi_category};
     use crate::{
-        COMPILED_CELL_SIZE, GameSnapshot, WORLD_MAP_CELL_SIZE, default_save_dir, load_rooms,
-        load_save_detail, load_snapshot_from,
+        COMPILED_CELL_SIZE, Category, GameSnapshot, WORLD_MAP_CELL_SIZE, categorize_room,
+        default_save_dir, load_rooms, load_save_detail, load_snapshot_from,
     };
     use std::collections::HashSet;
 
@@ -101,6 +103,77 @@ mod tests {
         assert!(is_drivable_vehicle_zone(""));
         assert!(is_drivable_vehicle_zone("police"));
         assert!(is_drivable_vehicle_zone("sport"));
+    }
+
+    #[test]
+    fn categorizes_room_definitions_multi_tag() {
+        use Category::*;
+        let cat = categorize_room;
+        // Single, unambiguous mappings.
+        assert_eq!(cat("gunstore"), vec![Weapons]);
+        assert_eq!(cat("gunstorestorage"), vec![Weapons]);
+        assert_eq!(cat("policegunstorage"), vec![Weapons]);
+        assert_eq!(cat("bookstore"), vec![Knowledge]);
+        assert_eq!(cat("pharmacy"), vec![Medical]);
+        assert_eq!(cat("toolstore"), vec![Tools]);
+        assert_eq!(cat("fishingstorage"), vec![Fishing]);
+        assert_eq!(cat("electronicsstore"), vec![Electronics]);
+        assert_eq!(cat("clothesstore"), vec![Clothing]);
+        assert_eq!(cat("gasstore"), vec![Fuel]);
+        assert_eq!(cat("bedroom"), vec![Homes]);
+        assert_eq!(cat("grocery"), vec![Food]);
+
+        // Multi-tag: a house kitchen is both a home and a food source.
+        assert_eq!(cat("kitchen"), vec![Food, Homes]);
+        // A restaurant kitchen is food but not a home.
+        assert_eq!(cat("restaurantkitchen"), vec![Food]);
+        // Alcohol venue…
+        assert_eq!(cat("bar"), vec![Alcohol]);
+        assert!(cat("liquorstore").contains(&Alcohol));
+        // …but a barn is not a bar.
+        assert!(!cat("barn").contains(&Alcohol));
+        assert!(cat("barn").is_empty());
+        // Unknown / modded rooms return nothing rather than a wrong guess.
+        assert!(cat("totallymadeuproom").is_empty());
+    }
+
+    #[test]
+    fn categorizer_covers_the_installed_room_vocabulary_when_available() {
+        let Some(root) = find_game_root() else {
+            return;
+        };
+        let map_dir = root.join("media").join("maps").join("Muldraugh, KY");
+        let rooms = load_rooms(&map_dir).expect("rooms parse");
+
+        let mut categorized = 0usize;
+        let mut per_category: std::collections::HashMap<Category, usize> = std::collections::HashMap::new();
+        let mut uncategorized_names: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for room in &rooms {
+            let cats = categorize_room(&room.name);
+            if cats.is_empty() {
+                *uncategorized_names.entry(room.name.as_str()).or_default() += 1;
+            } else {
+                categorized += 1;
+            }
+            for category in cats {
+                *per_category.entry(category).or_default() += 1;
+            }
+        }
+
+        eprintln!("categorized {}/{} room instances", categorized, rooms.len());
+        let mut by_count: Vec<_> = per_category.into_iter().collect();
+        by_count.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        for (category, n) in by_count {
+            eprintln!("  {category:?}: {n}");
+        }
+        let mut top_uncat: Vec<_> = uncategorized_names.into_iter().collect();
+        top_uncat.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        eprintln!("top uncategorized room types:");
+        for (name, n) in top_uncat.into_iter().take(15) {
+            eprintln!("  {name}: {n}");
+        }
+
+        assert!(categorized > 10_000, "categorizer should cover many rooms, got {categorized}");
     }
 
     #[test]

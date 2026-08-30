@@ -19,11 +19,13 @@ then hit the parity gate.
 > - ✅ Overview parsers ported + tested. ✅ **RoomDef reader** (`rooms.rs`) — full map detail, tested
 >   against all 4,065 installed lotheaders.
 > - ✅ **RoomDef categorizer** (`category.rs`) — multi-tag; 73% of real rooms categorized.
-> - ⏳ **NEXT: Distributions loot** — parse `Distributions.lua` × `ProceduralDistributions.lua` →
->   expected loot per room type (gun store → guns/ammo), install-only. The crown-jewel data feature.
-> - ⏳ Then **satellite** raster + base-map **renderer** (canvas engine → React shell). Owner owns UX flow.
-> - Parked (future, maybe-dropped): save reader (positions layer ✅ built), live positions (server mod),
->   server sidecar. Kept isolated so they never compromise the map engine.
+> - ✅ **Distributions loot** (`distributions.rs`) — expected loot per room type, install-only,
+>   verified (police→guns, pharmacy→meds, bookstore→books). Ranking = honest raw weight; headline
+>   presentation (group-by-container) deferred to UX phase.
+> - **Default-map DATA engine is now essentially complete** (overview + RoomDefs + categories + loot).
+> - ⏳ **NEXT: satellite** raster + base-map **renderer** (canvas engine → React shell). Owner owns UX flow.
+> - Parked (future, maybe-dropped): save reader (positions ✅ built), live positions (server mod),
+>   server sidecar, `.lotpack` detailed-map decoder (→ furniture search). Kept isolated / additive.
 > - Also pending: typed-errors + async provider cleanup pass (before the UI) — for code beauty.
 
 Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
@@ -72,6 +74,25 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 ---
 
 ## Worklog
+
+### 2026-08-21 — Distributions parser: expected loot per room type (crown jewel)
+- **Did:** `crates/core/distributions.rs` — parses the game's loot tables (`ProceduralDistributions`,
+  `SuburbsDistributions`, `Distributions`.lua) into `room type → ranked expected items`. Depth-based
+  brace scanner (robust to the files' mixed tab/space indentation), items extracted from `items={"X",
+  weight,…}` pairs + followed procedural `procList` refs. Install-only; powers the "click a room → see
+  likely loot" feature (and the owner's roof-off room-boundary idea, which is fully doable with data
+  we already have: room rects + floor + category + this).
+- **Tested:** `cargo test -p knox-atlas-core` → 11/11. Data-correctness (not ranking) verified against
+  the real game: policegunstorage → firearms, pharmacy → medicine, bookstore → books.
+- **Ranking finding (honest):** a single flat ranking always misrepresents a room, because rooms
+  genuinely mix container types (a police gun room really has a filing cabinet + evidence + gun
+  locker). Tried weight×idf "distinctiveness": great for unique rooms (bookstore→books, bakery→dough)
+  but it *buried* common-but-characteristic loot (pharmacy→sunglasses instead of meds; guns sank under
+  police-specific gear). Reverted to honest raw-weight order + keep the full item list. **Headline
+  presentation (group loot by container/source) is a UX-phase refinement — owner's wheelhouse.**
+- **Future goal noted (owner):** searchable static furniture/decoration across the map → needs the
+  deferred `.lotpack` decoder (furniture isn't in the light data); architecture confirmed to accept it
+  as an additive module (the "tiles" detail-provider rung).
 
 ### 2026-08-21 — Re-prioritize to default-map data; RoomDef categorizer
 - **Direction (owner):** focus on extracting *default-map* (install-only) data first → then satellite

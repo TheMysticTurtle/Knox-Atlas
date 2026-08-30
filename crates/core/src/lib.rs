@@ -11,6 +11,7 @@
 
 mod annotations;
 mod category;
+mod distributions;
 mod install;
 mod rooms;
 mod save;
@@ -23,6 +24,7 @@ mod worldmap;
 mod zones;
 
 pub use category::{Category, categorize_room};
+pub use distributions::{LootItem, RoomLoot, load_distributions};
 pub use install::validated_game_root;
 pub use rooms::{RoomDef, RoomRect, load_rooms, parse_lot_header};
 pub use save::{PlayerPosition, SaveDetail, VehiclePosition, default_save_dir, load_save_detail};
@@ -53,7 +55,7 @@ mod tests {
     use crate::zones::{friendly_name, poi_category};
     use crate::{
         COMPILED_CELL_SIZE, Category, GameSnapshot, WORLD_MAP_CELL_SIZE, categorize_room,
-        default_save_dir, load_rooms, load_save_detail, load_snapshot_from,
+        default_save_dir, load_distributions, load_rooms, load_save_detail, load_snapshot_from,
     };
     use std::collections::HashSet;
 
@@ -103,6 +105,45 @@ mod tests {
         assert!(is_drivable_vehicle_zone(""));
         assert!(is_drivable_vehicle_zone("police"));
         assert!(is_drivable_vehicle_zone("sport"));
+    }
+
+    #[test]
+    fn loads_expected_loot_per_room_type_when_available() {
+        let Some(root) = find_game_root() else {
+            return;
+        };
+        let loot = load_distributions(&root).expect("distribution tables should parse");
+        assert!(loot.len() > 100, "expected many room types, got {}", loot.len());
+
+        // Data correctness: each room's complete loot set must contain its characteristic items
+        // (whatever the display order). This is the game's own tables, so it is authoritative.
+        let has_any = |room: &str, needles: &[&str]| {
+            loot.get(room).is_some_and(|items| {
+                items.iter().any(|i| {
+                    let name = i.item.to_ascii_lowercase();
+                    needles.iter().any(|needle| name.contains(needle))
+                })
+            })
+        };
+        assert!(
+            has_any("policegunstorage", &["pistol", "shotgun", "revolver", "rifle", "ammo"]),
+            "police gun storage should contain firearms"
+        );
+        assert!(
+            has_any("pharmacy", &["pills", "antibiotic", "bandage", "disinfectant", "painkiller"]),
+            "pharmacy should contain medicine: {:?}",
+            loot.get("pharmacy").map(|v| v.iter().map(|i| &i.item).collect::<Vec<_>>())
+        );
+        assert!(
+            has_any("bookstore", &["book", "paperback", "magazine"]),
+            "bookstore should contain reading material"
+        );
+        for room in ["policegunstorage", "gunstore", "pharmacy", "bookstore", "bakery"] {
+            if let Some(items) = loot.get(room) {
+                let top: Vec<&str> = items.iter().take(8).map(|i| i.item.as_str()).collect();
+                eprintln!("{room} → {top:?}");
+            }
+        }
     }
 
     #[test]

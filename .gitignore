@@ -29,3 +29,6 @@ dist-ssr
 
 # Tauri generated
 src-tauri/gen/
+
+# Generated dev map data (regenerate: cargo run -p knox-atlas-core --example dump_snapshot)
+/web/public/*.json

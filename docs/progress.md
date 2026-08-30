@@ -75,6 +75,25 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ## Worklog
 
+### 2026-08-21 — Renderer stood up: base map + categorized POI dots (live)
+- **Decision (owner):** Option A now (ship the intel map on the vector/raster base) → Option B
+  (`.lotpack` textured floors) as the flagship sequel. Confirmed overlays are world-coordinate and
+  reuse across every base layer (vector/raster/`.lotpack`) in the one engine, so A→B is additive.
+- **Did:**
+  - `web/`: framework-agnostic `MapEngine` (canvas) — base map (terrain/water/roads/rail/buildings,
+    colour-coded), pan/zoom, viewport culling, retina. `data.ts` loads from Tauri (invoke) or static
+    JSON (browser/dev). `MapStage` (React) + POI dot layer coloured by category with a zoom threshold.
+  - `crates/core`: `poi.rs` — `MapPoi` + `load_room_pois` (categorized rooms, Homes-only excluded →
+    13,149 POIs) + display-name prettifier. Tauri commands `load_room_pois`/`load_room_loot` (async).
+  - `examples/dump_snapshot.rs` → writes `web/public/{snapshot,pois,loot}.json` for browser dev
+    (gitignored; regenerate with the example).
+- **Tested:** `tsc --noEmit` clean, `cargo build` clean. Verified live in a browser: base map + 13,149
+  POI dots render on a town at world-accurate positions.
+- **Observation:** Food (every house kitchen/dining) floods the dots — the case for the **filter
+  panel** (next), which isolates categories so gun/book/pharmacy pop out. Then click-for-loot, labels,
+  satellite toggle.
+- **Note:** vite dev server left running on :1420 for preview.
+
 ### 2026-08-21 — Code beauty pass + B42-scene alignment check
 - **B42 alignment research:** every B42 map tool reverse-engineers the same files we do
   (`.lotheader`/`worldmap.xml`/map objects — Unjammer's exporter, pzmap2dzi, CalvyPZ/PZmap); newest

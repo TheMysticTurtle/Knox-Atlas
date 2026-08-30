@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use knox_atlas_core::GameSnapshot;
+use knox_atlas_core::{GameSnapshot, MapPoi, RoomLoot};
 
 /// Parse the installed game (optionally a user-chosen root) into a `GameSnapshot`. The parse is
 /// CPU/IO-heavy, so it runs on the blocking pool and the command is `async` — the WebView never
@@ -17,6 +17,27 @@ async fn load_game_snapshot(game_root: Option<String>) -> Result<GameSnapshot, S
     tauri::async_runtime::spawn_blocking(move || {
         knox_atlas_core::load_snapshot_from(game_root.as_deref().map(Path::new))
             .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Categorized RoomDef POIs (the "findable places" dot layer). `game_root` is the installPath the
+/// frontend already got from the snapshot.
+#[tauri::command]
+async fn load_room_pois(game_root: String) -> Result<Vec<MapPoi>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        knox_atlas_core::load_room_pois(Path::new(&game_root)).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// The room-type → expected-loot table (looked up by a POI's raw name on click).
+#[tauri::command]
+async fn load_room_loot(game_root: String) -> Result<RoomLoot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        knox_atlas_core::load_distributions(Path::new(&game_root)).map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| error.to_string())?
@@ -37,6 +58,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             load_game_snapshot,
+            load_room_pois,
+            load_room_loot,
             validate_game_install_path
         ])
         .run(tauri::generate_context!())

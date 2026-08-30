@@ -143,6 +143,28 @@ body {
 .subfilter-item:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* --- view section --- */
+.view-section .panel-eyebrow {
+  margin-bottom: 0.35rem;
+}
+.view-item {
+  grid-template-columns: 1fr auto;
+  opacity: 0.55;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.view-item.is-on {
+  opacity: 1;
+}
+.view-item.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.loot-heading {
+  margin-top: 0.5rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(45, 48, 43, 0.12);
+}
 .filter-swatch {
   width: 13px;
   height: 13px;

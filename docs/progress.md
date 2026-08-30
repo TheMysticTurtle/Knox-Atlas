@@ -75,6 +75,16 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ## Worklog
 
+### 2026-08-21 — Labels + View section (towns / streets / buildings)
+- **Did:** Engine renders town/area/water labels + street-name labels (rotated, along the longest
+  segment, with collision avoidance) + business/landmark labels (at zoom). `ViewOptions` +
+  `setView`; buildings layer can be toggled off. `viewStore` (Zustand) + `ViewSection` (React) — a
+  **VIEW** section at the top of the panel: Buildings / Town & area names / Street names / Business
+  names, plus a disabled **Satellite** toggle (arrives with the `.lotpack` decoder). Wired via MapStage.
+- **Tested:** `tsc --noEmit` clean. Verified live: town/area labels render on the map; owner confirms
+  street names look good.
+- **Owner note:** stop burning tool calls driving the preview — owner tests locally.
+
 ### 2026-08-21 — Click-a-dot → expected loot (selection card)
 - **Did:** Engine hit-tests the nearest visible POI on click (14px radius, respects the active sub
   filter + zoom threshold) → `onSelectPoi` callback. `SelectionCard` (React) shows the room's name,

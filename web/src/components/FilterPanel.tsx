@@ -4,6 +4,7 @@ import { categoryColors } from "../engine/colors";
 import { subBucketsFor } from "../engine/subcategories";
 import type { Category } from "../engine/types";
 import { CATEGORY_LABELS, LOOT_CATEGORIES, useFilters } from "../store";
+import { ViewSection } from "./ViewSection";
 
 /** The Likely-loot filter list: categories that expand into room-type sub-toggles. */
 export function FilterPanel({ subCounts }: { subCounts: Record<string, number> }) {
@@ -23,7 +24,9 @@ export function FilterPanel({ subCounts }: { subCounts: Record<string, number> }
 
   return (
     <aside className="filter-panel" aria-label="Map filters">
-      <header className="panel-heading">
+      <ViewSection />
+
+      <header className="panel-heading loot-heading">
         <p className="panel-eyebrow">LIKELY LOOT</p>
         <h1>What are you looking for?</h1>
         <div className="panel-actions">

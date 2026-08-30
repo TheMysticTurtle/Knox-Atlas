@@ -8,6 +8,10 @@ import { poiSubIds } from "./subcategories";
 import type { Bounds, Category, GameSnapshot, MapFeature, MapPoi, Point } from "./types";
 
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
+type PreparedStreet = { name: string; anchor: Point; angle: number; bounds: Bounds };
+
+/** Which base/label layers are drawn (the View section toggles). */
+export type ViewOptions = { towns: boolean; streets: boolean; buildings: boolean; businesses: boolean };
 
 const MIN_SCALE = 0.022;
 const MAX_SCALE = 3.2;
@@ -19,8 +23,10 @@ export class MapEngine {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly snapshot: GameSnapshot;
   private prepared: PreparedFeature[] = [];
+  private preparedStreets: PreparedStreet[] = [];
   private pois: { poi: MapPoi; subIds: string[] }[] = [];
   private enabledSubs: Set<string> | null = null;
+  private view: ViewOptions = { towns: true, streets: true, buildings: true, businesses: true };
 
   private center: Point;
   private scale = 0.22;
@@ -109,6 +115,18 @@ export class MapEngine {
       path: buildPath(feature.points, feature.kind !== "railway"),
       bounds: pointBounds(feature.points),
     }));
+    this.preparedStreets = this.snapshot.streets
+      .filter((street) => street.points.length > 1)
+      .map((street) => {
+        const { anchor, angle } = streetAnchor(street.points);
+        return { name: street.name, anchor, angle, bounds: pointBounds(street.points) };
+      });
+  }
+
+  /** Toggle which base/label layers are drawn (the View section). */
+  setView(view: ViewOptions): void {
+    this.view = view;
+    this.queueRender();
   }
 
   // --- coordinate transforms ------------------------------------------------
@@ -174,6 +192,7 @@ export class MapEngine {
     );
 
     for (const kind of DRAW_ORDER) {
+      if (kind === "building" && !this.view.buildings) continue;
       for (const feature of this.prepared) {
         if (feature.kind === kind && intersects(feature.bounds, view)) {
           this.drawFeature(feature);
@@ -181,9 +200,107 @@ export class MapEngine {
       }
     }
 
-    // Overlay pass in screen space (POI dots — pinned to world coordinates, but screen-sized).
+    // Overlay pass in screen space (labels + POI dots — pinned to world coords, screen-sized).
     ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+    const occupied: Bounds[] = [];
+    this.drawStreetLabels(view, occupied);
     this.drawPois(view);
+    this.drawMapLabels(occupied);
+  }
+
+  // --- labels ---------------------------------------------------------------
+
+  private labelFits(screen: Point, text: string, fontSize: number, occupied: Bounds[]): boolean {
+    const width = Math.max(38, text.length * fontSize * 0.56);
+    const box = {
+      minX: screen.x - width / 2 - 5,
+      minY: screen.y - fontSize,
+      maxX: screen.x + width / 2 + 5,
+      maxY: screen.y + 5,
+    };
+    if (box.maxX < 0 || box.minX > this.canvas.clientWidth) return false;
+    if (box.maxY < 0 || box.minY > this.canvas.clientHeight) return false;
+    if (occupied.some((item) => intersects(item, box))) return false;
+    occupied.push(box);
+    return true;
+  }
+
+  private drawScreenLabel(
+    text: string,
+    point: Point,
+    size: number,
+    weight: number,
+    color: string,
+    occupied: Bounds[],
+    uppercase = false,
+  ): void {
+    const screen = this.toScreen(point);
+    const label = uppercase ? text.toUpperCase() : text;
+    if (!this.labelFits(screen, label, size, occupied)) return;
+    const { ctx } = this;
+    ctx.font = `${weight} ${size}px Inter, "Segoe UI", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(219, 215, 192, 0.94)";
+    ctx.lineWidth = size > 15 ? 5 : 3.5;
+    ctx.strokeText(label, screen.x, screen.y);
+    ctx.fillStyle = color;
+    ctx.fillText(label, screen.x, screen.y);
+  }
+
+  private drawMapLabels(occupied: Bounds[]): void {
+    for (const label of this.snapshot.labels) {
+      const isTown = label.kind === "town";
+      const isArea = label.kind === "area";
+      const isWater = label.kind === "water";
+      const isBusiness = label.kind === "landmark";
+      if ((isTown || isArea || isWater) && !this.view.towns) continue;
+      if (isBusiness && (!this.view.businesses || this.scale < 0.35)) continue;
+      if (!isTown && !isArea && !isWater && !isBusiness) continue;
+      const townSize = Math.max(18, Math.min(28, 28 - this.scale * 8));
+      const areaSize = Math.max(14, Math.min(19, 19 - this.scale * 3));
+      const size = isTown
+        ? townSize
+        : isArea || isWater
+          ? areaSize
+          : Math.max(11, Math.min(15, 9 + this.scale * 11));
+      this.drawScreenLabel(
+        label.text,
+        label,
+        size,
+        isTown ? 700 : 650,
+        isTown ? mapColors.ink : mapColors.mutedInk,
+        occupied,
+        isTown,
+      );
+    }
+  }
+
+  private drawStreetLabels(view: Bounds, occupied: Bounds[]): void {
+    if (!this.view.streets || this.scale < 0.26) return;
+    const { ctx } = this;
+    const step = this.scale < 0.42 ? 3 : this.scale < 0.72 ? 2 : 1;
+    for (let index = 0; index < this.preparedStreets.length; index += step) {
+      const street = this.preparedStreets[index];
+      if (!intersects(street.bounds, view)) continue;
+      const screen = this.toScreen(street.anchor);
+      const size = this.scale > 0.7 ? 13 : 12;
+      if (!this.labelFits(screen, street.name, size, occupied)) continue;
+      ctx.save();
+      ctx.translate(screen.x, screen.y);
+      ctx.rotate(street.angle);
+      ctx.font = `600 ${size}px Inter, "Segoe UI", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(219, 215, 192, 0.92)";
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(street.name, 0, 0);
+      ctx.fillStyle = mapColors.mutedInk;
+      ctx.fillText(street.name, 0, 0);
+      ctx.restore();
+    }
   }
 
   private drawPois(view: Bounds): void {
@@ -343,4 +460,23 @@ function pointBounds(points: Point[]): Bounds {
 
 function intersects(a: Bounds, b: Bounds): boolean {
   return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
+}
+
+/** Anchor a street label at the midpoint of its longest segment, aligned to that segment. */
+function streetAnchor(points: Point[]): { anchor: Point; angle: number } {
+  let bestLength = 0;
+  let anchor = points[0] ?? { x: 0, y: 0 };
+  let angle = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    if (length > bestLength) {
+      bestLength = length;
+      anchor = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      angle = Math.atan2(end.y - start.y, end.x - start.x);
+      if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+    }
+  }
+  return { anchor, angle };
 }

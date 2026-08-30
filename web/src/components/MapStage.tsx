@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { MapEngine } from "../engine/mapEngine";
 import type { GameSnapshot, MapPoi, RoomLoot } from "../engine/types";
 import { useFilters } from "../store";
+import { useView } from "../viewStore";
 import { SelectionCard } from "./SelectionCard";
 
 type MapStageProps = {
@@ -17,6 +18,7 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<MapEngine | undefined>(undefined);
   const enabled = useFilters((state) => state.enabled);
+  const { towns, streets, buildings, businesses } = useView();
   const [selected, setSelected] = useState<MapPoi | null>(null);
 
   useEffect(() => {
@@ -39,6 +41,10 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   useEffect(() => {
     engineRef.current?.setEnabledSubs(enabled);
   }, [enabled, snapshot]);
+
+  useEffect(() => {
+    engineRef.current?.setView({ towns, streets, buildings, businesses });
+  }, [towns, streets, buildings, businesses, snapshot]);
 
   return (
     <div className="map-stage">

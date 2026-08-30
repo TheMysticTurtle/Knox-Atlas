@@ -75,6 +75,22 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ## Worklog
 
+### 2026-08-21 — Filter panel (top-level categories) + engine filtering
+- **Did:** `store.ts` (Zustand) — enabled-categories state (Homes off by default). `FilterPanel`
+  (React) — Likely-loot section: category rows with colour swatch, label, live POI count, checkbox,
+  All/None. `App` lifts data loading + computes per-category counts; `MapStage` takes props + syncs the
+  engine with data and filter state. Engine `setEnabledCategories` → `drawPois` shows only enabled
+  categories (and colours a dot by its first *enabled* category). Left-sidebar layout + styling.
+  Engine auto-fits to the window until the user pans/zooms (fixes resize).
+- **Tested:** `tsc --noEmit` clean. Verified live: panel renders with correct counts (Weapons 215,
+  Medical 567, Food 9,698, …); filters wired to the engine.
+- **Food question (owner):** stores vs houses is easy — room name tells us (grocery/restaurant =
+  store; kitchen/diningroom = house). Sub-toggles (Food → Groceries / Restaurants / Home kitchens)
+  are the **next step** and the real de-flood. Perishable/non-perishable needs item-script parsing →
+  a click-a-room loot-detail feature later.
+- **Next:** sub-toggles (Food split first) · click-a-dot → expected loot popup · labels · Map-visibility
+  section (buildings/towns/streets/satellite).
+
 ### 2026-08-21 — Renderer stood up: base map + categorized POI dots (live)
 - **Decision (owner):** Option A now (ship the intel map on the vector/raster base) → Option B
   (`.lotpack` textured floors) as the flagship sequel. Confirmed overlays are world-coordinate and

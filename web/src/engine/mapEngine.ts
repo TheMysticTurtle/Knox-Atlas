@@ -4,7 +4,7 @@
 // in later steps. Ported from the prototype renderer into a self-contained, disposable class.
 
 import { buildingColor, categoryColors, mapColors } from "./colors";
-import type { Bounds, GameSnapshot, MapFeature, MapPoi, Point } from "./types";
+import type { Bounds, Category, GameSnapshot, MapFeature, MapPoi, Point } from "./types";
 
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 
@@ -19,11 +19,13 @@ export class MapEngine {
   private readonly snapshot: GameSnapshot;
   private prepared: PreparedFeature[] = [];
   private pois: MapPoi[] = [];
+  private enabledCategories: Set<Category> | null = null;
 
   private center: Point;
   private scale = 0.22;
 
   private renderQueued = false;
+  private userAdjusted = false;
   private dragging = false;
   private dragOrigin = { x: 0, y: 0 };
   private centerOrigin = { x: 0, y: 0 };
@@ -40,7 +42,11 @@ export class MapEngine {
 
     this.prepare();
     this.attachListeners();
-    this.resizeObserver = new ResizeObserver(() => this.queueRender());
+    // Auto-fit to the window until the user pans/zooms; after that, just redraw on resize.
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.userAdjusted) this.queueRender();
+      else this.fit();
+    });
     this.resizeObserver.observe(canvas);
     this.fit();
   }
@@ -48,6 +54,12 @@ export class MapEngine {
   /** Provide the categorized RoomDef POIs to draw (loaded separately by React). */
   setPois(pois: MapPoi[]): void {
     this.pois = pois;
+    this.queueRender();
+  }
+
+  /** Show only POIs that carry at least one of these categories. */
+  setEnabledCategories(categories: Category[]): void {
+    this.enabledCategories = new Set(categories);
     this.queueRender();
   }
 
@@ -173,12 +185,18 @@ export class MapEngine {
     if (this.scale < 0.3 || this.pois.length === 0) return; // declutter until zoomed into a town
     const { ctx } = this;
     const radius = this.scale > 0.7 ? 4 : 3;
+    const enabled = this.enabledCategories;
     for (const poi of this.pois) {
       if (poi.x < view.minX || poi.x > view.maxX || poi.y < view.minY || poi.y > view.maxY) continue;
+      if (enabled && !poi.categories.some((category) => enabled.has(category))) continue;
       const screen = this.toScreen(poi);
+      // Colour by the first *enabled* category so a filtered view reads by what you asked for.
+      const shown = enabled
+        ? (poi.categories.find((category) => enabled.has(category)) ?? poi.categories[0])
+        : poi.categories[0];
       ctx.beginPath();
       ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = categoryColors[poi.categories[0]] ?? mapColors.mutedInk;
+      ctx.fillStyle = categoryColors[shown] ?? mapColors.mutedInk;
       ctx.fill();
       ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(255, 248, 233, 0.85)";
@@ -239,6 +257,7 @@ export class MapEngine {
   }
 
   private onPointerDown = (event: PointerEvent): void => {
+    this.userAdjusted = true;
     this.dragging = true;
     this.dragOrigin = { x: event.clientX, y: event.clientY };
     this.centerOrigin = { ...this.center };
@@ -261,6 +280,7 @@ export class MapEngine {
 
   private onWheel = (event: WheelEvent): void => {
     event.preventDefault();
+    this.userAdjusted = true;
     this.zoomBy(event.deltaY < 0 ? 1.18 : 1 / 1.18, this.toWorld(event.clientX, event.clientY));
   };
 }

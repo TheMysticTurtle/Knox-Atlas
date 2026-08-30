@@ -28,8 +28,12 @@ export class MapEngine {
   private renderQueued = false;
   private userAdjusted = false;
   private dragging = false;
+  private dragMoved = false;
   private dragOrigin = { x: 0, y: 0 };
   private centerOrigin = { x: 0, y: 0 };
+
+  /** Set by React: called with the clicked POI (or null when clicking empty map). */
+  onSelectPoi?: (poi: MapPoi | null) => void;
 
   private readonly resizeObserver: ResizeObserver;
 
@@ -259,6 +263,7 @@ export class MapEngine {
   private onPointerDown = (event: PointerEvent): void => {
     this.userAdjusted = true;
     this.dragging = true;
+    this.dragMoved = false;
     this.dragOrigin = { x: event.clientX, y: event.clientY };
     this.centerOrigin = { ...this.center };
     this.canvas.setPointerCapture(event.pointerId);
@@ -266,6 +271,9 @@ export class MapEngine {
 
   private onPointerMove = (event: PointerEvent): void => {
     if (!this.dragging) return;
+    if (Math.abs(event.clientX - this.dragOrigin.x) + Math.abs(event.clientY - this.dragOrigin.y) > 4) {
+      this.dragMoved = true;
+    }
     this.center = {
       x: this.centerOrigin.x - (event.clientX - this.dragOrigin.x) / this.scale,
       y: this.centerOrigin.y - (event.clientY - this.dragOrigin.y) / this.scale,
@@ -276,7 +284,30 @@ export class MapEngine {
   private onPointerUp = (event: PointerEvent): void => {
     this.dragging = false;
     this.canvas.releasePointerCapture(event.pointerId);
+    // A click (not a drag) selects the nearest visible POI, or clears the selection.
+    if (!this.dragMoved) this.onSelectPoi?.(this.hitTestPoi(event.clientX, event.clientY));
   };
+
+  /** Nearest visible POI within a small pixel radius of the click, or null. */
+  private hitTestPoi(clientX: number, clientY: number): MapPoi | null {
+    if (this.scale < 0.3) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    const enabled = this.enabledSubs;
+    let best: MapPoi | null = null;
+    let bestDistance = 14;
+    for (const { poi, subIds } of this.pois) {
+      if (enabled && !subIds.some((id) => enabled.has(id))) continue;
+      const screen = this.toScreen(poi);
+      const distance = Math.hypot(screen.x - px, screen.y - py);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = poi;
+      }
+    }
+    return best;
+  }
 
   private onWheel = (event: WheelEvent): void => {
     event.preventDefault();

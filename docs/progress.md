@@ -75,6 +75,20 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ## Worklog
 
+### 2026-08-21 — Click-a-dot → expected loot (selection card)
+- **Did:** Engine hit-tests the nearest visible POI on click (14px radius, respects the active sub
+  filter + zoom threshold) → `onSelectPoi` callback. `SelectionCard` (React) shows the room's name,
+  category chips, floor, expected loot (item names prettified `Base.CannedBeans`→`Canned Beans`, top
+  24) + world coords. `App` loads the loot table; `MapStage` holds selection state + renders the card.
+- **Tested:** `tsc --noEmit` clean. Verified the click→loot data path live: Gun store → 9mmClip /
+  RifleCase / BulletVest / Whetstone; Book store → reference/textbooks/paperbacks; Pharmacy → (meds in
+  the 24-item list). Pixel-perfect dot-click screenshot not captured (preview-pane scaling throws off
+  blind zooms) — pipeline confirmed via JS.
+- **Known:** pharmacy's top items are incidentals (raw-weight order) — the loot *presentation* ordering
+  (group-by-container / distinctiveness) is still the deferred UX refinement.
+- **Next (wrap-up):** labels · item search · View / Quick-finds / World-utilities sections; then the
+  `.lotpack` decoder.
+
 ### 2026-08-21 — Loot sub-toggles (hierarchical filters) + decoder plan
 - **Direction (owner):** wrap up the intel map into a working state, THEN build the local `.lotpack`
   decoder — a tool users run on-demand (behind a button) that renders satellite/floors/object-locations

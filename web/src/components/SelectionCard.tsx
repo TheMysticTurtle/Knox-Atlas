@@ -1,36 +1,71 @@
-import { categoryColors } from "../engine/colors";
-import type { MapPoi, RoomLoot } from "../engine/types";
-import { CATEGORY_LABELS } from "../store";
+import { useState } from "react";
 
-/** Details for a clicked POI: its categories + the game's expected loot for that room type. */
+import { categoryColors } from "../engine/colors";
+import { coordinateText } from "../engine/coordinates";
+import type { MapPoi, Point, RoomLoot } from "../engine/types";
+import { CATEGORY_LABELS } from "../store";
+import { CoordinateReadout } from "./CoordinateReadout";
+
+/**
+ * Details for the selection: a clicked POI (its categories + the game's expected loot for that room
+ * type), or a jumped-to coordinate (`poi: null`). Both show copyable coordinates.
+ */
 export function SelectionCard({
   poi,
+  point,
+  cellSize,
+  chunkSize,
   loot,
   onClose,
 }: {
-  poi: MapPoi;
+  poi: MapPoi | null;
+  point: Point;
+  cellSize: number;
+  chunkSize: number;
   loot: RoomLoot;
   onClose: () => void;
 }) {
-  const items = loot[poi.rawName.toLowerCase()] ?? [];
+  const items = poi ? (loot[poi.rawName.toLowerCase()] ?? []) : [];
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+
+  async function copyCoordinates() {
+    try {
+      await navigator.clipboard.writeText(coordinateText(point));
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  }
 
   return (
     <div className="selection-card">
       <button className="selection-close" onClick={onClose} aria-label="Close">
         ×
       </button>
-      <span className="selection-eyebrow">
-        {poi.floor > 0 ? `FLOOR ${poi.floor}` : "GROUND FLOOR"}
-      </span>
-      <strong className="selection-title">{poi.name}</strong>
+      <span className="selection-eyebrow">{poi ? floorLabel(poi.floor) : "SELECTED LOCATION"}</span>
+      <strong className="selection-title">{poi?.name ?? "Map coordinates"}</strong>
 
-      <div className="selection-cats">
-        {poi.categories.map((category) => (
-          <span key={category} className="selection-cat" style={{ background: categoryColors[category] }}>
-            {CATEGORY_LABELS[category]}
-          </span>
-        ))}
-      </div>
+      <CoordinateReadout point={point} cellSize={cellSize} chunkSize={chunkSize} />
+      <button
+        className="copy-coordinates"
+        onClick={() => void copyCoordinates()}
+        title="Copy the selected location, not the moving pointer"
+      >
+        {copyStatus === "copied" ? "Copied ✓" : "Copy X/Y"}
+      </button>
+      <span className="copy-status" role="status">
+        {copyStatus === "failed" && "Could not copy automatically. Select the X/Y numbers to copy them."}
+      </span>
+
+      {poi && (
+        <div className="selection-cats">
+          {poi.categories.map((category) => (
+            <span key={category} className="selection-cat" style={{ background: categoryColors[category] }}>
+              {CATEGORY_LABELS[category]}
+            </span>
+          ))}
+        </div>
+      )}
 
       {items.length > 0 ? (
         <>
@@ -42,15 +77,23 @@ export function SelectionCard({
           </ul>
         </>
       ) : (
-        <p className="selection-empty">No specific loot table for this room type.</p>
+        poi && <p className="selection-empty">No specific loot table for this room type.</p>
       )}
 
       <p className="selection-note">
-        {Math.round(poi.x)}, {Math.round(poi.y)} · from the game's own distribution tables — actual
-        contents vary by save &amp; sandbox.
+        {poi
+          ? "From the game's distribution tables — actual contents vary by save and sandbox."
+          : "This is a selected map location, not your live player position."}
       </p>
     </div>
   );
+}
+
+/** RoomDef floor (Z) → card eyebrow. Negative Z is a basement level. */
+function floorLabel(floor: number): string {
+  if (floor < 0) return `BASEMENT ${Math.abs(floor)}`;
+  if (floor > 0) return `FLOOR ${floor}`;
+  return "GROUND FLOOR";
 }
 
 /** `Base.CannedBeans` → `Canned Beans`. */

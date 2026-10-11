@@ -1,62 +1,128 @@
-# Project Zomboid map data — sources & coordinates
+# Project Zomboid map data — sources and limits
 
-What Knox Atlas reads from the installed game, verified on a local Steam Build 42 install
-(2026-08-19). Observations, not a promise future builds keep identical formats. All reads are
-read-only.
+Updated 2026-10-11 against the active code and local Steam installation. Build 42 observations
+below are **not universal format guarantees**. The selected build and source map must be recorded
+when reproducing a mismatch. Game/save access is read-only.
 
-Base-map directory (shared base for the neighboring towns despite the name):
-```
+Current base source is hard-coded to:
+
+```text
 ProjectZomboid/media/maps/Muldraugh, KY/
 ```
 
+This contains the neighboring towns too. Automatically composing arbitrary map mods is not yet
+implemented. Install discovery can find configured Steam libraries; selecting an alternate path
+is supported in core/Tauri but not yet restored in the active UI.
+
 ## Sources
 
-| File | Provides | Used for |
-|---|---|---|
-| `map.info` | title, zoom defaults, compiled-cell metadata (`256`, chunk `8`) | read |
-| `worldmap.xml` | vector water/roads/rail/buildings/terrain; **8 broad building classes** | read (base map) |
-| `streets.xml` | named street polylines + widths | read |
-| `worldmap-annotations.lua` + `MapLabel.json` | town/area/water/landmark labels | read |
-| `objects.lua` | `ZombiesType` (zombie theme zones), `ParkingStall` (vehicles), `WaterZone`, `LootZone` | read |
-| **`*.lotheader`** | **RoomDefs — real building/room identity (gun/book/bait/grocery/… )** | read (see `lotheader-format.md`) |
-| `worldmap.png` (117 MB) + `pyramid.zip` (53 MB) | pre-rendered raster overview + multi-zoom tiles | **P1 satellite base layer** |
-| `*.lotpack` (3.8 GB) | detailed tile pixels | deferred (textured 3D out of scope) |
-| `media/lua/shared/VehicleZoneDefinition.lua` | zone→vehicle-script pools | read (vehicle pools) |
+| Source | Information | Active use / limitation |
+| --- | --- | --- |
+| `map.info` | Map title, defaults, compiled-cell/chunk metadata | Parsed for snapshot metadata. |
+| `worldmap.xml` | Vector terrain, water, roads, rail, building footprints/classes | Rendered overview. Building colors are not room functions. |
+| `streets.xml` | Named polylines and widths | Street labels; not yet a verified routing graph (road path plotting is planned — see roadmap). |
+| `worldmap-annotations.lua`, `MapLabel.json` | Town, area, water, landmark labels | Rendered labels. Landmark text is not a complete business-name directory. |
+| `objects.lua` | Theme zones, parking/vehicle zones, water zones, wealth-tier loot zones | Parsed into snapshot; room POIs currently drive the visible dot layer instead. |
+| `*.lotheader` | Tile-name table, named room rectangles, floor Z; later building section | Rust room parsing implemented. Frontend receives room-center POIs, not rectangles/building membership. |
+| `ProceduralDistributions.lua`, `SuburbsDistributions.lua`, `Distributions.lua` | Static container/room loot definitions | Approximate room-to-items index; not live loot or exact probabilities. |
+| `pyramid.zip` | Multi-resolution terrain imagery: levels 0–4 of 256-px PNG tiles, 1 world tile per pixel at level 0 (bounds 0–19968 × 0–16128) | **Satellite base layer** — read on demand, visible tiles only. |
+| `worldmap.png`, `forest.pyramid.zip`, `spawnSelectImagePyramid.zip` | Other ready-made overview/forest/spawn-screen imagery | Inspected; not used. |
+| `*.lotpack` + sprite assets | Encoded tile/object references and the assets needed to draw them | Not used, and a detailed decoder is **not planned** (owner: too much like cheating). These files are not tile pixels. |
+| `VehicleZoneDefinition.lua` | Vehicle spawn-script pools and distribution context | Parsed into snapshot; active vehicle UI/overlay pending. |
+| Save `players.db`, `vehicles.db` | Last-saved player/vehicle coordinates | Isolated core reader; not connected to desktop; live-read safety needs repair. |
+| `InGameMap.ini` | Last-saved map camera | Snapshot metadata, **not player location**. Engine currently fits the full map on startup. |
 
-## What `ZombiesType` zones actually are (important correction)
+## Coordinate systems
 
-They are **zombie population / outfit / loot-theme zones** ("cop zeds in police stations, chef zeds
-in restaurant kitchens, bride & groom at a wedding"), *not* a business directory. The prototype
-mislabeled all ~1,550 as "businesses," including pure theme zones (`Swimmer`, `Wedding`, `BaseballFan`,
-`Offices`×385). In the evolution these become a **separate opt-in "zombie theme zones" layer**; real
-businesses come from RoomDefs.
+| Source grid | Observed cell/chunk size | World-space conversion |
+| --- | --- | --- |
+| Vector XML cells | 300 tiles | `worldX = cellX * 300 + pointX` |
+| Compiled RoomDefs | 256 tiles | `worldX = cellX * 256 + roomX` |
+| Compiled cell readout | 256 tiles | `floor(worldX / 256)` |
+| Compiled chunk readout | 8 tiles | `floor(worldX / 8)` |
 
-`objects.lua` `LootZone` records are only wealth tiers (`Rich`/`Poor`), not category types.
+X/Y conversions from each grid land in the same absolute world space. Do not multiply vector cells
+by the compiled cell size. Alignment was checked with a known gun-store room inside its vector
+retail footprint; see [header format](lotheader-format.md).
 
-## Coordinate systems (do not conflate)
+Z is signed and separate: 0 ground, positive above, negative below. Keep negative values through
+parsing, transport, filtering, and clicks. Show available floors from the data, not a hard-coded
+maximum. Current core stores Z; current UI draws POIs from all floors together.
 
-| Grid | Cell size | Conversion |
-|---|---|---|
-| `worldmap.xml` vector cells | **300** | `worldX = cellX*300 + pointX` |
-| `.lotheader`/`.lotpack` compiled cells | **256** | `worldX = cellX*256 + roomX` |
-| Compiled-cell index (display) | 256 | `floor(worldX/256)` |
-| Chunk index (display) | 8 | `floor(worldX/8)` |
+## Raster inspection — 2026-10-10
 
-Both vector (300) and lotheader (256) resolve to the **same absolute world space**; they just use
-different per-cell origins. Cross-validated via a `gunstore` RoomDef landing inside a
-`RetailAndCommercial` worldmap footprint (see `lotheader-format.md`).
+Read-only inspection of the local map directory found:
 
-## Save data (Tiers 2–3)
+- `worldmap.png`: 10234 × 8314 pixels; 122,727,192 bytes.
+- `pyramid.zip`: 52,984,481 bytes, level directories with `tile<X>x<Y>.png` entries.
+- `pyramid.txt`: `VERSION=1`, `bounds=0 0 19968 16128`, `imageSize=19968 16128`.
+- `pyramid.zip` directories 0–4 hold zoom resolutions, not floors:
+  4,914 / 1,248 / 320 / 80 / 20 PNG entries.
+- `forest.pyramid.zip`: 11,409,738 bytes; bounds/imageSize 19800 × 15900.
+- `spawnSelectImagePyramid.zip`: 165,691,664 bytes; bounds 19800 × 16085,
+  imageSize 10234 × 8314, linear min/mag filters.
 
-Point the reader at any save dir under `%USERPROFILE%/Zomboid/Saves/`. SP, self-host, and dedicated
-server saves share structure. A **remote multiplayer client's** cache is thin (empty `vehicles.db`,
-tiny `map_symbols.bin`) — authoritative loot/vehicles/positions live on whoever hosts the world.
-`InGameMap.ini` `WorldMap.CenterX/Y` is the last saved *map view*, not player position. Player
-positions, container loot, and `vehicles.db` require a save decoder (P3) + a player-record spike.
+Local `ISWorldMap.lua` and `ISMiniMap.lua` terrain-image functions select `pyramid.zip`;
+`ISMapDefinitions.lua` default-style code adds `forest.pyramid.zip`.
+The terrain-image functions are guarded by `TERRAIN_IMAGE`; code references are not a claim the
+option is enabled in every build. These supplied resources are the lightweight image-view source.
 
-## Update-risk order (on game updates)
+These dimensions differ; stretching the standalone PNG to arbitrary vector bounds is not a
+validated transform. First inspect tile sizes/level scaling and confirm metadata interpretation
+against several distant landmarks. Prefer visible pyramid tiles to decoding a huge single image.
+The overview does not contain separable interior floors. Implementation/acceptance details:
+[map views and navigation](map-views-navigation.md).
 
-1. `map.info` coordinate metadata. 2. Required files still present. 3. XML element/property names.
-4. Annotation call shape + translation path. 5. `objects.lua` record shape/zone names.
-6. **`.lotheader` magic/version/record layout** (`lotheader-format.md` checklist).
-7. Installed-game parse test + visual alignment check. Keep version handling inside `crates/core`.
+## Room meaning versus theme zones
+
+A RoomDef such as `gunstore` or `pharmacy` describes an authored room function. Several rooms
+can belong to one business, and a type is not a storefront name. The core's building-section
+association is not yet parsed.
+
+`ZombiesType` records describe zombie population/outfit themes, not a business directory.
+`Swimmer` and `Wedding` must not be labeled businesses. A separate opt-in theme layer is planned.
+`LootZone` wealth labels such as Rich/Poor are not lists of loot categories. Explicit water-zone
+counts are not a count of all water access: rivers remain base-map geometry.
+
+## Static loot extraction
+
+The current parser scans braces and extracts item pairs/procedural references with regex; it does
+not execute Lua or fully parse Lua string/comment semantics. It merges duplicates by **maximum
+weight**, sorts descending, and retains at most **60 items per room type**. The UI displays 24.
+
+A local generated sample has 502 room-type loot lists; 197 reach that 60-item cap. This is a sample,
+not a promised count for every build. Weight is neither percentage chance nor a reliable ranking
+across different container/procedural definitions. Container rolls, procedural constraints,
+sandbox settings, and mod overrides are not modeled completely.
+
+Before item search: retain all items and container/source context in a separate index; truncate
+only presentation. Before probability claims: implement and validate the underlying semantics.
+Unknown/new data should yield a warning or an explicit unknown, not a fabricated result.
+
+## Save and runtime boundaries
+
+Core currently queries player X/Y/Z and vehicle X/Y from SQLite. It does not decode vehicle type,
+condition, keys, player inventory, or container chunk contents. Host/server-owned saves generally
+contain more authoritative records than a remote client's cache; inspect actual schema/data rather
+than assume all clients have every player.
+
+The current `immutable=1` connection is **not** a copied snapshot. SQLite treats that option as an
+unchanging file and disables change detection/locking; it can give incorrect results if the file
+changes. Do not expose it as a safe live reader. Replace it with a tested read-only consistency
+strategy that handles busy databases and WAL state, or require a genuinely stable snapshot.
+Opening errors currently collapse to an empty result and must be distinguished from missing data.
+See [SQLite URI documentation](https://www.sqlite.org/uri.html).
+
+A local live-player export is a separate optional source; it does not imply access to server loot
+or other players. Installed layout also does not reflect player-built/destroyed structures or
+every random basement. Keep freshness and provenance visible.
+
+## Game-update checklist
+
+1. Record game build, map source, and enabled map/mod order if applicable.
+2. Check required files and coordinate metadata; do not silently reuse the wrong conversion.
+3. Validate XML/property/annotation and Lua record shapes.
+4. Check header magic/version/count bounds; current parser still lacks a version rejection guard.
+5. Run game-independent parser fixtures, then the optional installed-game corpus checks.
+6. Check raster/room alignment at ground, upper floor, and negative Z where data exists.
+7. Invalidate derived caches and make unsupported optional layers visibly unavailable.

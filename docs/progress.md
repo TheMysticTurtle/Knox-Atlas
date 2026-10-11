@@ -1,81 +1,168 @@
-# Progress, worklog & backlog
+# Progress and session handoff
 
-Living working-notes doc so any session (or contributor) can pick up. Three sections: **Current
-state**, **Backlog/TODO**, **Worklog** (dated audit trail — mirrors the commit history in prose:
-what/issues/tested/found/fixed). Newest worklog entry on top.
+Last updated **2026-10-11**, branch `feature/core-evolution`. The active package version is 0.2.0;
+released 0.1.1 lives in the preserved prototype history.
 
----
+**Start here next session.** [Roadmap](roadmap.md) owns product principles and task order;
+[architecture](architecture.md) owns boundaries; [development](development.md) owns commands and
+release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
+behavior.
 
-## Current state — 2026-08-21
+> **▶ RESUME HERE:** Satellite view + coordinate tools are built, tidied, verified, and committed.
+> **Next (owner-agreed order):**
+> 1. **Restore saved points & paths** — port named colored markers, multi-point paths, saved view, and
+>    the game-folder picker from `legacy/src/main.ts`; read/write the same legacy storage keys; plan a
+>    packaged 0.1.1 → 0.2.0 upgrade test.
+> 2. **Road path plotting without live position** — road graph from vector road lines → route from a
+>    chosen start to a place/marker → draw + distance → save as a path.
+> 3. **Polish queue** — quick-finds, highlight-and-dim, loot-card ordering, landmark names, floors.
+>
+> Principles: **simple by default** (extras opt-in) and **helpful, not a cheat** (no high-res decoder;
+> real save item locations on hold pending owner). Live coordinates deferred by the owner.
 
-**Branch:** `feature/core-evolution`. **The intel map is a working app** — Rust `core` data engine
-(overview + RoomDefs + categories + loot, typed/tested/clippy-clean) → React + canvas renderer with
-base map, pan/zoom, categorized POI dots, hierarchical loot filters, click-a-dot→expected-loot, labels
-(towns/streets/business), and a VIEW section. Dev: `cd web && npm run dev` → localhost:1420
-(reads live in Tauri, or `web/public/*.json` from `cargo run -p knox-atlas-core --example dump_snapshot`).
+## Current implementation
 
-> **▶ RESUME HERE:** On `feature/core-evolution`, ~15 commits, tree clean. Intel map works end-to-end.
-> **Owner's up-next list (in order):**
-> 1. **Business names** on the map (landmark labels — verify they show useful names; the toggle exists).
-> 2. **Satellite view** — load the game's `worldmap.png`/`pyramid.zip` raster as a base layer; light up
->    the (currently disabled) Satellite toggle in the VIEW section.
-> 3. **Quick business-type filter** — the "Quick finds" panel section: one-click toggles for common
->    places (Police, Gun/Book/Video stores, Supermarkets, Gas, Schools, Hotels, Houses, Factories,
->    Warehouses…). Then a **World utilities** section (Vehicles by type, greenhouses, pottery).
-> 4. **Highlight-selected-over-the-rest** — when filtered/focused to a specific thing, highlight/enlarge
->    matches and dim the rest (the old-app highlight-not-hide behaviour; also the loot-item search).
-> Also queued: loot-card ordering by "what people want" (item categorizer → surface room-matching items
-> first) instead of raw weight; item search ("chisel" → spawn locations).
-> Parked/future: `.lotpack` **local decoder** (owner's plan: on-demand render from the user's install →
-> satellite/floors/object-locations/furniture-search, mod-compatible) — the flagship next phase after
-> wrap-up. Save reader (built, isolated) / live positions (server mod) / server sidecar.
+| Area | Status |
+| --- | --- |
+| Core parsing | Install discovery; overview/streets/labels/zones/vehicle pools; RoomDefs; categories; approximate static loot; satellite `pyramid.zip` reader. |
+| UI/engine | React + canvas overview, pan/zoom, room dots, expandable sub-filters, click-for-loot, label/view toggles, **satellite base layer**, zoom/fit buttons, X/Y jump, hover coordinate readout, Copy X/Y. |
+| Selection | Clicking a dot opens its card with a marker; X/Y jump marks a point and opens a coordinate card; clicking empty map clears the selection. |
+| Room identity | Generic room type, center, categories, Z; no stable frontend room ID, rectangles, or verified building membership. |
+| Filters | Hide nonmatching dots; first matching sub-bucket wins; home kitchens/Homes default off. Floors are mixed. |
+| “Business names” | Annotation/landmark labels, not an individual business-name directory. |
+| Personal-map parity | Search, game-folder picker, named markers, drawn paths, saved view, vehicle overlay not yet ported (Next #1). |
+| Storage | Identifier retained; legacy-key readers not ported. Upgrade compatibility not proven. |
+| Floors | Not implemented (polish queue). Satellite pyramid levels are zoom resolutions, not floors. |
+| Routing | Not implemented (Next #2). |
+| Save detail | Isolated SQLite coordinate reader; no desktop command/UI. Live-read consistency unresolved. |
+| Live player/server | Optional extras; not implemented. No mod-free live position exists (see map views doc). |
+| Distribution | CI/release scripts still target old root npm and `src-tauri/target` layout. Not release-ready. |
 
-Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxonomy.md`. The
-`.lotheader` RoomDef format is validated (`lotheader-format.md`). Reference decoder:
-`docs/reference/lot_enum.py`. Work is committed as milestones (owner asked for a clean audit trail).
+Local generated preview sample: **15,405 POIs**, **502 loot room types**. The parser caps each loot
+list at 60 items (197 lists hit that cap); the card shows 24. Do not claim a complete item index,
+room-wide probabilities, or actual inventory.
 
----
+## Latest verification — 2026-10-11
 
-## Backlog / TODO
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` | Clean. |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Clean. |
+| `cargo test --workspace` | 14 passed (includes 3 satellite tests; installed-game tests ran against the local install). |
+| `npx tsc --noEmit` (web) | Clean. |
+| `npm --prefix web test` with `ATLAS_TEST_PYRAMID` set | 6 passed, 0 skipped (real `pyramid.zip` read). |
+| `vite build` (web) | Builds. |
+| Dev server `/__atlas_satellite` | `/info` 200; tile 4/1/1 200 PNG; out-of-range tile 404. |
+| Owner visual check | Satellite aligned: POIs on building footprints, street labels on roads (Fallas Lake). |
+| Desktop `tauri dev` launch, installer/portable upgrade | **Not run.** Still required before release. |
 
-### Phase S — scaffold + parity (current)
-- [x] Root workspace `Cargo.toml` (members `crates/core`, `src-tauri`). Tauri v2 conventions verified vs official docs.
-- [x] `crates/core`: coord constants (256 lotheader / 300 vector) + `version()` smoke + guard test. Types/parsers still to port.
-- [x] `src-tauri` (kept default name, not `crates/desktop`, = Tauri CLI marker): Tauri v2 app, `core_version` command, id `com.pzcompanion.map` + prototype icons/capabilities preserved.
-- [x] `web/`: React 19 + Vite 7 + TS scaffold; Zustand store; placeholder App (paper-map palette).
-- [x] Port parsers from `legacy/src-tauri/src/lib.rs` → `core` modules (types, util, worldmap,
-      streets, annotations, vehicles, zones, install, snapshot); re-expose typed `GameSnapshot` +
-      `load_snapshot_from` + `validated_game_root`; wire the two Tauri commands. Verbatim logic (parity).
-- [ ] Port canvas engine from `legacy/src/main.ts` as a framework-agnostic module (base + overlay,
-      pan/zoom, culling, label collision, hit-testing).
-- [ ] React shell around the engine: filter panel, search, selection card, saved markers/paths,
-      measure; wire via the Zustand store (filters/view down, hit-test/selection up).
-- [ ] Preserve ADR-006 storage keys (read existing markers/paths/view); migration only if design
-      diverges (discuss if it would compromise design).
-- [ ] Verify `tauri dev` launches a window rendering the app (integration; nail beforeDevCommand cwd).
-- [ ] **Parity gate:** new app reproduces today's overview map (features/streets/labels/vehicle
-      zones/markers/measure/storage); still builds/packages. Diff vs `legacy/`.
+Installed-data tests can silently skip when sources are absent; add synthetic fixtures before
+treating CI coverage as sufficient.
 
-### Future phases (summary — detail in roadmap.md)
-- [ ] **P0** RoomDef parser in `core`; multi-tag categories; Orientation→Map visibility; theme-zone
-      opt-in layer; bigger text; finalize full 586-name → category mapping; accuracy pass.
-- [ ] **P1** Satellite base-layer toggle (`worldmap.png`/`pyramid.zip`).
-- [ ] **P2** Floor/Z-level selector from RoomDef floor+rects.
-- [ ] **P3** Save reader (loot/vehicles/positions) + player-record spike + `vehicles.db` schema check.
-- [ ] **P4** Share module: embedded Share + Linux-first headless server; admin visibility config;
-      threat/privacy design doc first.
+## Living TODO
 
-### Parking lot / open questions
-- [ ] Get the friend's-base "auto repair" X/Y from owner → decode that cell, confirm actual RoomDefs
-      (gun store vs auto vs police). Accuracy item raised in the very first request.
-- [ ] Update `.github` CI workflows + root `README.md` once the new build produces artifacts (left
-      describing the prototype intentionally for now).
-- [ ] Reuse Nexus banner/social images (preserved in `legacy/docs/images/`) when refreshing the page.
-- [ ] Confirm `crates/server` framework (axum assumed) at P4.
+### Next (owner order)
+- [ ] Restore saved markers/paths/saved view/game-folder picker; legacy keys; upgrade test plan.
+- [ ] Road path plotting (no live position): road graph, routing, draw/save route.
+- [ ] Polish: quick-finds, highlight-and-dim, loot ordering, landmark names, floor outlines.
 
----
+### Release gate
+- [ ] Correct frontend/workspace CI commands, cache paths, release outputs, and package notes.
+- [ ] Verify Tauri hook working directory; confirm packaged assets exclude generated local JSON.
+- [ ] Give POI/loot providers visible loading/failure/empty states (they only warn in console).
+- [ ] Add header version/count/negative-Z fixtures and Lua/category/sub-bucket tests.
+- [ ] Fix specificity gaps: `policegunstorage` falls under Gun stores; `bookstorage` under Other.
+- [ ] Launch-test desktop; clean install, restart/persistence, real 0.1.1 profile upgrade.
+
+### Optional extras (opt-in, later)
+- [ ] Live own-player coordinates via a small companion mod (MP: needs to be on the server's list).
+- [ ] Last-saved position from SP/hosted saves (reader exists; needs consistent reads + UI).
+- [ ] Share/server view (privacy design first).
+- [ ] Real save item locations — **on hold**, owner to confirm (may cross "not a cheat").
+
+### Parked
+- [ ] Uncapped, container/source-aware loot index before item search.
+- [ ] Export/import for portable transfer of saved items.
+- [ ] Owner's friend's-base auto-repair coordinates: inspect actual rooms when supplied.
 
 ## Worklog
+
+Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
+"never hide," satellite depending on a detailed decoder, old check results) are superseded by later
+entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — Satellite + coordinates reviewed, tidied, committed; direction reset
+
+- **Context:** on 2026-10-10 another assistant (GPT/Codex) worked on branch
+  `codex/satellite-coordinates`: satellite view, coordinate tools, and a doc audit, all left
+  uncommitted. This session reviewed it in full before keeping it.
+- **Review verdict:** net positive. Satellite is a self-contained layer (`satelliteLayer.ts`) plugged
+  into the engine with one draw call; the Rust reader and dev middleware are bounded and validated
+  (size limits, PNG header checks, constructed entry names only, localhost-only dev endpoint). Engine
+  architecture unchanged (+~120 lines). The doc audit correctly flagged real parity/CI gaps.
+- **Issues found & fixed:**
+  - Dense multi-statement lines and mis-indented pointer handling → reformatted to house style
+    (`satelliteLayer.ts`, `satelliteGeometry.ts`, `mapEngine.ts`, `MapStage.tsx`,
+    `SelectionCard.tsx`, `CoordinateReadout.tsx`, `ViewSection.tsx`, `styles.css`,
+    `web/dev/satellite.ts`). Duplicate `.selection-card` CSS override folded into the base rule.
+  - **One unreadable tile disabled satellite for the whole session** → now just that tile is skipped
+    (`broken` set); only a bad archive or metadata disables the layer.
+  - **Behaviour (owner default):** clicking empty map clears the selection again instead of opening
+    a "Map coordinates" card. Coordinates stay available via the hover readout, the X/Y jump (which
+    marks + opens a card), and Copy X/Y. Engine callback simplified to
+    `onSelect(Selection | null)`. Town labels always draw (kept from Codex).
+  - Docs said satellite was "disabled" and fmt "failed" → corrected against the real state.
+  - `legacy/package-lock.json` showed as modified with no content diff (line endings) → reverted to
+    keep `legacy/` untouched.
+- **Direction (owner, 2026-10-11):** the Codex docs had declared the decoder/server/save extras
+  "outside current scope". Owner corrected this to **simple by default, deeper on demand**: extras are
+  opt-in. After seeing the satellite, the owner then **dropped the high-res decoder** as "too much
+  like cheating". The low-res imagery is the intended "cosmetic, somewhat functional" detail. Real
+  save item locations are on hold pending owner confirmation. New order: saved points/paths → road
+  path plotting without live position → polish. Live coordinates deferred.
+- **Research:** the Overwolf "Project Zomboid Map" app uses a one-click bridge mod for live position
+  (prior art). On this machine: MP client cache (`Saves/Multiplayer/<server>`) holds only game time,
+  radio state, and map symbols, with no player data; `coop-console.txt` logs position only on join.
+  The owner's `console.txt` shows the server's 13 mods loading on connect and the owner's personal
+  Java mods not loading, so a local-only bridge would likely be dropped in MP. `ShowCoordinates` is a
+  built-in server option.
+- **Tested:** see "Latest verification — 2026-10-11" above (fmt/clippy/14 Rust tests/tsc/6 web tests
+  incl. real archive/vite build/dev endpoints). Owner checked satellite alignment visually.
+- **Docs:** roadmap rewritten around the principles; architecture, map views, map data, development,
+  README, and CHANGELOG corrected with targeted edits.
+
+### 2026-10-10 — Scope clarification: keep the atlas lightweight
+
+- **Owner clarified:** use the game's supplied image view under existing labels/POIs/filters;
+  help users find likely supplies/places and navigate quickly. No detailed 3D/rendering pipeline.
+- **Evidence:** local `pyramid.zip`, forest pyramid, and spawn-selection pyramid are present.
+  Map/minimap Lua terrain-image functions reference `pyramid.zip`; default map styling references
+  the forest layer. Numbered image directories are zoom resolutions, not building floors.
+- **Plan corrected:** V1 uses supplied image tiles and existing room-floor data; V2 improves the
+  same atlas rather than decoding lotpack/sprites. Optional own-player tracking stays independent.
+- **User feedback:** owner shared a Nexus comment dated 2026-10-06 praising usefulness and
+  “Elegant in its simplicity!” Owner reports roughly 300–500 downloads across GitHub/Nexus;
+  counts/overlap were not independently verified. Preserve simplicity and released saved data.
+- **Changes:** README, architecture, roadmap, map-source notes, implementation brief, progress,
+  and unreleased changelog aligned to this scope. No runtime or game-file changes.
+
+### 2026-10-10 — Documentation accuracy and V1/V2 map direction (superseded scope)
+
+- **Request:** reconcile documents with implemented code; plan usable map/image views, selected
+  floors and underground levels, ground-context overlays, and possible own-player navigation.
+- **Corrected:** README commands/links/release-versus-branch claims; architecture flow/status;
+  roadmap's completed versus pending work; taxonomy semantics/garages; header port/version/count
+  limits; loot truncation and SQLite live-read assumptions.
+- **Added:** development/handoff guide and bounded map-view/navigation implementation brief.
+  Preserved earlier worklog rather than silently rewriting its history.
+- **Research:** inspected local overview PNG dimensions and ZIP metadata read-only. Official
+  game APIs support investigating a small client-position export; external layered renderers
+  support detailed-map feasibility, not an implementation/support claim for this app.
+- **Direction:** V1 = restored practical tools + overview raster + room-outline floors; V2 =
+  validated local detailed tiles/interiors. Optional own-player bridge need not wait for a server.
+  Automatic road routes and multiplayer sharing are separate, deferred capabilities.
+- **Verification:** latest audit results above; documentation links/diff checked after edits.
+  No game files, user profile, runtime sources, workflows, or launchers changed.
 
 ### 2026-08-21 — Garage/shed categorization fix
 - **Owner caught:** garages/sheds had no markers. They were filed Homes-only (garage) / uncategorized
@@ -300,17 +387,15 @@ Design is fully agreed and captured in `architecture.md` / `roadmap.md` / `taxon
 
 ---
 
-## Environment notes
+## Environment and working notes
 
-- **Repo location (easy to lose):** `Documents/Claude/Projects/PalworldEditor/Project Zomboid
-  Interactive Map` (misfiled under PalworldEditor). Public repo, Nexus Mods (~87 downloads), Tauri v2.
-- Game install: `C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid` (Build 42).
-- Python for spikes: `/c/Python314/python` (`python3` alias is the broken Windows Store stub).
-- **Commit discipline (owner's ask):** commit milestones along the way; each message details WHY /
-  WHAT / issues hit / what was tested / what was found / how it was fixed. Clean audit trail.
-
-## Working agreement
-
-Co-designed, fork-by-fork: options + tradeoffs + recommendation → owner decides. Best-practice first;
-no corner-cutting justified by effort/size. Preserve look/feel + saved settings where it doesn't
-compromise the design (discuss conflicts, never silently drop).
+- Repository is under `Documents/Claude/Projects/PalworldEditor/Project Zomboid Interactive Map`;
+  the enclosing PalworldEditor folder is historical, not a dependency.
+- Local game root: `C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid`.
+- Reference spike: `docs/reference/lot_enum.py`; active decoder: `crates/core/src/rooms.rs`.
+- User-owned untracked `Launch Knox Atlas.bat` was present during the audit; preserve it.
+- Active versions: core, desktop Cargo, frontend package, Tauri config all declare 0.2.0.
+- Commit milestones with purpose, changed behavior, issues/findings, and checks. Do not infer
+  authorization to push or publish from a documentation/review request.
+- Keep decisions simple and evidence-backed. Ask about meaningful direction/permission changes,
+  and do not bypass a rejected action.

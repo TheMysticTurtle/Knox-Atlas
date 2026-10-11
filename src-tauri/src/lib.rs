@@ -1,13 +1,71 @@
 //! Knox Atlas desktop shell — a thin Tauri command layer over `knox-atlas-core`.
 //!
 //! All game parsing and the typed `GameSnapshot` boundary live in `knox-atlas-core`; this crate only
-//! wires two narrow commands to it (mirrors the prototype's boundary for the Phase S parity gate):
-//! - `load_game_snapshot` — parse the install (optionally a user-chosen root) into a `GameSnapshot`.
-//! - `validate_game_install_path` — validate a folder the user picked before it is remembered.
+//! exposes snapshot, POI/loot and bounded satellite-tile readers, plus install validation.
 
-use std::path::Path;
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
-use knox_atlas_core::{GameSnapshot, MapPoi, RoomLoot};
+use knox_atlas_core::{GameSnapshot, MapPoi, RoomLoot, SatelliteSource};
+
+type SatelliteCache = Arc<Mutex<Option<(PathBuf, SatelliteSource)>>>;
+
+fn with_satellite<T>(
+    cache: &SatelliteCache,
+    game_root: &str,
+    read: impl FnOnce(&mut SatelliteSource) -> Result<T, String>,
+) -> Result<T, String> {
+    let root =
+        knox_atlas_core::validated_game_root(Path::new(game_root)).map_err(|e| e.to_string())?;
+    let mut cached = cache
+        .lock()
+        .map_err(|_| "Satellite reader is unavailable".to_string())?;
+    if cached.as_ref().is_none_or(|(path, _)| path != &root) {
+        let source = SatelliteSource::open(&root.join("media/maps/Muldraugh, KY"))
+            .map_err(|e| e.to_string())?;
+        *cached = Some((root, source));
+    }
+    read(&mut cached.as_mut().unwrap().1)
+}
+
+#[tauri::command]
+async fn load_satellite_info(
+    game_root: String,
+    cache: tauri::State<'_, SatelliteCache>,
+) -> Result<serde_json::Value, String> {
+    let cache = cache.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        with_satellite(&cache, &game_root, |source| {
+            serde_json::to_value(source.info()).map_err(|e| e.to_string())
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Binary IPC avoids JSON arrays/base64 expansion. No unrestricted file/asset protocol required.
+#[tauri::command]
+async fn load_satellite_tile(
+    game_root: String,
+    level: u32,
+    x: u32,
+    y: u32,
+    cache: tauri::State<'_, SatelliteCache>,
+) -> Result<tauri::ipc::Response, String> {
+    let cache = cache.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        with_satellite(&cache, &game_root, |source| {
+            source
+                .tile(level, x, y)
+                .map(tauri::ipc::Response::new)
+                .map_err(|e| e.to_string())
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 
 /// Parse the installed game (optionally a user-chosen root) into a `GameSnapshot`. The parse is
 /// CPU/IO-heavy, so it runs on the blocking pool and the command is `async` — the WebView never
@@ -37,7 +95,8 @@ async fn load_room_pois(game_root: String) -> Result<Vec<MapPoi>, String> {
 #[tauri::command]
 async fn load_room_loot(game_root: String) -> Result<RoomLoot, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        knox_atlas_core::load_distributions(Path::new(&game_root)).map_err(|error| error.to_string())
+        knox_atlas_core::load_distributions(Path::new(&game_root))
+            .map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| error.to_string())?
@@ -54,12 +113,15 @@ fn validate_game_install_path(path: String) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(SatelliteCache::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             load_game_snapshot,
             load_room_pois,
             load_room_loot,
+            load_satellite_info,
+            load_satellite_tile,
             validate_game_install_path
         ])
         .run(tauri::generate_context!())

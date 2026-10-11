@@ -7,7 +7,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::category::{Category, categorize_room};
+use crate::category::{categorize_room, Category};
 use crate::error::Result;
 use crate::rooms::load_rooms;
 
@@ -36,7 +36,10 @@ pub fn load_room_pois(game_root: &Path) -> Result<Vec<MapPoi>> {
     let mut pois = Vec::with_capacity(rooms.len() / 4);
     for room in rooms {
         let categories = categorize_room(&room.name);
-        if categories.iter().all(|category| *category == Category::Homes) {
+        if categories
+            .iter()
+            .all(|category| *category == Category::Homes)
+        {
             continue; // skips empty (uncategorized) and Homes-only rooms
         }
         let bounds = room.bounds();

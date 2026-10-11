@@ -4,6 +4,36 @@ All notable user-facing changes will be recorded here. The project follows the s
 
 ## [Unreleased]
 
+Development on `feature/core-evolution` declares **0.2.0** but is not yet a packaged replacement
+for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
+
+### Added
+
+- Shared Rust core in a Cargo workspace and a thin Tauri adapter.
+- React interface with a framework-independent canvas overview renderer.
+- RoomDef-derived POIs, multi-tag categories and expandable subcategory filters.
+- Static likely-loot cards from installed distribution definitions.
+- Garages and sheds in Tools POIs.
+- Satellite view from the game's own `pyramid.zip` terrain imagery, loading only visible tiles,
+  with the vector map as an automatic fallback.
+- Coordinate tools: X/Y jump box, live tile/cell/chunk readout, and Copy X/Y on cards; zoom and
+  fit-map buttons.
+
+### Changed
+
+- Preserved the prototype and its release documentation under `legacy/`.
+- Updated active documentation to distinguish working features from planned functionality.
+- Product principles recorded: simple by default (heavier features are opt-in extras) and helpful,
+  not a cheat (no high-res detailed map decoder).
+
+### Not yet ready
+
+- Released search, marker/path, saved-view, game-source picker, and vehicle UI still need porting.
+  Existing-user storage migration is not verified.
+- Road path plotting, floor-aware rendering, live player tracking, and server sharing are not
+  implemented.
+- CI and Windows packaging need migration to the workspace/frontend layout before release.
+
 ## [0.1.1] - 2026-08-08
 
 ### Added

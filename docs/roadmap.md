@@ -1,38 +1,106 @@
-# Knox Atlas — Roadmap
+# Knox Atlas — living roadmap
 
-Phased, incremental. **Parity before features.** Each phase keeps the desktop app shippable to Nexus.
+Updated **2026-10-11** (owner-agreed order). Milestones here are feature goals, not version numbers:
+the branch declares 0.2.0; the released prototype is 0.1.1. Choose a release number when its scope
+and upgrade behavior are verified. Evidence and status: [progress](progress.md). Image/floor/position
+behavior: [map views and navigation](map-views-navigation.md).
 
-| Phase | Deliverable | Status |
-|---|---|---|
-| **Spike** | Reverse-engineer + validate `.lotheader` RoomDef format; confirm 256 cell size; enumerate vocabulary | ✅ done (see `lotheader-format.md`) |
-| **S — Scaffold + parity** | Branch `feature/core-evolution`; quarantine prototype → `legacy/`; stand up Cargo workspace (`crates/core`, `src-tauri`) + `web/` (React+Vite+TS + ported canvas engine); render **today's overview map at parity** (features, streets, labels, vehicle zones, markers, measure, storage; same identifier/keys). Gate: visual + behavioral parity, still builds/packages. | ▶ in progress |
-| **P0 — Real categories** | RoomDef parser in `core`; multi-tag categories (gun/hunting/auto/grocery/food/alcohol/medical/books-video-knowledge/fishing/tools/electronics/clothing/fuel); rename Orientation→**Map visibility**; split zombie-theme zones into opt-in layer; **bigger text**; accuracy pass. | pending |
-| **P1 — Satellite view** | Flat top-down "map vs satellite" toggle: engine paints shipped `worldmap.png` / `pyramid.zip` raster as the base layer (no `.lotpack` decode). | pending |
-| **P2 — Floors/levels** | Z-level selector from RoomDef floor + rects (floor-plan room outlines; textures deferred). | pending |
-| **P3 — Save detail** | Source-agnostic save reader: container loot, `vehicles.db`, **player position** (last-saved). Small player-record spike first. Read-only snapshot handling for live/mid-write chunks. | pending |
-| **P4 — Share + dedicated server** | Two first-class deployments of the share module: embedded *Share* in desktop **and** standalone Linux-first headless server. View-only web app: link + optional password, easy admin visibility config, opt-in position sharing. Own threat/privacy design doc first. | pending |
+## Product principle — simple by default, deeper on demand
 
-**Out of scope:** textured isometric 3D rendering (`.lotpack` + texturepacks) — user prefers flat
-map/satellite; largest effort for least navigational clarity.
+Knox Atlas helps someone find a likely shop or resource, see where it is, and get there quickly. A
+Nexus user (2026-10-06) called it "elegant in its simplicity" and very useful — **that simplicity is a
+feature to protect.**
 
-## Key design decisions (log)
+- The **default** atlas stays uncluttered: map / satellite view, useful labels, find-a-place filters,
+  likely-loot cards, personal markers and paths, and road path plotting.
+- Heavier capabilities are **optional extras**: isolated modules, off by default, behind a clear
+  opt-in (a toggle, setting, or "build" button). A user who never opts in never sees them, and the
+  default never depends on them or slows down because of them.
+- Test for every addition: *does this make the default screen busier?* If yes, it belongs behind an
+  opt-in or needs an owner decision.
 
-- **Fresh core, in-place evolution** of the existing repo (not a new repo); prototype quarantined to
-  `legacy/`. Same Nexus identity + Tauri id `com.pzcompanion.map`.
-- **One product**, not Lite/Plus. Only split = binaries from one shared core (desktop + optional
-  headless server). Premium tier, if ever, gated within — no second product.
-- **React + Vite + TS** shell; **custom canvas-2D** map engine (ported). Engine draws base + icons;
-  React owns chrome + state; thin bridge between.
-- **Satellite = base-layer swap** (raster vs vector); overlay/filters unchanged.
-- **Multi-tag categories**; filters highlight/enlarge, never hide.
-- **Bars → Alcohol**; home garages → Homes; Auto = mechanic/parts/dealership.
-- **Player locations**: readable last-saved from a real save (SP/host/server-owner); true-live needs
-  P4 server feed; remote client has none locally. Toggle greyed until pointed at a save.
-- **RoomDef `.lotheader` (39 MB, 256-cell)** is the real business/loot source — not `objects.lua`
-  ZombiesType zones (those are zombie theme zones, kept as a separate opt-in layer).
+Likely loot stays a useful hint, not an inventory simulation. No game mod, save, or server is needed
+for the default atlas.
 
-## Collaboration cadence
+**Helpful, not a cheat (owner, 2026-10-11).** The atlas should help players plan — where's the
+nearest gun store, which road gets me there — without turning into "here's exactly where everything
+is." The game's own low-res satellite imagery is the intended level of detail: a nice cosmetic view
+that is somewhat functional, but doesn't spoil exploration. Features that reveal precise contents or
+layouts the player hasn't discovered need an owner decision before they're planned.
 
-Co-designed. At each meaningful fork: options + tradeoffs + a recommendation → user decides. No large
-unilateral moves. The living plan lives at the session plan file; decisions are folded back into these
-docs as they're made.
+## Done — the foundation
+
+- [x] Rust core reads the installed map: vector overview, streets, labels, vehicle pools, RoomDefs
+      (`.lotheader`), multi-tag room categories, and expected loot per room type.
+- [x] React + canvas map: pan/zoom, categorized POI dots, expandable sub-filters, click-for-loot
+      cards, town/street/business label toggles.
+- [x] **Satellite view** from the game's own `pyramid.zip` (visible tiles only, bounded cache, vector
+      fallback). Alignment checked visually by the owner (2026-10-11).
+- [x] Coordinate tools: X/Y jump box, hover readout (tile / cell / chunk), copy X/Y on cards.
+
+## Next — in order
+
+1. [ ] **Restore saved points & paths.** Port named, colored markers, multi-point paths, the saved
+       map view, and the game-folder picker from the released app. Read and write the **same legacy
+       storage keys** (see [architecture](architecture.md)) so existing users' items survive. Prove it
+       with a real packaged 0.1.1 → 0.2.0 profile upgrade, not just dev storage.
+2. [ ] **Road path plotting — no live position needed.** Choose a start (click the map or type X/Y)
+       and a destination (a place or marker); route along the road network; draw it with its
+       distance; save it as a path. Needs a validated connected road graph built from the vector road
+       lines (snap intersections, handle gaps). Simple-default surface: a "Route here" action on a
+       card.
+3. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
+       book / video stores, groceries, gas, schools…); highlight-and-dim focus instead of hiding;
+       loot cards ordered by what players actually want; landmark/business-name accuracy;
+       optional floor (Z) room outlines from existing RoomDefs.
+
+**Release gate** before publishing this branch as an update: repair CI / workspace / packaging
+paths, launch-test the desktop app, and pass the packaged upgrade test above. See
+[development](development.md).
+
+## Optional extras — opt-in, off by default, built after the core
+
+In owner priority order:
+
+1. **Live own-player coordinates.** A tiny companion mod — or an existing mod that *writes* X/Y/Z to a
+   file — that the app watches. Single-player: just works. Multiplayer: the game replaces a client's
+   mods with the server's list on join (observed in the owner's log, 2026-10-11), so the mod would
+   need to be on the server's list. Zero-mod alternative: servers can enable the built-in
+   `ShowCoordinates` option and players type their X/Y. Not mod-free otherwise (verified: MP client
+   caches hold no player data). Deferred by the owner for now.
+2. **Last-saved position** from single-player / self-hosted saves (`players.db` reader exists in core;
+   updates on autosave only).
+3. **Real item locations from a save — on hold, owner to confirm.** Actual container contents from a
+   save the user can read. Requested earlier, but it may cross the "helpful, not a cheat" line above
+   (it's precisely "here's exactly where everything is"); revisit with the owner before planning.
+4. **Share / server view.** Publish the map to friends (embedded share or headless server). Needs its
+   own privacy/permissions design first.
+
+## Not planned
+
+- **High-res detailed map decoder** (`.lotpack` render). Dropped by the owner 2026-10-11: high-res
+  maps are "too much like cheating." The game's low-res satellite imagery is the intended detail.
+- 3D / isometric rendering.
+- Reading game memory, screen-scraping the minimap, or patching game files.
+- Simulating loot generation or drop probabilities.
+
+## Historical phase crosswalk
+
+Old worklog entries use phase names; this is how they map now:
+
+| Old phase | Current interpretation |
+| --- | --- |
+| Spike | Header investigation completed against the recorded corpus. |
+| S | Scaffold/overview done; released personal-map tools still to port (Next #1). |
+| P0 | Room categories/static loot done; accuracy and presentation in the polish queue. |
+| P1 | Satellite base layer — done, from the game's supplied imagery. |
+| P2 | Optional floor room outlines from existing RoomDefs (polish queue). |
+| P3 | Save positions reader exists (optional extra #2); real save loot on hold (extra #3). |
+| P4 | Share/server — optional extra #4. |
+| "Option B" `.lotpack` decoder | Not planned — owner: too much like cheating. |
+
+## Working agreement
+
+Co-designed fork-by-fork: options, tradeoffs and a recommendation, then the owner decides. Small
+milestone commits explaining why, what, and the checks run. Discuss changes to direction or scope
+before making them; never re-scope in the docs alone.

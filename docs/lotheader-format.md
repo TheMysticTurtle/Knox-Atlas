@@ -1,67 +1,86 @@
-# `.lotheader` format — validated reference
+# `.lotheader` format — observed reference
 
-Reverse-engineered and validated against the installed Build 42 game on 2026-08-19. This is the
-source of Knox Atlas's real building/room identity (gun shops, bookstores, groceries, etc.). Port the
-reference decoder (was `scratchpad/lot_enum.py`) into `crates/core`.
+Updated 2026-10-10. The format was investigated against the installed Build 42 corpus on
+2026-08-19 and ported to **`crates/core/src/rooms.rs` on 2026-08-21**. The Python spike remains
+at `docs/reference/lot_enum.py` for comparison; Rust is the active implementation.
 
-## Why this file matters
+RoomDefs supply authored room names, rectangles, and signed Z, not complete rendered interiors.
+The observed header corpus totals about 39 MB across 4,065 files. The much larger `.lotpack`
+data encodes tile/object references and needs sprite assets to become imagery.
 
-Room/business identity is **not** in `objects.lua` (those `ZombiesType` zones are zombie
-population/outfit/loot-theme zones). It lives in the **RoomDef** records inside `.lotheader` files.
-These total **~39 MB** across 4,065 files — *not* the 3.8 GB `.lotpack` tile-pixel data (which stays
-deferred). The prototype docs conflated the two.
+## Observed layout (little-endian)
 
-## Binary layout (little-endian)
-
-```
-"LOTH"                      # 4-byte magic
-u32 version                # observed = 1
+```text
+"LOTH"                         # 4-byte magic
+u32 version                    # observed 1; current Rust reader does not reject other versions
 u32 tileCount
-tileCount × ( tileName + "\n" )     # newline-terminated ASCII tile-name table
+tileCount × (tileName + "\n")    # newline-terminated tile-name strings
 
-i32 w                      # observed 8 (grid dims; not needed for POIs)
-i32 h                      # observed 8
-i32 u0                     # unknown (0 in samples)
-i32 u1                     # unknown
+i32 w                          # observed 8
+i32 h                          # observed 8
+i32 u0                         # semantics not established
+i32 u1                         # semantics not established
 i32 nRooms
 
-per room (× nRooms):
-    name + "\n"            # newline-terminated ASCII room-definition name
-    i32 floor              # Z level (0 = ground, 1 = second floor, ...)
+per room:
+    name + "\n"                # room-definition name
+    i32 floor                  # signed Z: ground 0; retain negative levels
     i32 nRects
-    nRects × ( i32 x, i32 y, i32 w, i32 h )     # 16 bytes each; room rectangles
+    nRects × (i32 x, y, w, h)
     i32 nObjects
-    nObjects × ( i32 type, i32 x, i32 y )       # 12 bytes each; room objects (doors/spawns/etc.)
+    nObjects × (i32 type, x, y) # 12 bytes each; semantics not fully decoded
 
-# (a building section referencing room indices follows; not needed for POIs)
+# A following building section is not parsed by the current room reader.
 ```
 
-**Gotcha that bit the spike:** each room has a **second list (`nObjects`, 12-byte elements)** after
-its rectangles. Missing it (treating it as a single padding int) silently misaligns every room after
-the first non-empty one. With it handled: all 4,065 files parse with **0 errors**.
+The object list must be consumed even when no object information is exposed. Treating its count
+as one padding integer caused 2,716 misparses and 29 hard EOF errors in the initial spike.
+Skipping the actual `nObjects * 12` bytes resolved that corpus's errors.
 
-## Coordinate conversion — CELL SIZE IS 256
+Do not advertise these skipped objects as decoded doors/spawns, or the following section as
+validated building associations. Both need separate semantic verification.
 
-```
+## Coordinates
+
+```text
 worldX = cellX * 256 + roomRectX
 worldY = cellY * 256 + roomRectY
 ```
-`cellX`, `cellY` come from the filename `cellX_cellY.lotheader`.
 
-**Cross-validated:** a `gunstore` room's 256-model world coordinate lands *exactly inside*
-(distance 0.0) a `worldmap.xml` building footprint tagged `RetailAndCommercial`; the 300-model was
-126 tiles off, near an unrelated `Industrial` footprint. Note `worldmap.xml` keeps its own **300**
-cell size — the two sources use different per-cell origins but agree in absolute world space.
+Cell indices come from `cellX_cellY.lotheader`. A room may have several rectangles; preserve them
+rather than replacing the floor plan with one bounding box. Current POIs use the bounding-box
+center, which may not lie inside an irregular room.
 
-## Corpus stats (validated run)
+A known gun-store room aligned inside its vector RetailAndCommercial footprint with this model;
+the 300-cell model was 126 tiles off. Vector XML itself still uses 300-cell origins. These are
+source-specific grids in the same absolute world space, not interchangeable constants.
 
-- 4,065 `.lotheader` files, **0 parse errors**.
-- **90,827 rooms** across **765 cells** that contain rooms.
-- **586 distinct room-definition names.**
+## Historical corpus result — 2026-08-19
 
-## Verification checklist (when porting to Rust / on game updates)
+- 4,065 files, zero parse errors after consuming the object list.
+- 90,827 rooms across 765 cells containing rooms.
+- 586 distinct room-definition names.
 
-1. Magic `LOTH`, version still 1.
-2. All installed lotheaders parse with 0 errors (whole-corpus test).
-3. A known `gunstore` room's 256-coord falls inside a `RetailAndCommercial` worldmap footprint.
-4. Z levels look sane (ground/upper); room-type vocabulary matches `taxonomy.md`.
+These counts belong to that installation/run. They do not guarantee future builds/mod maps parse
+or classify identically, and a current CI machine without the game does not reproduce the corpus.
+
+## Current reader limitations
+
+- Magic and ordinary truncated reads are checked, but the version is read and ignored.
+- Negative room/rectangle/object counts are coerced to zero; allocations/count arithmetic need
+  explicit bounds and invalid-count errors before broad untrusted/modded-source support.
+- Strings are decoded lossily; unknown names are not a parser failure but may not be categorized.
+- Tile-name table and object records are consumed but discarded; building section is not parsed.
+- RoomDef has source cell coordinates and rectangles; MapPoi drops these and has no stable ID.
+- Frontend geometry delivery, negative-floor filtering, and basement coverage checks are pending.
+
+## Verification checklist
+
+1. Add minimal synthetic fixtures for valid headers, truncation, unknown versions, invalid counts,
+   multi-rect rooms, upper floors, and negative Z. No proprietary game files in fixtures.
+2. Reject unsupported versions explicitly rather than parsing by coincidence.
+3. Run optional installed-corpus checks and record build/source/stats.
+4. Check several room outlines against known world locations, not only a centroid.
+5. For floor work, verify a known authored basement in-game; absent negative-Z records do not prove
+   that no basement exists in a save.
+6. Decode/verify building associations before claiming selectable building membership.

@@ -21,6 +21,7 @@ mod error;
 mod install;
 mod poi;
 mod rooms;
+mod satellite;
 mod save;
 mod snapshot;
 mod streets;
@@ -34,8 +35,9 @@ pub use category::{categorize_room, Category};
 pub use distributions::{load_distributions, LootItem, RoomLoot};
 pub use error::CoreError;
 pub use install::validated_game_root;
-pub use poi::{MapPoi, load_room_pois};
+pub use poi::{load_room_pois, MapPoi};
 pub use rooms::{load_rooms, parse_lot_header, RoomDef, RoomRect};
+pub use satellite::{SatelliteInfo, SatelliteSource};
 pub use save::{default_save_dir, load_save_detail, PlayerPosition, SaveDetail, VehiclePosition};
 pub use snapshot::load_snapshot_from;
 pub use types::{

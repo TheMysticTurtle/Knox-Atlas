@@ -11,5 +11,6 @@ export const useView = create<ViewState>((set) => ({
   streets: true,
   buildings: true,
   businesses: true,
+  satellite: false,
   toggle: (key) => set((state) => ({ [key]: !state[key] }) as Partial<ViewState>),
 }));

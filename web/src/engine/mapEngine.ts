@@ -1,17 +1,32 @@
 // Framework-agnostic canvas map engine. React owns the UI chrome and state; this owns pixels —
 // it draws the base map (terrain / water / roads / rail / buildings) and handles pan, zoom, and
-// viewport culling. POI icons, labels, room overlays, and the satellite base layer are layered on
-// in later steps. Ported from the prototype renderer into a self-contained, disposable class.
+// viewport culling, supplied satellite imagery, POI/label overlays and coordinate selection.
 
 import { buildingColor, categoryColors, mapColors } from "./colors";
 import { poiSubIds } from "./subcategories";
-import type { Bounds, Category, GameSnapshot, MapFeature, MapPoi, Point } from "./types";
+import { tilePoint } from "./coordinates";
+import { SatelliteLayer } from "./satelliteLayer";
+import type {
+  Bounds,
+  Category,
+  GameSnapshot,
+  MapFeature,
+  MapPoi,
+  Point,
+  Selection,
+} from "./types";
 
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = { name: string; anchor: Point; angle: number; bounds: Bounds };
 
 /** Which base/label layers are drawn (the View section toggles). */
-export type ViewOptions = { towns: boolean; streets: boolean; buildings: boolean; businesses: boolean };
+export type ViewOptions = {
+  towns: boolean;
+  streets: boolean;
+  buildings: boolean;
+  businesses: boolean;
+  satellite: boolean;
+};
 
 const MIN_SCALE = 0.022;
 const MAX_SCALE = 3.2;
@@ -26,7 +41,20 @@ export class MapEngine {
   private preparedStreets: PreparedStreet[] = [];
   private pois: { poi: MapPoi; subIds: string[] }[] = [];
   private enabledSubs: Set<string> | null = null;
-  private view: ViewOptions = { towns: true, streets: true, buildings: true, businesses: true };
+  private view: ViewOptions = {
+    towns: true,
+    streets: true,
+    buildings: true,
+    businesses: true,
+    satellite: false,
+  };
+  private satellite: SatelliteLayer;
+  private satelliteLoaded = false;
+  private selectedPoint: Point | null = null;
+  private disposed = false;
+  private renderFrame = 0;
+  private pointerFrame = 0;
+  private pointerPosition?: Point;
 
   private center: Point;
   private scale = 0.22;
@@ -38,8 +66,13 @@ export class MapEngine {
   private dragOrigin = { x: 0, y: 0 };
   private centerOrigin = { x: 0, y: 0 };
 
-  /** Set by React: called with the clicked POI (or null when clicking empty map). */
-  onSelectPoi?: (poi: MapPoi | null) => void;
+  /**
+   * Set by React. `onSelect` reports a clicked POI or a jumped-to coordinate (`poi: null`), or `null`
+   * when an empty-map click clears the selection.
+   */
+  onSelect?: (selection: Selection | null) => void;
+  onPointerPosition?: (point: Point | null) => void;
+  onSatelliteStatus?: (text: string) => void;
 
   private readonly resizeObserver: ResizeObserver;
 
@@ -50,6 +83,11 @@ export class MapEngine {
     this.ctx = ctx;
     this.snapshot = snapshot;
     this.center = { ...snapshot.initialCenter };
+    this.satellite = new SatelliteLayer(
+      snapshot.installPath,
+      () => this.queueRender(),
+      (text) => this.onSatelliteStatus?.(text),
+    );
 
     this.prepare();
     this.attachListeners();
@@ -76,10 +114,16 @@ export class MapEngine {
 
   /** Detach all listeners so React can dispose the engine cleanly on unmount. */
   dispose(): void {
+    this.disposed = true;
+    cancelAnimationFrame(this.renderFrame);
+    cancelAnimationFrame(this.pointerFrame);
+    this.satellite.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
     this.canvas.removeEventListener("pointermove", this.onPointerMove);
     this.canvas.removeEventListener("pointerup", this.onPointerUp);
+    this.canvas.removeEventListener("pointercancel", this.onPointerCancel);
+    this.canvas.removeEventListener("pointerleave", this.onPointerLeave);
     this.canvas.removeEventListener("wheel", this.onWheel);
   }
 
@@ -98,6 +142,7 @@ export class MapEngine {
   }
 
   zoomBy(factor: number, anchor?: Point): void {
+    this.userAdjusted = true;
     const previous = this.scale;
     this.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.scale * factor));
     if (anchor) {
@@ -126,6 +171,32 @@ export class MapEngine {
   /** Toggle which base/label layers are drawn (the View section). */
   setView(view: ViewOptions): void {
     this.view = view;
+    this.satellite.setActive(view.satellite);
+    if (view.satellite && !this.satelliteLoaded) {
+      this.satelliteLoaded = true;
+      void this.satellite.load();
+    }
+    this.queueRender();
+  }
+
+  /** Jump and mark a supplied world coordinate without changing filters or base view. */
+  jumpTo(point: Point): void {
+    this.userAdjusted = true;
+    this.center = { ...point };
+    this.scale = Math.max(this.scale, 0.8);
+    this.onPointerLeave();
+    this.select(point, null);
+  }
+
+  /** Remove the selection marker (React closed the card). */
+  clearSelection(): void {
+    this.selectedPoint = null;
+    this.queueRender();
+  }
+
+  private select(point: Point, poi: MapPoi | null): void {
+    this.selectedPoint = tilePoint(point);
+    this.onSelect?.({ point: this.selectedPoint, poi });
     this.queueRender();
   }
 
@@ -161,9 +232,9 @@ export class MapEngine {
   // --- rendering ------------------------------------------------------------
 
   private queueRender(): void {
-    if (this.renderQueued) return;
+    if (this.renderQueued || this.disposed) return;
     this.renderQueued = true;
-    requestAnimationFrame(() => this.draw());
+    this.renderFrame = requestAnimationFrame(() => this.draw());
   }
 
   private draw(): void {
@@ -199,6 +270,9 @@ export class MapEngine {
         }
       }
     }
+    // The vector base stays underneath pending image tiles and is the automatic error fallback.
+    // Supplied imagery replaces base geometry only; labels/POIs use the same world transform.
+    if (this.view.satellite) this.satellite.draw(ctx, view, this.scale * deviceScale);
 
     // Overlay pass in screen space (labels + POI dots — pinned to world coords, screen-sized).
     ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
@@ -206,6 +280,28 @@ export class MapEngine {
     this.drawStreetLabels(view, occupied);
     this.drawPois(view);
     this.drawMapLabels(occupied);
+    this.drawSelection();
+  }
+
+  private drawSelection(): void {
+    if (!this.selectedPoint) return;
+    const { ctx } = this;
+    const screen = this.toScreen(this.selectedPoint);
+    ctx.save();
+    ctx.strokeStyle = "#fff8e9";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, 10, 0, Math.PI * 2);
+    ctx.moveTo(screen.x - 16, screen.y);
+    ctx.lineTo(screen.x + 16, screen.y);
+    ctx.moveTo(screen.x, screen.y - 16);
+    ctx.lineTo(screen.x, screen.y + 16);
+    // Light halo first, then the accent stroke on top, so the marker reads on map and satellite alike.
+    ctx.stroke();
+    ctx.strokeStyle = "#b2542d";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
   }
 
   // --- labels ---------------------------------------------------------------
@@ -271,7 +367,7 @@ export class MapEngine {
         size,
         isTown ? 700 : 650,
         isTown ? mapColors.ink : mapColors.mutedInk,
-        occupied,
+        isTown ? [] : occupied,
         isTown,
       );
     }
@@ -374,10 +470,13 @@ export class MapEngine {
     this.canvas.addEventListener("pointerdown", this.onPointerDown);
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerup", this.onPointerUp);
+    this.canvas.addEventListener("pointercancel", this.onPointerCancel);
+    this.canvas.addEventListener("pointerleave", this.onPointerLeave);
     this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
   }
 
   private onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !event.isPrimary) return;
     this.userAdjusted = true;
     this.dragging = true;
     this.dragMoved = false;
@@ -387,22 +486,53 @@ export class MapEngine {
   };
 
   private onPointerMove = (event: PointerEvent): void => {
-    if (!this.dragging) return;
-    if (Math.abs(event.clientX - this.dragOrigin.x) + Math.abs(event.clientY - this.dragOrigin.y) > 4) {
-      this.dragMoved = true;
+    if (this.dragging) {
+      const moved =
+        Math.abs(event.clientX - this.dragOrigin.x) + Math.abs(event.clientY - this.dragOrigin.y);
+      if (moved > 4) this.dragMoved = true;
+      this.center = {
+        x: this.centerOrigin.x - (event.clientX - this.dragOrigin.x) / this.scale,
+        y: this.centerOrigin.y - (event.clientY - this.dragOrigin.y) / this.scale,
+      };
+      this.queueRender();
     }
-    this.center = {
-      x: this.centerOrigin.x - (event.clientX - this.dragOrigin.x) / this.scale,
-      y: this.centerOrigin.y - (event.clientY - this.dragOrigin.y) / this.scale,
-    };
-    this.queueRender();
+    // Report the hovered tile at most once per frame (drives the coordinate readout).
+    this.pointerPosition = tilePoint(this.toWorld(event.clientX, event.clientY));
+    if (!this.pointerFrame) {
+      this.pointerFrame = requestAnimationFrame(() => {
+        this.pointerFrame = 0;
+        if (this.pointerPosition) this.onPointerPosition?.(this.pointerPosition);
+      });
+    }
   };
 
   private onPointerUp = (event: PointerEvent): void => {
+    if (!this.dragging) return;
     this.dragging = false;
-    this.canvas.releasePointerCapture(event.pointerId);
-    // A click (not a drag) selects the nearest visible POI, or clears the selection.
-    if (!this.dragMoved) this.onSelectPoi?.(this.hitTestPoi(event.clientX, event.clientY));
+    if (this.canvas.hasPointerCapture(event.pointerId)) {
+      this.canvas.releasePointerCapture(event.pointerId);
+    }
+    if (this.dragMoved) return;
+    // A click (not a drag) selects the nearest visible POI; clicking empty map clears the selection.
+    const poi = this.hitTestPoi(event.clientX, event.clientY);
+    if (poi) {
+      this.select(poi, poi);
+    } else {
+      this.clearSelection();
+      this.onSelect?.(null);
+    }
+  };
+
+  private onPointerCancel = (): void => {
+    this.dragging = false;
+  };
+
+  private onPointerLeave = (): void => {
+    if (this.dragging) return;
+    cancelAnimationFrame(this.pointerFrame);
+    this.pointerFrame = 0;
+    this.pointerPosition = undefined;
+    this.onPointerPosition?.(null);
   };
 
   /** Nearest visible POI within a small pixel radius of the click, or null. */

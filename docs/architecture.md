@@ -1,107 +1,151 @@
-# Knox Atlas — Architecture (Core Evolution)
+# Knox Atlas — architecture
 
-Knox Atlas is a read-only **companion platform** for Project Zomboid: a desktop map that reads the
-locally installed game (and, optionally, a save) and can publish a view-only web view for a whole
-server to coordinate on. This document is the current design. It supersedes `legacy/docs/`.
+Updated 2026-10-11 against `feature/core-evolution`. This describes the **0.2.0 development
+branch**, not the released 0.1.1 app. Implementation status lives in [progress](progress.md);
+milestone order lives in [roadmap](roadmap.md). Historical prototype notes remain in `legacy/docs/`.
 
-## Guiding principles
+## Principles
 
-1. **Best-practice, masterpiece-tier first.** Continuity (look/feel, saved settings) is pursued only
-   where it does not compromise the design; conflicts are discussed, never silently resolved.
-2. **Read-only, always.** Nothing is ever written to the game install or save directory.
-3. **Honest inference (ADR-005, retained).** We show *likely* loot/positions and say so; filters
-   *highlight*, they don't claim inventory truth.
-4. **Evolution, not replacement.** Same repo, same Nexus identity, same Tauri identifier
-   `com.pzcompanion.map`; existing users get an update.
+- Keep the installed game and saves read-only. App settings, generated previews, and caches belong
+  to Knox Atlas, not the game directories.
+- Separate source parsing, map drawing, and interface controls. Add small modules when needed,
+  not a framework for every possible future provider.
+- Label evidence honestly: installed-map layout, likely loot, last-saved position, and live position
+  are different things.
+- **Simple by default, deeper on demand.** The default atlas stays uncluttered (supplied images +
+  useful overlays). Heavier capabilities are isolated, opt-in extras that never clutter or gate the
+  default. See the [roadmap](roadmap.md) principles.
+- **Helpful, not a cheat.** Help players plan, without revealing "exactly where everything is." The
+  game's low-res supplied imagery is the intended detail; no high-res detailed world renderer.
+- Keep the atlas useful without a save, network service, or game mod. Optional detail must fail
+  independently with a visible explanation.
+- Preserve existing user data and the familiar interface. Same product and application identifier;
+  restoring old storage readers is a release requirement, not an accomplished migration.
 
-## System shape (layers)
+## Current data flow
 
+```text
+Installed game → Rust core → Tauri commands ───────────────┐
+                         → generated browser-dev JSON ────┤
+                                                         ↓
+                                                React data/state
+                                                         ↓
+                                                Canvas MapEngine
+                                                         ↓
+                                            selection → React card
 ```
-Rust `core`  ──reads──▶ typed data ──▶  Canvas engine  ──▶  React shell  ──▶  (optional) Server module
-(game files,            (GameSnapshot,   (paints base map    (panels, filters,   (serves the same
- save, RoomDefs)         POIs, rooms)     + icons + labels)    state, cards)       React+engine to browsers)
-```
 
-- **Rust `core` (crates/core):** discovers the install, parses game-owned formats (vector map,
-  streets, annotations, objects.lua zones, **RoomDefs from `.lotheader`**, and later the save),
-  normalizes coordinates/names, returns plain serializable data. All game reads live here.
-- **Canvas engine (web/, vanilla TS):** a custom canvas-2D renderer (ported from the prototype). Draws
-  the **base layer** (vector map *or* satellite raster), then the **overlay** (POI icons, labels,
-  user markers, measurement) — all pinned to world X/Y so they pan/zoom together. Handles pan/zoom,
-  culling, label collision, hit-testing. Thousands of elements ⇒ canvas, not DOM.
-- **React shell (web/, React + Vite + TS):** owns the UI chrome — filter panels, search, selection
-  cards, saved-items, admin — and app **state**. React does *not* place map icons. It feeds the engine
-  the active filters + view state (down) and receives hit-test/selection events (up) through a small
-  shared store. Chosen for the user's proven Palbox stack + best AI/tooling support.
-- **Server module (crates/server):** the share/serve logic, serving the **same React+engine bundle**.
-  Two first-class deployments (see below).
+The browser preview cannot read the installation itself. It uses locally generated JSON; this is
+not a deployed web service. A future server could supply the same typed data, but no server crate
+exists today.
 
-## Data tiers (progressive detail — each optional, nothing gated)
+| Boundary | Implemented responsibility |
+| --- | --- |
+| `crates/core/` | Install discovery/validation; vector map, streets, annotations, zones, vehicle pools, RoomDefs, categories, static loot tables; bounded `pyramid.zip` satellite-tile reader (`satellite.rs`); isolated save-position reader. |
+| `src-tauri/` | Thin desktop adapter. Heavy async commands use `spawn_blocking`: snapshot, room POIs, room loot, satellite info, satellite tile (raw PNG bytes over binary IPC; one cached archive handle). Another command validates an install path. Save data is not exposed here yet. |
+| `web/src/data.ts` | Selects Tauri invocation or browser loading (generated JSON + the dev-only satellite tile middleware in `web/dev/satellite.ts`). Snapshot errors reach the UI; POI/loot failures currently only log warnings. |
+| `web/src/engine/` | Disposable canvas renderer: prepared geometry, viewport culling, pan/zoom, optional satellite base layer (`satelliteLayer.ts`, visible tiles only, LRU cache), labels, filtered POI dots, hit-testing, selection marker, pointer coordinates. Camera state currently belongs to the engine. |
+| `web/src/components/`, `store.ts` | React controls/cards and Zustand visibility/filter state. Not a complete port of the released app's personal-map tools. |
+| `legacy/` | Preserved 0.1.x implementation, images, distribution notes, and storage contracts. Reference, not the active build. |
 
-1. **Baseline — everyone, no save required.** Map from installed game files **plus extracted RoomDef
-   detail** (gun/book/video/bait shops, groceries, pharmacies, fishing…). The always-on default; a
-   server player who isn't hosting still gets the full rich map.
-2. **Enhanced — optional, point at any save dir.** Loot contents, vehicles, player positions.
-   Single-player and server saves share the same on-disk structure, so the reader is save-agnostic;
-   only a *remote client's* cache is thin (Tier 1 covers those players).
-3. **Shared — optional, the sidecar.** Publish the view to others.
+Rust types serialize with camelCase; matching frontend types are maintained manually in
+`web/src/engine/types.ts`. Contract/fixture tests are needed when extending the boundary.
 
-## Sidecar / share modes (one shared module, two first-class deployments)
+## Map sources and layers
 
-1. **Embedded Share (desktop app).** For "I'll host on my own machine." A *Share* toggle spins up a
-   small local HTTP/WS server + status window; others open a link (optional password) in a browser.
-2. **Standalone headless server.** For 24/7 **dedicated servers** — the common case. A single
-   self-contained binary the owner drops on the server box, pointed at the server's Zomboid save dir,
-   run as a service. **Cross-platform, Linux-first.** No GUI.
+Two map sources should remain distinct:
 
-**Easy admin visibility config is a hard requirement** (both): a simple config file and/or a small
-admin page controls what players see (which loot tiers, positions on/off, per-view gates).
+1. **Overview:** `worldmap.xml`, streets, annotations, and the shipped raster pyramid
+   (`pyramid.zip`, the Satellite base layer).
+2. **Room geometry:** `.lotheader` rectangles and signed Z levels. The core already retains these;
+   the frontend currently receives only categorized room-center POIs, not room outlines.
 
-## Provider seams (small interfaces, added incrementally)
+The satellite view uses ready-made installed imagery; it does not generate a detailed map. A
+high-res `.lotpack`/sprite decoder is **not planned** (owner: too much like cheating), nor is 3D or
+isometric rendering. The purpose is quick approximate place-finding and navigation, not
+world/inventory simulation.
 
-- **Detail provider:** overview vector → RoomDef → (later) save-level detail.
-- **Live-position provider:** manual entry → save-poll (last-saved) → server feed (true live).
+All resolve to world X/Y; floor Z is a separate dimension. The observed vector-cell size is 300,
+compiled-cell size 256, and compiled chunk size 8. Keep these conversions source-specific and
+validate against the selected game build; see [map data](map-data.md).
 
-Reading arbitrary process memory is out of scope. Live per-second positions require the server feed.
+The next room-geometry contract should include source identity, deterministic room ID, floor,
+rectangles, and categories. Keep loot indexed by raw room name, rather than copying item arrays to
+every room. Building associations require parsing/validating the header's building section;
+bounding-box overlap alone must not be advertised as authoritative building membership.
 
-## Repo structure
+The intended base/overlay composition, basement behavior, and raster calibration are specified in
+[map views and navigation](map-views-navigation.md). The satellite base layer is implemented: the
+vector map stays underneath as the fallback, and labels/POIs share one world transform over either
+base. No floor selector yet; current POI drawing and clicking mix floors.
 
-```
-crates/
-  core/     # shared Rust: coord model, types, parsers, RoomDef + save decoders (lib, unit-tested)
-  server/   # (Phase P4) share module: view-only HTTP/WS, auth (link/pw), admin gates; embedded + standalone headless
-src-tauri/  # Tauri v2 desktop app — the CLI marker crate; thin command layer over core; embeds server for Share
-web/        # React + Vite + TS; the canvas engine lives here; builds to (a) Tauri webview (b) served bundle
-legacy/     # quarantined prototype + its old docs (reference only)
-docs/       # this design set
-README.md, CHANGELOG.md, LICENSE, .github/
-```
-> Note: the Tauri desktop crate is `src-tauri/` (not `crates/desktop/`) because that folder name is
-> the marker the Tauri CLI auto-detects; keeping the convention avoids tooling friction.
+## Categories and loot
 
-## Category model (multi-tag, non-exclusive)
+Room categories are multi-tag: a kitchen can be Food + Homes, a garage Tools + Homes.
+There are no Retail or Civic category tags. Unknown names can remain unclassified.
 
-A place (RoomDef-derived POI) carries a **set** of category tags, not one (a gun store = Weapons +
-retail; police = Weapons + Civic). Filters **highlight & enlarge** matches and dim the rest — never
-hide. Counts read as "places matching this filter," not a partition.
+Current subcategory filters **hide unmatched dots**. The earlier highlight/enlarge-and-dim design
+is a planned behavior change, not current behavior. Counts describe matching rooms, not unique
+businesses. Homes-only rooms are currently omitted from the POI payload.
 
-Two filter sections in the UI:
-- **Map visibility** (base/navigation): custom markers, buildings by broad class, town & area names,
-  street names, vehicle pools, satellite toggle, player locations.
-- **Likely loot** (detailed multi-tag): Food & water, Alcohol, Weapons & ammo, Medical, Tools &
-  materials, Skills & knowledge, Fishing & outdoors, Electronics, Clothing, Fuel & gas.
+Static loot is inferred from installed Lua distributions. It is not live inventory. The current
+approximate extractor merges by maximum raw weight and caps each room type at 60 items; the card
+shows 24. We need retained container/source context and an uncapped index before reliable item
+search. Details and known classification gaps: [taxonomy](taxonomy.md).
 
-Clicking any dot reveals its *specific* room type. Full mapping: see `taxonomy.md`.
+## User state and upgrade contract
 
-## Coordinate systems (critical — see map-data.md)
+Keep `com.pzcompanion.map` and these released keys:
 
-- `worldmap.xml` vector cells: **300** tiles. `worldX = cellX*300 + pointX`.
-- `.lotheader`/`.lotpack` compiled cells: **256** tiles. `worldX = cellX*256 + roomX`. **Do not
-  conflate these.** RoomDef coords use 256; this was cross-validated (see `lotheader-format.md`).
+- `knox-atlas.custom-markers.v1`
+- `knox-atlas.saved-paths.v1`
+- `knox-atlas.saved-map-view.v1`
+- `knox-atlas.game-install.v1`
 
-## Retained ADRs (from the prototype, still in force)
+The identifier is retained; the active UI does **not** yet read/write these keys. Do not delete or
+reset an existing profile to make development work. Packaged upgrade testing must demonstrate
+marker/path/view/install preservation. Browser development storage and packaged WebView storage
+are not interchangeable; matching identifiers alone does not prove a migration.
 
-ADR-002 installed files are source of truth · ADR-005 visible inference · ADR-006 user state separate
-(storage keys + `com.pzcompanion.map` identifier preserved with best-effort migration) · read-only
-game boundary. New ADRs (RoomDef source, React shell, server module) are recorded in `roadmap.md`
-decisions and here as they land.
+New floor-aware records should accept legacy records without Z as general map annotations.
+Add export/import and a documented backup path before calling the state truly transferable.
+
+## Optional position data
+
+The baseline does not depend on position data.
+
+- **Manual location:** useful without interfacing with the game; still to be restored.
+- **Last-saved position:** core reads SQLite player/vehicle coordinates, but the desktop does not
+  expose them. The current `immutable=1` connection is not a copied snapshot and is unsuitable as
+  a claimed safe reader of changing live databases. Fix and test consistency/error handling first.
+- **Live own-player position (optional extra, deferred by the owner):** a small opt-in Lua mod (or an
+  existing mod that writes X/Y/Z to a file) for the companion to watch. No mod-free source exists:
+  multiplayer client caches hold no player data. The owner's log (2026-10-11) shows that joining a
+  server replaces the client's mods with the server's list, so in MP the mod would need to be on the
+  server's list. Zero-mod alternative: the built-in `ShowCoordinates` server option + manual entry.
+- **Other players:** separate consent, server-policy, and multiplayer visibility concerns; deferred.
+
+No arbitrary process-memory reads, minimap screen scraping, or pretending that map-camera
+coordinates are player coordinates. Source/timestamp/staleness must travel with positions.
+
+## Sharing (optional extra)
+
+Embedded desktop sharing and a standalone headless server remain possible opt-in deployments, not
+prerequisites for the default atlas. Do not add `crates/server`, authentication, or an admin UI until that
+feature is selected. First design what data may be exposed, who can see positions, how consent
+works, and how private install/save paths are removed from browser payloads.
+
+## Decisions and status
+
+| Decision | Status |
+| --- | --- |
+| Installed files are the source for the baseline atlas; game/save reads are isolated in Rust. | Implemented. |
+| React shell + framework-independent canvas engine; thin Tauri adapter. | Implemented, parity incomplete. |
+| Separate inferred loot from actual inventory. | Implemented concept; presentation needs refinement. |
+| Preserve app identity, released keys, and saved items. | Identifier retained; readers and upgrade test pending. |
+| Satellite is an overview base-layer swap from the game's `pyramid.zip`. | Implemented; alignment checked by owner 2026-10-11. |
+| No high-res `.lotpack` decoder ("too much like cheating"). | Decided 2026-10-11. |
+| Optional floor outlines/filtering from existing room data; no textured renderer. | Planned (polish queue). |
+| Road path plotting along the road network, from a chosen start — no live position required. | Planned; next after saved points/paths. |
+| Own-player live position via an opt-in mod. | Optional extra; deferred. |
+| Shared multiplayer map. | Optional extra; needs privacy design first. |

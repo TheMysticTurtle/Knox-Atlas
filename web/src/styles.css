@@ -218,7 +218,7 @@ body {
   position: absolute;
   right: 1rem;
   bottom: 1rem;
-  width: 310px;
+  width: 345px;
   max-height: 72%;
   overflow-y: auto;
   padding: 1rem 1.1rem 0.9rem;
@@ -226,7 +226,7 @@ body {
   border: 1px solid rgba(45, 48, 43, 0.18);
   border-radius: 12px;
   box-shadow: 0 10px 34px rgba(20, 25, 23, 0.25);
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 .selection-close {
   position: absolute;
@@ -289,4 +289,170 @@ body {
   font-size: 0.7rem;
   line-height: 1.35;
   color: #8a8571;
+}
+
+/* --- map toolbar, coordinates & satellite status --- */
+/* Light-touch overlay controls. The moving pointer readout is never the copy target. */
+.map-toolbar {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+.map-controls,
+.coordinate-jump {
+  display: flex;
+  gap: 0.4rem;
+  pointer-events: auto;
+}
+.map-controls button,
+.coordinate-jump,
+.pointer-coordinates,
+.satellite-status {
+  background: rgba(247, 244, 232, 0.96);
+  border: 1px solid rgba(45, 48, 43, 0.18);
+  border-radius: 9px;
+  box-shadow: 0 3px 12px rgba(20, 25, 23, 0.13);
+  color: #2d302b;
+}
+.map-controls button {
+  width: 42px;
+  height: 42px;
+  font: 500 1.6rem "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.coordinate-jump {
+  position: relative;
+  align-items: center;
+  padding: 0.3rem 0.45rem;
+}
+.coordinate-jump label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #71644c;
+}
+.coordinate-jump input {
+  width: 76px;
+  padding: 0.3rem;
+  font: inherit;
+  font-size: 1rem;
+  color: #2d302b;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #b6af99;
+  border-radius: 3px;
+}
+.coordinate-jump button,
+.copy-coordinates {
+  padding: 0.45rem 0.8rem;
+  border: 1px solid #9a7448;
+  border-radius: 6px;
+  background: #e0b56f;
+  color: #302b24;
+  font: 600 0.95rem "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+button:hover {
+  filter: brightness(1.04);
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #a96c28;
+  outline-offset: 3px;
+}
+.jump-error {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: 100%;
+  padding: 0.55rem;
+  background: #fff4de;
+  border-radius: 6px;
+  color: #9a432a;
+  font-size: 0.9rem;
+}
+.satellite-status {
+  position: absolute;
+  top: 4.5rem;
+  left: 1rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+.pointer-coordinates {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+.coordinate-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+.coordinate-readout small {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: #8a724c;
+}
+.coordinate-readout .grid-coordinate {
+  font-size: 0.85rem;
+}
+.selection-card .coordinate-readout {
+  margin: 0.7rem 0;
+  padding: 0.75rem;
+  border: 1px solid #d3cebc;
+  border-radius: 7px;
+}
+.selection-card .grid-coordinate {
+  flex-basis: calc(50% - 0.5rem);
+}
+.copy-coordinates {
+  width: 100%;
+  margin: 0 0 0.75rem;
+}
+.copy-status {
+  display: block;
+  font-size: 0.85rem;
+  color: #9a432a;
+}
+
+/* --- narrow windows --- */
+@media (max-width: 1100px) {
+  .selection-card {
+    bottom: 5rem;
+    width: min(345px, calc(100% - 2rem));
+    max-height: calc(100% - 12rem);
+  }
+  .pointer-coordinates {
+    right: 1rem;
+  }
+}
+@media (max-width: 800px) {
+  .filter-panel {
+    flex-basis: 260px;
+    padding: 0.75rem;
+  }
+  .coordinate-jump input {
+    width: 60px;
+  }
+  .satellite-status {
+    top: 8rem;
+  }
+  .selection-card {
+    max-height: calc(100% - 16rem);
+  }
 }

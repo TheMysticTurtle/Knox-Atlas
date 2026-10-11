@@ -4,6 +4,18 @@
 export type Point = { x: number; y: number };
 export type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 
+/** What the map has selected: a clicked POI, or a jumped-to coordinate (`poi: null`). */
+export type Selection = { point: Point; poi: MapPoi | null };
+
+/** Metadata from the installed game's image pyramid; levels are resolutions, not Z floors. */
+export type SatelliteInfo = {
+  bounds: Bounds;
+  imageWidth: number;
+  imageHeight: number;
+  tileSize: number;
+  levels: number[];
+};
+
 export type MapFeatureKind = "water" | "road" | "railway" | "building" | "terrain" | "place";
 export type MapFeature = {
   kind: MapFeatureKind;

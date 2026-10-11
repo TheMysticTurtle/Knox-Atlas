@@ -18,6 +18,9 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
   with the vector map as an automatic fallback.
 - Coordinate tools: X/Y jump box, live tile/cell/chunk readout, and Copy X/Y on cards; zoom and
   fit-map buttons.
+- Restored from 0.1.1 on the same storage format: named, colored saved places (edit/delete),
+  the measuring tool with saved paths, and a saved map view. Click anything on the map for
+  Save place · Copy X/Y · Measure from here; saved items are listed under "Your map".
 
 ### Changed
 
@@ -28,8 +31,8 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
 
 ### Not yet ready
 
-- Released search, marker/path, saved-view, game-source picker, and vehicle UI still need porting.
-  Existing-user storage migration is not verified.
+- Released search, game-source picker, and vehicle UI still need porting. Saved items use the
+  released storage format, but a real packaged upgrade has not been verified yet.
 - Road path plotting, floor-aware rendering, live player tracking, and server sharing are not
   implemented.
 - CI and Windows packaging need migration to the workspace/frontend layout before release.

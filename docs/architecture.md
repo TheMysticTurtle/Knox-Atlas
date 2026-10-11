@@ -102,8 +102,12 @@ Keep `com.pzcompanion.map` and these released keys:
 - `knox-atlas.saved-map-view.v1`
 - `knox-atlas.game-install.v1`
 
-The identifier is retained; the active UI does **not** yet read/write these keys. Do not delete or
-reset an existing profile to make development work. Packaged upgrade testing must demonstrate
+The first three are read and written by `web/src/savedStorage.ts` with the released shapes, limits
+and validation (unit-tested against 0.1.x-format data); `savedStore.ts` persists on every change.
+Both apps use Tauri v2 with the same identifier and default scheme, so the WebView origin — and
+therefore the storage — should match. The game-install key is not restored yet (folder picker
+pending). The engine draws saved items but never touches storage. Do not delete or reset an
+existing profile to make development work. Packaged upgrade testing must demonstrate
 marker/path/view/install preservation. Browser development storage and packaged WebView storage
 are not interchangeable; matching identifiers alone does not prove a migration.
 
@@ -142,7 +146,7 @@ works, and how private install/save paths are removed from browser payloads.
 | Installed files are the source for the baseline atlas; game/save reads are isolated in Rust. | Implemented. |
 | React shell + framework-independent canvas engine; thin Tauri adapter. | Implemented, parity incomplete. |
 | Separate inferred loot from actual inventory. | Implemented concept; presentation needs refinement. |
-| Preserve app identity, released keys, and saved items. | Identifier retained; readers and upgrade test pending. |
+| Preserve app identity, released keys, and saved items. | Places/paths/view keys restored (2026-10-11); install key + packaged upgrade test pending. |
 | Satellite is an overview base-layer swap from the game's `pyramid.zip`. | Implemented; alignment checked by owner 2026-10-11. |
 | No high-res `.lotpack` decoder ("too much like cheating"). | Decided 2026-10-11. |
 | Optional floor outlines/filtering from existing room data; no textured renderer. | Planned (polish queue). |

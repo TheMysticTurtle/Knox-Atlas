@@ -24,7 +24,18 @@ export const mapColors = {
   selected: "#e19952",
 } as const;
 
-import type { Category } from "./types";
+import type { Category, MarkerColor } from "./types";
+
+/** Saved place/path colours — the released 0.1.x palette, so existing saved items look the same. */
+export const markerColors: Record<MarkerColor, string> = {
+  amber: "#d79a4f",
+  teal: "#3eb4ae",
+  red: "#e2675e",
+  blue: "#5b8fd7",
+  violet: "#9a7bea",
+  green: "#79ad58",
+  white: "#f0eee2",
+};
 
 /** POI dot colours per loot/place category. */
 export const categoryColors: Record<Category, string> = {

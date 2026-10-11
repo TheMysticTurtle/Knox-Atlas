@@ -37,19 +37,21 @@ layouts the player hasn't discovered need an owner decision before they're plann
 - [x] **Satellite view** from the game's own `pyramid.zip` (visible tiles only, bounded cache, vector
       fallback). Alignment checked visually by the owner (2026-10-11).
 - [x] Coordinate tools: X/Y jump box, hover readout (tile / cell / chunk), copy X/Y on cards.
+- [x] **Saved places, paths, measuring, saved view** — restored on the released storage keys and
+      shapes (2026-10-11). Click anything → Save place · Copy X/Y · Measure from here.
 
 ## Next — in order
 
-1. [ ] **Restore saved points & paths.** Port named, colored markers, multi-point paths, the saved
-       map view, and the game-folder picker from the released app. Read and write the **same legacy
-       storage keys** (see [architecture](architecture.md)) so existing users' items survive. Prove it
-       with a real packaged 0.1.1 → 0.2.0 profile upgrade, not just dev storage.
-2. [ ] **Road path plotting — no live position needed.** Choose a start (click the map or type X/Y)
-       and a destination (a place or marker); route along the road network; draw it with its
-       distance; save it as a path. Needs a validated connected road graph built from the vector road
-       lines (snap intersections, handle gaps). Simple-default surface: a "Route here" action on a
-       card.
-3. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
+1. [ ] **🧭 Navigate — road path plotting, no live position needed.** A separate toolbar button opens
+       an A/B panel; each end is typed X/Y, picked on the map, or a saved place. Route along the
+       `streets.xml` centerlines (one connected network at ~12-tile snapping; dirt trails are not in
+       that data), draw it with its distance and street sequence, save it as a path.
+2. [ ] **Search** (owner request). One search bar for room types ("gun store"), category groups
+       ("weapons"), and specific items ("chisel") → highlight every location whose loot table lists
+       it. Likely-loot hints, not actual contents. Needs the loot index uncapped first.
+3. [ ] **Released-app parity leftovers:** game-folder picker; prove a real packaged 0.1.1 → 0.2.0
+       profile upgrade keeps saved items (not just dev storage).
+4. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
        book / video stores, groceries, gas, schools…); highlight-and-dim focus instead of hiding;
        loot cards ordered by what players actually want; landmark/business-name accuracy;
        optional floor (Z) room outlines from existing RoomDefs.

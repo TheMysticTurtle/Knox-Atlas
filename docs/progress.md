@@ -8,14 +8,15 @@ released 0.1.1 lives in the preserved prototype history.
 release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
 behavior.
 
-> **▶ RESUME HERE:** Satellite view + coordinate tools are built, tidied, verified, and committed.
-> **Next (owner-agreed order):**
-> 1. **Restore saved points & paths** — port named colored markers, multi-point paths, saved view, and
->    the game-folder picker from `legacy/src/main.ts`; read/write the same legacy storage keys; plan a
->    packaged 0.1.1 → 0.2.0 upgrade test.
-> 2. **Road path plotting without live position** — road graph from vector road lines → route from a
->    chosen start to a place/marker → draw + distance → save as a path.
+> **▶ RESUME HERE:** Saved places, paths, measuring and saved view are restored (legacy storage
+> format, owner-approved UI) and committed. **Next (owner-agreed order):**
+> 1. **🧭 Navigate** — a separate toolbar button opening an A/B panel (type X/Y, pick on map, or pick
+>    a saved place) → route along `streets.xml` centerlines (one network at ~12-tile snapping; dirt
+>    trails not covered) → draw + distance + street list → save as a path.
+> 2. **Search** (owner request 2026-10-11) — one search bar for room types, categories, and specific
+>    items → every location whose loot table lists it. Needs the loot index uncapped first.
 > 3. **Polish queue** — quick-finds, highlight-and-dim, loot-card ordering, landmark names, floors.
+> Also still to port: game-folder picker; desktop upgrade test against a real 0.1.1 profile.
 >
 > Principles: **simple by default** (extras opt-in) and **helpful, not a cheat** (no high-res decoder;
 > real save item locations on hold pending owner). Live coordinates deferred by the owner.
@@ -26,12 +27,13 @@ behavior.
 | --- | --- |
 | Core parsing | Install discovery; overview/streets/labels/zones/vehicle pools; RoomDefs; categories; approximate static loot; satellite `pyramid.zip` reader. |
 | UI/engine | React + canvas overview, pan/zoom, room dots, expandable sub-filters, click-for-loot, label/view toggles, **satellite base layer**, zoom/fit buttons, X/Y jump, hover coordinate readout, Copy X/Y. |
-| Selection | Clicking a dot opens its card with a marker; X/Y jump marks a point and opens a coordinate card; clicking empty map clears the selection. |
+| Selection | Any map click (saved place, room dot, or bare ground) opens a popup: Save place / Edit place, Copy X/Y, Measure from here; room dots add categories + likely loot. X/Y jump selects the point. Esc closes. |
+| Your map | Saved places (name + 7 colours, rename/delete), measuring tool (undo/clear/save as path), saved paths, saved view (★ save, ⌂ return; map opens there). "YOUR MAP" list in the left panel, hidden when empty. |
 | Room identity | Generic room type, center, categories, Z; no stable frontend room ID, rectangles, or verified building membership. |
 | Filters | Hide nonmatching dots; first matching sub-bucket wins; home kitchens/Homes default off. Floors are mixed. |
 | “Business names” | Annotation/landmark labels, not an individual business-name directory. |
-| Personal-map parity | Search, game-folder picker, named markers, drawn paths, saved view, vehicle overlay not yet ported (Next #1). |
-| Storage | Identifier retained; legacy-key readers not ported. Upgrade compatibility not proven. |
+| Personal-map parity | Places/paths/measure/saved view restored. Search, game-folder picker, and vehicle overlay not yet ported. |
+| Storage | `savedStorage.ts` reads/writes the released keys and shapes with the released validation (unit-tested with 0.1.1-format data). Same Tauri v2 runtime + identifier → same WebView origin, so existing items should load; **not yet proven** with a real packaged upgrade. Browser dev storage is separate from the desktop app's. |
 | Floors | Not implemented (polish queue). Satellite pyramid levels are zoom resolutions, not floors. |
 | Routing | Not implemented (Next #2). |
 | Save detail | Isolated SQLite coordinate reader; no desktop command/UI. Live-read consistency unresolved. |
@@ -50,7 +52,8 @@ room-wide probabilities, or actual inventory.
 | `cargo clippy --workspace --all-targets -- -D warnings` | Clean. |
 | `cargo test --workspace` | 14 passed (includes 3 satellite tests; installed-game tests ran against the local install). |
 | `npx tsc --noEmit` (web) | Clean. |
-| `npm --prefix web test` with `ATLAS_TEST_PYRAMID` set | 6 passed, 0 skipped (real `pyramid.zip` read). |
+| `npm --prefix web test` with `ATLAS_TEST_PYRAMID` set | 17 passed, 0 skipped (real `pyramid.zip` read; 11 saved-storage/geometry tests incl. 0.1.1-format data). |
+| Owner UI check (saved places/paths/measure/view) | "It looks good" (browser dev build). |
 | `vite build` (web) | Builds. |
 | Dev server `/__atlas_satellite` | `/info` 200; tile 4/1/1 200 PNG; out-of-range tile 404. |
 | Owner visual check | Satellite aligned: POIs on building footprints, street labels on roads (Fallas Lake). |
@@ -62,8 +65,10 @@ treating CI coverage as sufficient.
 ## Living TODO
 
 ### Next (owner order)
-- [ ] Restore saved markers/paths/saved view/game-folder picker; legacy keys; upgrade test plan.
-- [ ] Road path plotting (no live position): road graph, routing, draw/save route.
+- [x] Restore saved places/paths/measuring/saved view on the legacy storage keys (2026-10-11).
+- [ ] 🧭 Navigate: A/B panel + road routing on street centerlines; draw/save route.
+- [ ] Search bar: room types, categories, specific items → matching locations (uncap loot index first).
+- [ ] Game-folder picker (released-app parity).
 - [ ] Polish: quick-finds, highlight-and-dim, loot ordering, landmark names, floor outlines.
 
 ### Release gate
@@ -90,6 +95,31 @@ treating CI coverage as sufficient.
 Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
 "never hide," satellite depending on a detailed decoder, old check results) are superseded by later
 entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — Saved places, paths, measuring and saved view restored
+
+- **Owner direction:** clicking the map (anything) opens a popup with **Save point · Copy X/Y ·
+  Measure from here**; navigation is a **separate toolbar button** with an A/B panel (next). "Your
+  map" list lives in the left panel (owner didn't object to the recommendation).
+- **Research first:** read the released implementation (`legacy/src/main.ts`): storage keys,
+  record shapes, limits (100 places / 50 paths / 250 points / 40-char names), validation, and the
+  marker/path drawing style. Confirmed legacy and new both use Tauri v2 with identifier
+  `com.pzcompanion.map` and no custom scheme → same WebView origin, so the same keys load existing
+  items. The owner's PC has a real 0.1.1 profile (`%LOCALAPPDATA%\com.pzcompanion.map`) for a later
+  upgrade test (back it up first).
+- **Design:** the engine reports clicks (`onClick(Selection)`: saved place → room POI → ground)
+  and draws what it's given (`setAnnotations`, `setSelection`, `focus`, `get/setCamera`); React
+  decides what a click means (`mapUiStore`: selection, measuring, fly-to requests). Saved data is in
+  `savedStorage.ts` (pure, self-contained parse/serialize of the released format) + `savedStore.ts`
+  (Zustand, persists on every change). Shared `geometry.ts`; toolbar extracted to `MapToolbar.tsx`.
+- **UI:** `SelectionCard` (Save place / Edit place + Delete, Copy X/Y, Measure from here; a place
+  saved on a store keeps the store's loot), `NameColorForm` (name + colour swatches), `MeasurePanel`
+  (points, distance, Undo/Clear/Save as path/Done, Esc), `YourMapSection` (places + paths, fly-to,
+  delete), toolbar ★ save view / ⌂ return. Map opens at the saved view. Released marker look.
+- **Tested:** `tsc` clean; 17 web tests (11 new: released keys/limits, 0.1.1-format markers and
+  paths, invalid/corrupt data, caps, view range, id/label format, palette parity, geometry); vite
+  build. Owner clicked through it in the browser build: "it looks good".
+- **Not yet proven:** a real packaged 0.1.1 → 0.2.0 upgrade (desktop run against the existing profile).
 
 ### 2026-10-11 — Satellite + coordinates reviewed, tidied, committed; direction reset
 

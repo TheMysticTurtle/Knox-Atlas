@@ -113,12 +113,16 @@ No bridge/no valid source must leave the atlas fully usable.
 
 - Search/filter for a likely place, click to inspect coordinates/items, then mark it.
 - Draw a path along visible roads and save it. Distances are tile-length segment totals.
-- **Road path plotting (planned, owner priority):** pick a start (click the map or type X/Y) and a
-  destination (a place or marker); the atlas routes along the road network and draws the route with
-  its distance, savable as a path. It needs no live position. Build it on a validated connected road
-  graph from the vector road lines: snap shared endpoints/intersections within a small tolerance,
-  report unreachable destinations honestly, and test across towns. Simple-default surface: a
-  "Route here" action on a card.
+- **🧭 Navigate (planned next, owner design 2026-10-11):** a separate toolbar button opens an A/B
+  panel. Each end is typed X/Y, picked on the map, or chosen from saved places. The atlas routes
+  along the road network and draws the route with its distance and street sequence, savable as a
+  path. It needs no live position. Data: `streets.xml` centerlines (the `worldmap.xml` roads are
+  filled areas chopped at cell borders, unsuitable as a graph). Measured 2026-10-11: 1,098 streets
+  form 823 pieces with exact joins, 15 at 6-tile snapping, and **4 at 12-tile snapping (largest =
+  99.5% of streets)**. Centerlines lie within 15 tiles of 97% of primary, 90% of secondary, and 81%
+  of tertiary road areas, but only **4% of dirt trails**, so routes follow named streets. Crossings
+  are treated as junctions (a rare overpass could be wrong). Off-road ends get a short dashed
+  connector to the nearest street; unreachable ends are reported honestly.
 - An optional player dot could later help someone follow that route.
 
 Static room loot does not guarantee anything remains after players visit. Helpful approximate

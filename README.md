@@ -53,21 +53,25 @@ because an app is unsigned. The source and build workflow are available for insp
   installed loot definitions.
 - **Satellite view** from the game's own terrain imagery, with the same labels and dots on top.
 - Coordinate tools: jump to an X/Y, a live coordinate readout, and copy X/Y from a card.
+- **Your map:** click anywhere to save a named, colored place, copy its X/Y, or measure a distance
+  and save it as a path; save your view so the map opens there. Uses the same storage format as
+  0.1.1 so existing saved items carry over (packaged upgrade still to be verified).
 
 Room types are not unique business names; static loot is not live inventory. Current filtering
 hides unmatched dots, and POIs from different floors are still mixed.
 
-Search, game-path selection, personal markers/paths, saved views, and vehicle overlays still need
-their active-branch port. See the [roadmap](docs/roadmap.md).
+Search, game-path selection, and vehicle overlays still need their active-branch port. See the
+[roadmap](docs/roadmap.md).
 
 ## 🧭 Where it is heading
 
 Knox Atlas stays **simple by default** and **helpful, not a cheat**: it helps you plan where to go,
 without revealing exactly where everything is.
 
-**Next:** bring back saved points and paths (keeping existing users' saved items), then **road path
-plotting** — pick a start and a destination and get a route along the roads, no mods needed. After
-that, polish: quick place-finding toggles, focus highlighting, better loot cards, and floor outlines.
+**Next:** **🧭 Navigate** — pick a start and a destination and get a route along the roads, no mods
+needed. Then **search** for a store type, a category, or a specific item to see every place it's
+likely found. After that, polish: quick place-finding toggles, focus highlighting, better loot
+cards, and floor outlines.
 
 **Optional extras later**, always opt-in and never cluttering the default: live own-player
 coordinates via a small companion mod, last-saved position from your own saves, and a shareable

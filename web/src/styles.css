@@ -197,6 +197,10 @@ body {
 .map-canvas:active {
   cursor: grabbing;
 }
+/* Clicks add points (measuring) rather than select. */
+.map-canvas.is-placing {
+  cursor: crosshair;
+}
 
 .map-status {
   position: absolute;
@@ -327,6 +331,10 @@ body {
   font: 500 1.6rem "Segoe UI", sans-serif;
   cursor: pointer;
 }
+.map-controls button:disabled {
+  color: #b3ad98;
+  cursor: default;
+}
 .coordinate-jump {
   position: relative;
   align-items: center;
@@ -351,7 +359,7 @@ body {
   border-radius: 3px;
 }
 .coordinate-jump button,
-.copy-coordinates {
+.primary-action {
   padding: 0.45rem 0.8rem;
   border: 1px solid #9a7448;
   border-radius: 6px;
@@ -420,14 +428,217 @@ input:focus-visible {
 .selection-card .grid-coordinate {
   flex-basis: calc(50% - 0.5rem);
 }
-.copy-coordinates {
-  width: 100%;
-  margin: 0 0 0.75rem;
-}
 .copy-status {
   display: block;
+  margin-bottom: 0.5rem;
   font-size: 0.85rem;
   color: #9a432a;
+}
+
+/* --- card / panel actions & the name + colour form --- */
+.card-actions,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+.card-actions button,
+.form-actions button {
+  flex: 1 1 auto;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(45, 48, 43, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #2d302b;
+  font: 600 0.85rem "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.card-actions button:disabled,
+.form-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.card-actions .primary-action,
+.form-actions .primary-action {
+  border-color: #9a7448;
+  background: #e0b56f;
+  color: #302b24;
+}
+.form-actions .danger-action {
+  flex: 0 0 auto;
+  border-color: rgba(164, 68, 47, 0.45);
+  color: #9a432a;
+}
+.name-color-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.name-color-form input {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #c9c3ad;
+  border-radius: 6px;
+  background: #fffdf5;
+  color: #2d302b;
+  font: inherit;
+  font-size: 0.95rem;
+}
+.color-swatches {
+  display: flex;
+  gap: 0.4rem;
+}
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(45, 48, 43, 0.3);
+  cursor: pointer;
+}
+.color-swatch.is-chosen {
+  box-shadow: 0 0 0 2px #2d302b;
+}
+.form-note {
+  margin-top: -0.35rem;
+  font-size: 0.78rem;
+  color: #8a8571;
+}
+.form-note.is-error {
+  color: #9a432a;
+}
+
+/* --- measuring tool --- */
+.measure-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 2rem));
+  padding: 0.8rem 0.9rem 0.2rem;
+  background: rgba(247, 244, 232, 0.97);
+  border: 1px solid rgba(45, 48, 43, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(20, 25, 23, 0.25);
+}
+.measure-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.measure-heading span,
+.measure-summary span {
+  display: flex;
+  flex-direction: column;
+}
+.measure-panel small {
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: #8a8571;
+}
+.measure-heading strong {
+  font-size: 0.9rem;
+}
+.measure-heading button {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #9a7448;
+  border-radius: 6px;
+  background: #e0b56f;
+  font: 600 0.85rem "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.measure-summary {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0.6rem 0 0.7rem;
+}
+.measure-summary strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Your map (saved places & paths) --- */
+.your-map-section .panel-eyebrow {
+  margin-bottom: 0.35rem;
+}
+.saved-group-heading {
+  margin: 0.35rem 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8a8571;
+}
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.saved-item {
+  display: flex;
+  align-items: center;
+  border-radius: 7px;
+}
+.saved-item:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+.saved-focus {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.saved-focus span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.saved-focus strong {
+  overflow: hidden;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.saved-focus small {
+  font-size: 0.74rem;
+  color: #8a8571;
+  font-variant-numeric: tabular-nums;
+}
+.saved-dot {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(45, 48, 43, 0.3);
+}
+.saved-dot.is-path {
+  border-radius: 3px;
+}
+.saved-remove {
+  padding: 0.2rem 0.55rem;
+  border: 0;
+  background: none;
+  color: #8a8571;
+  font-size: 1.1rem;
+  cursor: pointer;
+  visibility: hidden;
+}
+.saved-item:hover .saved-remove,
+.saved-remove:focus-visible {
+  visibility: visible;
 }
 
 /* --- narrow windows --- */

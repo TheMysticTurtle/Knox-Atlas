@@ -1,18 +1,24 @@
 // Framework-agnostic canvas map engine. React owns the UI chrome and state; this owns pixels —
 // it draws the base map (terrain / water / roads / rail / buildings) and handles pan, zoom, and
-// viewport culling, supplied satellite imagery, POI/label overlays and coordinate selection.
+// viewport culling, supplied satellite imagery, POI/label overlays, user annotations (saved places,
+// paths, the measuring line) and the selection marker. It reports clicks; React decides what a
+// click means (select, add a measure point, …).
 
-import { buildingColor, categoryColors, mapColors } from "./colors";
+import { buildingColor, categoryColors, mapColors, markerColors } from "./colors";
 import { poiSubIds } from "./subcategories";
 import { tilePoint } from "./coordinates";
+import { intersects, pointBounds } from "./geometry";
 import { SatelliteLayer } from "./satelliteLayer";
 import type {
+  Annotations,
   Bounds,
   Category,
   GameSnapshot,
   MapFeature,
   MapPoi,
   Point,
+  SavedMarker,
+  SavedView,
   Selection,
 } from "./types";
 
@@ -30,6 +36,12 @@ export type ViewOptions = {
 
 const MIN_SCALE = 0.022;
 const MAX_SCALE = 3.2;
+/** Zoom used when focusing a single point (street level). */
+const FOCUS_SCALE = 0.8;
+/** Saved places are hit within this many CSS pixels; POI dots within POI_HIT_RADIUS. */
+const MARKER_HIT_RADIUS = 16;
+const POI_HIT_RADIUS = 14;
+const MARKER_LABEL_MAX = 24;
 // Draw order: background layers first so buildings sit on top.
 const DRAW_ORDER: MapFeature["kind"][] = ["terrain", "water", "road", "railway", "building"];
 
@@ -50,7 +62,8 @@ export class MapEngine {
   };
   private satellite: SatelliteLayer;
   private satelliteLoaded = false;
-  private selectedPoint: Point | null = null;
+  private selection: Selection | null = null;
+  private annotations: Annotations = { markers: [], paths: [], measurement: [] };
   private disposed = false;
   private renderFrame = 0;
   private pointerFrame = 0;
@@ -66,11 +79,8 @@ export class MapEngine {
   private dragOrigin = { x: 0, y: 0 };
   private centerOrigin = { x: 0, y: 0 };
 
-  /**
-   * Set by React. `onSelect` reports a clicked POI or a jumped-to coordinate (`poi: null`), or `null`
-   * when an empty-map click clears the selection.
-   */
-  onSelect?: (selection: Selection | null) => void;
+  /** Set by React: a click (not a drag) and what it hit — saved place first, then POI, then ground. */
+  onClick?: (hit: Selection) => void;
   onPointerPosition?: (point: Point | null) => void;
   onSatelliteStatus?: (text: string) => void;
 
@@ -179,24 +189,52 @@ export class MapEngine {
     this.queueRender();
   }
 
-  /** Jump and mark a supplied world coordinate without changing filters or base view. */
-  jumpTo(point: Point): void {
-    this.userAdjusted = true;
-    this.center = { ...point };
-    this.scale = Math.max(this.scale, 0.8);
-    this.onPointerLeave();
-    this.select(point, null);
-  }
-
-  /** Remove the selection marker (React closed the card). */
-  clearSelection(): void {
-    this.selectedPoint = null;
+  /** Draw the selection marker for this selection (or none). Saved places are their own marker. */
+  setSelection(selection: Selection | null): void {
+    this.selection = selection;
     this.queueRender();
   }
 
-  private select(point: Point, poi: MapPoi | null): void {
-    this.selectedPoint = tilePoint(point);
-    this.onSelect?.({ point: this.selectedPoint, poi });
+  /** User-authored layers: saved places, saved paths, and the in-progress measuring line. */
+  setAnnotations(annotations: Annotations): void {
+    this.annotations = annotations;
+    this.queueRender();
+  }
+
+  /** Crosshair cursor while clicks add points rather than select. */
+  setPlacingCursor(placing: boolean): void {
+    this.canvas.classList.toggle("is-placing", placing);
+  }
+
+  /**
+   * Frame world bounds: a single point centres at street level; anything larger is fitted with
+   * padding (capped so short paths are not over-zoomed).
+   */
+  focus(bounds: Bounds): void {
+    this.userAdjusted = true;
+    this.center = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    if (width === 0 && height === 0) {
+      this.scale = Math.max(this.scale, FOCUS_SCALE);
+    } else {
+      const fitX = this.canvas.clientWidth / Math.max(160, width + 180);
+      const fitY = this.canvas.clientHeight / Math.max(160, height + 180);
+      this.scale = Math.max(MIN_SCALE, Math.min(1.25, fitX, fitY));
+    }
+    this.queueRender();
+  }
+
+  /** The current camera, in the saved-view format. */
+  getCamera(): SavedView {
+    return { x: this.center.x, y: this.center.y, scale: this.scale };
+  }
+
+  /** Restore a saved camera (stops auto-fitting on resize). */
+  setCamera(view: SavedView): void {
+    this.userAdjusted = true;
+    this.center = { x: view.x, y: view.y };
+    this.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, view.scale));
     this.queueRender();
   }
 
@@ -274,19 +312,112 @@ export class MapEngine {
     // Supplied imagery replaces base geometry only; labels/POIs use the same world transform.
     if (this.view.satellite) this.satellite.draw(ctx, view, this.scale * deviceScale);
 
-    // Overlay pass in screen space (labels + POI dots — pinned to world coords, screen-sized).
+    // Overlay pass in screen space (labels, dots, annotations — pinned to world coords, screen-sized).
     ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
     const occupied: Bounds[] = [];
     this.drawStreetLabels(view, occupied);
     this.drawPois(view);
+    for (const path of this.annotations.paths) {
+      if (intersects(pointBounds(path.points), view)) {
+        this.drawPath(path.points, markerColors[path.color], false);
+      }
+    }
     this.drawMapLabels(occupied);
     this.drawSelection();
+    this.drawPath(this.annotations.measurement, markerColors.amber, true);
+    // User-authored places are the top layer by design: always visible over source-derived data.
+    for (const marker of this.annotations.markers) {
+      if (marker.x >= view.minX && marker.x <= view.maxX && marker.y >= view.minY && marker.y <= view.maxY) {
+        this.drawMarker(marker);
+      }
+    }
   }
 
-  private drawSelection(): void {
-    if (!this.selectedPoint) return;
+  /** A saved place: white disc, colour core, haloed label above (the released 0.1.x look). */
+  private drawMarker(marker: SavedMarker): void {
     const { ctx } = this;
-    const screen = this.toScreen(this.selectedPoint);
+    const screen = this.toScreen(marker);
+    const label =
+      marker.label.length > MARKER_LABEL_MAX
+        ? `${marker.label.slice(0, MARKER_LABEL_MAX - 3)}...`
+        : marker.label;
+    ctx.save();
+    ctx.translate(screen.x, screen.y);
+    ctx.shadowColor = "rgba(20, 25, 23, 0.45)";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.fillStyle = markerColors[marker.color];
+    ctx.fill();
+    ctx.strokeStyle = "rgba(31, 39, 37, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = `800 12px Inter, "Segoe UI", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(245, 242, 224, 0.98)";
+    ctx.lineWidth = 5;
+    ctx.strokeText(label, 0, -23);
+    ctx.fillStyle = mapColors.ink;
+    ctx.fillText(label, 0, -23);
+    ctx.restore();
+  }
+
+  /**
+   * A dashed, haloed polyline with dots at each point. `active` is the measuring line: bolder, with
+   * numbered points.
+   */
+  private drawPath(points: Point[], color: string, active: boolean): void {
+    if (points.length === 0) return;
+    const { ctx } = this;
+    const screen = points.map((point) => this.toScreen(point));
+    ctx.save();
+    if (screen.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(screen[0].x, screen[0].y);
+      for (const point of screen.slice(1)) ctx.lineTo(point.x, point.y);
+      ctx.setLineDash(active ? [3, 7] : [5, 6]);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(245, 242, 224, 0.96)";
+      ctx.lineWidth = active ? 6 : 5;
+      ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = active ? 3 : 2.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    screen.forEach((point, index) => {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, active ? 8 : 6, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(245, 242, 224, 0.98)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, active ? 5 : 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      if (active) {
+        ctx.fillStyle = mapColors.ink;
+        ctx.font = `700 9px Inter, "Segoe UI", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(index + 1), point.x, point.y - 14);
+      }
+    });
+    ctx.restore();
+  }
+
+  /** Crosshair on the selected point. A selected saved place is already its own marker. */
+  private drawSelection(): void {
+    if (!this.selection || this.selection.markerId) return;
+    const { ctx } = this;
+    const screen = this.toScreen(this.selection.point);
     ctx.save();
     ctx.strokeStyle = "#fff8e9";
     ctx.lineWidth = 5;
@@ -513,14 +644,17 @@ export class MapEngine {
       this.canvas.releasePointerCapture(event.pointerId);
     }
     if (this.dragMoved) return;
-    // A click (not a drag) selects the nearest visible POI; clicking empty map clears the selection.
+    // A click (not a drag): report the saved place under it, else the nearest visible POI, else the
+    // ground tile. React decides what the click means.
+    const marker = this.hitTestMarker(event.clientX, event.clientY);
     const poi = this.hitTestPoi(event.clientX, event.clientY);
-    if (poi) {
-      this.select(poi, poi);
-    } else {
-      this.clearSelection();
-      this.onSelect?.(null);
+    if (marker) {
+      // A place saved on a store keeps that store's details (poi) on its card.
+      this.onClick?.({ point: { x: marker.x, y: marker.y }, poi, markerId: marker.id });
+      return;
     }
+    const point = tilePoint(poi ?? this.toWorld(event.clientX, event.clientY));
+    this.onClick?.({ point, poi, markerId: null });
   };
 
   private onPointerCancel = (): void => {
@@ -535,7 +669,25 @@ export class MapEngine {
     this.onPointerPosition?.(null);
   };
 
-  /** Nearest visible POI within a small pixel radius of the click, or null. */
+  /** Nearest saved place within MARKER_HIT_RADIUS pixels of the click, or null. */
+  private hitTestMarker(clientX: number, clientY: number): SavedMarker | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    let best: SavedMarker | null = null;
+    let bestDistance = MARKER_HIT_RADIUS;
+    for (const marker of this.annotations.markers) {
+      const screen = this.toScreen(marker);
+      const distance = Math.hypot(screen.x - px, screen.y - py);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = marker;
+      }
+    }
+    return best;
+  }
+
+  /** Nearest visible POI within POI_HIT_RADIUS pixels of the click, or null. */
   private hitTestPoi(clientX: number, clientY: number): MapPoi | null {
     if (this.scale < 0.3) return null;
     const rect = this.canvas.getBoundingClientRect();
@@ -543,7 +695,7 @@ export class MapEngine {
     const py = clientY - rect.top;
     const enabled = this.enabledSubs;
     let best: MapPoi | null = null;
-    let bestDistance = 14;
+    let bestDistance = POI_HIT_RADIUS;
     for (const { poi, subIds } of this.pois) {
       if (enabled && !subIds.some((id) => enabled.has(id))) continue;
       const screen = this.toScreen(poi);
@@ -575,21 +727,6 @@ function buildPath(points: Point[], close = true): Path2D {
   }
   if (close && points.length > 2) path.closePath();
   return path;
-}
-
-function pointBounds(points: Point[]): Bounds {
-  const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  for (const point of points) {
-    bounds.minX = Math.min(bounds.minX, point.x);
-    bounds.minY = Math.min(bounds.minY, point.y);
-    bounds.maxX = Math.max(bounds.maxX, point.x);
-    bounds.maxY = Math.max(bounds.maxY, point.y);
-  }
-  return bounds;
-}
-
-function intersects(a: Bounds, b: Bounds): boolean {
-  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
 }
 
 /** Anchor a street label at the midpoint of its longest segment, aligned to that segment. */

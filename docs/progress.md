@@ -8,15 +8,19 @@ released 0.1.1 lives in the preserved prototype history.
 release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
 behavior.
 
-> **▶ RESUME HERE:** Saved places, paths, measuring and saved view are restored (legacy storage
-> format, owner-approved UI) and committed. **Next (owner-agreed order):**
-> 1. **🧭 Navigate** — a separate toolbar button opening an A/B panel (type X/Y, pick on map, or pick
->    a saved place) → route along `streets.xml` centerlines (one network at ~12-tile snapping; dirt
->    trails not covered) → draw + distance + street list → save as a path.
-> 2. **Search** (owner request 2026-10-11) — one search bar for room types, categories, and specific
->    items → every location whose loot table lists it. Needs the loot index uncapped first.
-> 3. **Polish queue** — quick-finds, highlight-and-dim, loot-card ordering, landmark names, floors.
-> Also still to port: game-folder picker; desktop upgrade test against a real 0.1.1 profile.
+> **▶ RESUME HERE:** 🧭 Navigate is built and committed (owner-designed flow; Start/1/2…/End;
+> street-centerline routing with the Scenic Grove self-loop fix). **Next (owner-agreed order):**
+> 1. **Saved routes** — "Save route" stores a regular saved path + its stops (optional field the
+>    released app ignores); routes show with 🧭 in Your map and reopen in Nav for editing.
+> 2. **Roads from the map's road shapes** — skeletonize `worldmap.xml` road polygons into
+>    centerlines and join them to the named streets: all real side roads (winding included);
+>    narrower-than-a-car strips dropped; dirt trails behind **"Include backroads / shortcuts", OFF by
+>    default**. Cache per map fingerprint (only recompute when the map changes).
+> 3. **Drag-to-reroute** — grab the route, drag; an unnumbered via handle (double-click removes),
+>    saved with the route.
+> 4. **Search** — room types, groups, specific items (uncapped loot index) + towns/streets; houses
+>    excluded by default with an "also in N houses" option; highlight matches, dim the rest.
+> Also: game-folder picker; desktop upgrade test against a real 0.1.1 profile; polish queue.
 >
 > Principles: **simple by default** (extras opt-in) and **helpful, not a cheat** (no high-res decoder;
 > real save item locations on hold pending owner). Live coordinates deferred by the owner.
@@ -28,14 +32,14 @@ behavior.
 | Core parsing | Install discovery; overview/streets/labels/zones/vehicle pools; RoomDefs; categories; approximate static loot; satellite `pyramid.zip` reader. |
 | UI/engine | React + canvas overview, pan/zoom, room dots, expandable sub-filters, click-for-loot, label/view toggles, **satellite base layer**, zoom/fit buttons, X/Y jump, hover coordinate readout, Copy X/Y. |
 | Selection | Any map click (saved place, room dot, or bare ground) opens a popup: Save place / Edit place, Copy X/Y, Measure from here; room dots add categories + likely loot. X/Y jump selects the point. Esc closes. |
-| Your map | Saved places (name + 7 colours, rename/delete), measuring tool (undo/clear/save as path), saved paths, saved view (★ save, ⌂ return; map opens there). "YOUR MAP" list in the left panel, hidden when empty. |
+| Your map | Saved places (name + 7 colours, rename/delete), measuring tool (undo/clear/save as path), saved paths, saved view = **Home** (toolbar Set Home / Home; map opens there). Toolbar buttons are labelled (Full, Home, Set Home, Nav). "YOUR MAP" list in the left panel, hidden when empty. |
 | Room identity | Generic room type, center, categories, Z; no stable frontend room ID, rectangles, or verified building membership. |
 | Filters | Hide nonmatching dots; first matching sub-bucket wins; home kitchens/Homes default off. Floors are mixed. |
 | “Business names” | Annotation/landmark labels, not an individual business-name directory. |
 | Personal-map parity | Places/paths/measure/saved view restored. Search, game-folder picker, and vehicle overlay not yet ported. |
 | Storage | `savedStorage.ts` reads/writes the released keys and shapes with the released validation (unit-tested with 0.1.1-format data). Same Tauri v2 runtime + identifier → same WebView origin, so existing items should load; **not yet proven** with a real packaged upgrade. Browser dev storage is separate from the desktop app's. |
 | Floors | Not implemented (polish queue). Satellite pyramid levels are zoom resolutions, not floors. |
-| Routing | Not implemented (Next #2). |
+| Navigate | 🧭 Nav toolbar button → panel: "+ Add route", then each map click appends a stop (Start, 1, 2…, End) and re-routes; stops editable (X/Y, ★ saved place), reorderable (↑↓), removable; Save as path. Routes follow `streets.xml` named-street centerlines (`engine/roadGraph.ts`: crossings split, ends snapped within 12 tiles incl. a street onto its own far stretch; A*). Unnamed side roads/trails not yet routable (Next #2). |
 | Save detail | Isolated SQLite coordinate reader; no desktop command/UI. Live-read consistency unresolved. |
 | Live player/server | Optional extras; not implemented. No mod-free live position exists (see map views doc). |
 | Distribution | CI/release scripts still target old root npm and `src-tauri/target` layout. Not release-ready. |
@@ -66,8 +70,11 @@ treating CI coverage as sufficient.
 
 ### Next (owner order)
 - [x] Restore saved places/paths/measuring/saved view on the legacy storage keys (2026-10-11).
-- [ ] 🧭 Navigate: A/B panel + road routing on street centerlines; draw/save route.
-- [ ] Search bar: room types, categories, specific items → matching locations (uncap loot index first).
+- [x] 🧭 Navigate: add-as-you-click stops, street-centerline routing, save as path (2026-10-11).
+- [ ] Saved routes (reopen/edit favourite routes from Your map).
+- [ ] Routable roads from road shapes (side roads; footpaths dropped; backroads opt-in, off by default).
+- [ ] Drag-to-reroute (unnumbered via handles).
+- [ ] Search bar: room types, categories, specific items, towns/streets → highlight matches (uncap loot index first; houses opt-in).
 - [ ] Game-folder picker (released-app parity).
 - [ ] Polish: quick-finds, highlight-and-dim, loot ordering, landmark names, floor outlines.
 
@@ -95,6 +102,39 @@ treating CI coverage as sufficient.
 Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
 "never hide," satellite depending on a detailed decoder, old check results) are superseded by later
 entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — 🧭 Navigate: road routing through your stops
+
+- **Owner design (iterated in two rounds):** a separate Nav button (not buttons on every popup). After
+  testing v1 (A/B + ⌖ pick + insert-before-B), the owner asked for the natural order instead:
+  **"+ Add route", then every map click appends the next stop** (Start, 1, 2…, End), with stops
+  editable/reorderable/removable and Save as path. Toolbar buttons got labels: Full, Home, Set Home,
+  Nav (saved view renamed "Home"). Owner chose to keep simple add-stop over click-on-line insert.
+- **Data research:** `worldmap.xml` roads are filled areas chopped at cell borders (unroutable);
+  `streets.xml` has 1,098 named centerlines. Exact vertex joins give 823 pieces; snapping ends within
+  12 tiles gives 4 pieces with 99.5% of streets connected. Centerlines cover 97% primary / 90%
+  secondary / 81% tertiary road shapes, 4% of trails.
+- **Engine:** `engine/roadGraph.ts` (pure, tested): crossings split into junctions; street ends
+  snapped onto the nearest street within 12 tiles; A* with a straight-line heuristic; off-road legs to
+  the nearest street; multi-stop trips (`planTrip`), polyline for saving (`tripPolyline` +
+  Douglas–Peucker `simplifyPath` to the 250-point path limit). Built lazily on first Nav use and
+  cached per street list. Real data: 6,106 nodes / 6,969 edges in ~27 ms; a route in < 1 ms.
+- **Bug found by the owner (screenshot) & fixed:** a route looped all the way round Scenic Grove
+  Trailer Park instead of taking a 3-tile connector. Cause: Scenic Grove Road is ONE street that loops
+  and ends 3 tiles from its own earlier stretch; the builder only snapped ends onto *other* streets.
+  Fix: a street may join itself when the two stretches are ≥ 36 tiles apart along it (crossings
+  too). Regression test reproduces it (490 → ~100 tiles); real trip now 237 tiles via Scenic Grove
+  Road → Long Needle Road.
+- **UI:** `NavigatePanel` (+ Add route / Done / + Add stops / Clear; stop rows with X/Y, ★ saved
+  place, ↑ ↓, ×; distance by road + off-road, street sequence, Save as path), stop pills on the map
+  (Start teal, End red, numbered between), solid blue route + dashed off-road legs, crosshair cursor
+  while adding, Esc stops adding.
+- **Tested:** `tsc` clean; 30 web tests (13 routing incl. the self-loop regression, multi-stop
+  trips, unreachable legs, labels, simplification, and a real Muldraugh → West Point route: 4,220
+  tiles via Dixie Highway (Route 31W)); vite build. Owner tested v1 in the browser; the redesign is
+  verified by tests and awaits the owner's click-through.
+- **Next decided:** saved routes → roads from road shapes (side roads in; footpaths out; backroads
+  opt-in, off by default; cached per map fingerprint) → drag-to-reroute → search.
 
 ### 2026-10-11 — Saved places, paths, measuring and saved view restored
 

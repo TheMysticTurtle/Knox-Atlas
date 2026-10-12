@@ -22,6 +22,10 @@ export const mapColors = {
   ink: "#2d302b",
   mutedInk: "#67685f",
   selected: "#e19952",
+  // Navigate: route line + start/destination pins (start/destination are the released 0.1.x colours).
+  route: "#2f6db5",
+  start: "#37a6a0",
+  destination: "#d85f55",
 } as const;
 
 import type { Category, MarkerColor } from "./types";

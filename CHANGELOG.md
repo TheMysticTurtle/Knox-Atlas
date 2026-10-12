@@ -21,6 +21,9 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
 - Restored from 0.1.1 on the same storage format: named, colored saved places (edit/delete),
   the measuring tool with saved paths, and a saved map view. Click anything on the map for
   Save place · Copy X/Y · Measure from here; saved items are listed under "Your map".
+- 🧭 Navigate: add stops by clicking the map (Start, 1, 2…, End); the route follows the named
+  streets, shows its distance and street sequence, and can be saved as a path.
+- Labelled toolbar: Full · Home · Set Home · Nav (the saved view is now called Home).
 
 ### Changed
 
@@ -33,8 +36,8 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
 
 - Released search, game-source picker, and vehicle UI still need porting. Saved items use the
   released storage format, but a real packaged upgrade has not been verified yet.
-- Road path plotting, floor-aware rendering, live player tracking, and server sharing are not
-  implemented.
+- Routing uses named streets only; unnamed side roads and dirt trails are not routable yet.
+  Floor-aware rendering, live player tracking, and server sharing are not implemented.
 - CI and Windows packaging need migration to the workspace/frontend layout before release.
 
 ## [0.1.1] - 2026-08-08

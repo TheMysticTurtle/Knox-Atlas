@@ -7,6 +7,8 @@ type MapToolbarProps = {
   /** Map bounds, for validating typed coordinates. */
   bounds: Bounds;
   hasSavedView: boolean;
+  navOpen: boolean;
+  onToggleNavigate: () => void;
   onZoom: (factor: number) => void;
   onFit: () => void;
   onSaveView: () => void;
@@ -14,10 +16,12 @@ type MapToolbarProps = {
   onJump: (point: Point) => void;
 };
 
-/** Top-of-map controls: zoom, fit, saved view, and jump-to-coordinates. */
+/** Top-of-map controls: zoom, Full (fit), Home / Set Home (saved view), Nav, and jump-to-X/Y. */
 export function MapToolbar({
   bounds,
   hasSavedView,
+  navOpen,
+  onToggleNavigate,
   onZoom,
   onFit,
   onSaveView,
@@ -55,27 +59,30 @@ export function MapToolbar({
         <button onClick={() => onZoom(1 / 1.5)} aria-label="Zoom out" title="Zoom out">
           −
         </button>
-        <button onClick={onFit} aria-label="Fit whole map" title="Fit whole map">
-          ⛶
-        </button>
-        <button
-          onClick={onReturnToView}
+        <ToolButton icon="⛶" label="Full" title="Fit the whole map" onClick={onFit} />
+        <ToolButton
+          icon="⌂"
+          label="Home"
+          title={hasSavedView ? "Go to your Home view" : "No Home set yet — use Set Home"}
           disabled={!hasSavedView}
-          aria-label="Return to saved view"
-          title={hasSavedView ? "Return to your saved view" : "No saved view yet"}
-        >
-          ⌂
-        </button>
-        <button
+          onClick={onReturnToView}
+        />
+        <ToolButton
+          icon={viewSaved ? "✓" : "★"}
+          label="Set Home"
+          title="Set this view as Home — the map opens here next time"
           onClick={() => {
             onSaveView();
             setViewSaved(true);
           }}
-          aria-label="Save this view"
-          title="Save this view — the map opens here next time"
-        >
-          {viewSaved ? "✓" : "★"}
-        </button>
+        />
+        <ToolButton
+          icon="🧭"
+          label="Nav"
+          title="Navigate — plan a route by road through your stops"
+          active={navOpen}
+          onClick={onToggleNavigate}
+        />
       </div>
 
       <form className="coordinate-jump" onSubmit={jump} aria-label="Jump to coordinates">
@@ -109,5 +116,33 @@ export function MapToolbar({
         )}
       </form>
     </div>
+  );
+}
+
+type ToolButtonProps = {
+  icon: string;
+  label: string;
+  title: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** Pressed state, for toggles like Nav. */
+  active?: boolean;
+};
+
+/** A labelled toolbar button: centered icon with a short word under it. */
+function ToolButton({ icon, label, title, onClick, disabled, active }: ToolButtonProps) {
+  return (
+    <button
+      className={`tool-button${active ? " is-active" : ""}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      title={title}
+    >
+      <span className="tool-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="tool-label">{label}</span>
+    </button>
   );
 }

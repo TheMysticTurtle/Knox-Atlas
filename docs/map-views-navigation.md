@@ -113,8 +113,9 @@ No bridge/no valid source must leave the atlas fully usable.
 
 - Search/filter for a likely place, click to inspect coordinates/items, then mark it.
 - Draw a path along visible roads and save it. Distances are tile-length segment totals.
-- **🧭 Navigate (planned next, owner design 2026-10-11):** a separate toolbar button opens an A/B
-  panel. Each end is typed X/Y, picked on the map, or chosen from saved places. The atlas routes
+- **🧭 Navigate (implemented 2026-10-11, owner design):** the Nav toolbar button opens a panel;
+  "+ Add route", then each map click appends the next stop (Start, 1, 2…, End). Stops can be edited
+  (X/Y or a saved place), reordered and removed. The atlas routes
   along the road network and draws the route with its distance and street sequence, savable as a
   path. It needs no live position. Data: `streets.xml` centerlines (the `worldmap.xml` roads are
   filled areas chopped at cell borders, unsuitable as a graph). Measured 2026-10-11: 1,098 streets
@@ -122,7 +123,13 @@ No bridge/no valid source must leave the atlas fully usable.
   99.5% of streets)**. Centerlines lie within 15 tiles of 97% of primary, 90% of secondary, and 81%
   of tertiary road areas, but only **4% of dirt trails**, so routes follow named streets. Crossings
   are treated as junctions (a rare overpass could be wrong). Off-road ends get a short dashed
-  connector to the nearest street; unreachable ends are reported honestly.
+  connector to the nearest street; unreachable ends are reported honestly. A street may also join
+  itself where it loops back (Scenic Grove Road ends 3 tiles from its own start).
+- **Next — roads from road shapes:** the 832 road shapes with no named street on them (482 trails,
+  193 side roads/driveways, 146 secondary, 11 primary; ~80% curvy) will be skeletonized into
+  centerlines and joined to the network. Width filter drops footpaths; dirt trails are opt-in
+  ("Include backroads / shortcuts", off by default). Parking lots are essentially absent from road
+  data (1 of 3,370 shapes is lot-sized).
 - An optional player dot could later help someone follow that route.
 
 Static room loot does not guarantee anything remains after players visit. Helpful approximate

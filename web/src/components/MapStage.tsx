@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MapEngine } from "../engine/mapEngine";
-import type { GameSnapshot, MapPoi, Point, RoomLoot } from "../engine/types";
+import { planTrip, roadGraphFor } from "../engine/roadGraph";
+import type { GameSnapshot, MapPoi, NavStop, Point, RoomLoot, Selection } from "../engine/types";
 import { pointFocus, useMapUi } from "../mapUiStore";
 import { useSaved } from "../savedStore";
 import { useFilters } from "../store";
@@ -9,6 +10,7 @@ import { useView } from "../viewStore";
 import { CoordinateReadout } from "./CoordinateReadout";
 import { MapToolbar } from "./MapToolbar";
 import { MeasurePanel } from "./MeasurePanel";
+import { NavigatePanel } from "./NavigatePanel";
 import { SelectionCard } from "./SelectionCard";
 
 type MapStageProps = {
@@ -37,15 +39,32 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   const focus = useMapUi((state) => state.focus);
   const select = useMapUi((state) => state.select);
   const focusOn = useMapUi((state) => state.focusOn);
+  const navOpen = useMapUi((state) => state.navOpen);
+  const navStops = useMapUi((state) => state.navStops);
+  const addingStops = useMapUi((state) => state.addingStops);
+  const toggleNav = useMapUi((state) => state.toggleNav);
   const [pointer, setPointer] = useState<Point | null>(null);
   const [satelliteStatus, setSatelliteStatus] = useState("");
+
+  // The road network is built on first use of Navigate (then cached), and the trip re-routed as
+  // stops change.
+  const graph = useMemo(
+    () => (snapshot && navOpen ? roadGraphFor(snapshot.streets) : null),
+    [snapshot, navOpen],
+  );
+  const tripResult = useMemo(() => {
+    const points = navStops.map((stop) => stop.point);
+    return graph && points.length >= 2 ? planTrip(graph, points) : null;
+  }, [graph, navStops]);
 
   useEffect(() => {
     if (!snapshot || !canvasRef.current) return;
     const engine = new MapEngine(canvasRef.current, snapshot);
+    // What a click means: add a Navigate stop, else add a measure point, else select.
     engine.onClick = (hit) => {
       const ui = useMapUi.getState();
-      if (ui.measuring) ui.addMeasurePoint(hit.point);
+      if (ui.addingStops) ui.appendStop(stopFromHit(hit));
+      else if (ui.measuring) ui.addMeasurePoint(hit.point);
       else ui.select(hit);
     };
     // Keep the previous object when the hovered tile is unchanged, so React skips the re-render.
@@ -89,19 +108,27 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   }, [selection, snapshot]);
 
   useEffect(() => {
-    engineRef.current?.setPlacingCursor(measuring);
-  }, [measuring, snapshot]);
+    engineRef.current?.setNavigation({
+      stops: navOpen ? navStops : [],
+      trip: navOpen && tripResult?.ok ? tripResult.trip : null,
+    });
+  }, [navOpen, navStops, tripResult, snapshot]);
+
+  useEffect(() => {
+    engineRef.current?.setPlacingCursor(measuring || addingStops);
+  }, [measuring, addingStops, snapshot]);
 
   useEffect(() => {
     if (focus) engineRef.current?.focus(focus.bounds);
   }, [focus]);
 
-  // Esc: stop measuring first, otherwise close the popup.
+  // Esc: stop adding route stops, else stop measuring, else close the popup.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       const ui = useMapUi.getState();
-      if (ui.measuring) ui.finishMeasure();
+      if (ui.addingStops) ui.setAddingStops(false);
+      else if (ui.measuring) ui.finishMeasure();
       else if (ui.selection) ui.select(null);
     }
     window.addEventListener("keydown", onKeyDown);
@@ -117,6 +144,8 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
           <MapToolbar
             bounds={snapshot.bounds}
             hasSavedView={Boolean(savedView)}
+            navOpen={navOpen}
+            onToggleNavigate={toggleNav}
             onZoom={(factor) => engineRef.current?.zoomBy(factor)}
             onFit={() => engineRef.current?.fit()}
             onSaveView={() => {
@@ -151,13 +180,14 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
           </div>
 
           <MeasurePanel />
+          {navOpen && <NavigatePanel bounds={snapshot.bounds} result={tripResult} />}
         </>
       )}
 
       {!snapshot && !error && <div className="map-status">Reading Knox Country…</div>}
       {error && <div className="map-status map-status-error">Couldn’t load the map: {error}</div>}
 
-      {selection && snapshot && !measuring && (
+      {selection && snapshot && !measuring && !addingStops && (
         <SelectionCard
           key={`${selection.point.x},${selection.point.y},${selection.markerId},${selection.poi?.rawName}`}
           selection={selection}
@@ -169,4 +199,12 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
       )}
     </div>
   );
+}
+
+/** Name a picked Navigate stop after what was clicked: a saved place, a store, or its coordinates. */
+function stopFromHit(hit: Selection): NavStop {
+  const marker = hit.markerId
+    ? useSaved.getState().markers.find((item) => item.id === hit.markerId)
+    : undefined;
+  return { point: hit.point, label: marker?.label ?? hit.poi?.name ?? `${hit.point.x}, ${hit.point.y}` };
 }

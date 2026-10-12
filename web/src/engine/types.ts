@@ -18,6 +18,9 @@ export type SavedPath = { id: string; label: string; color: MarkerColor; points:
 /** A saved camera: world center + zoom scale (CSS pixels per tile). */
 export type SavedView = Point & { scale: number };
 
+/** A Navigate stop: where, plus a readable name (a place, a store, or its coordinates). */
+export type NavStop = { point: Point; label: string };
+
 /** Everything user-authored the engine draws on top of the map. */
 export type Annotations = {
   markers: SavedMarker[];

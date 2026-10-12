@@ -8,6 +8,7 @@ import { buildingColor, categoryColors, mapColors, markerColors } from "./colors
 import { poiSubIds } from "./subcategories";
 import { tilePoint } from "./coordinates";
 import { intersects, pointBounds } from "./geometry";
+import { stopTag, type Trip } from "./roadGraph";
 import { SatelliteLayer } from "./satelliteLayer";
 import type {
   Annotations,
@@ -16,11 +17,15 @@ import type {
   GameSnapshot,
   MapFeature,
   MapPoi,
+  NavStop,
   Point,
   SavedMarker,
   SavedView,
   Selection,
 } from "./types";
+
+/** What Navigate shows: the stops in trip order and the routed trip, if any. */
+export type Navigation = { stops: NavStop[]; trip: Trip | null };
 
 type PreparedFeature = MapFeature & { path: Path2D; bounds: Bounds };
 type PreparedStreet = { name: string; anchor: Point; angle: number; bounds: Bounds };
@@ -64,6 +69,7 @@ export class MapEngine {
   private satelliteLoaded = false;
   private selection: Selection | null = null;
   private annotations: Annotations = { markers: [], paths: [], measurement: [] };
+  private navigation: Navigation = { stops: [], trip: null };
   private disposed = false;
   private renderFrame = 0;
   private pointerFrame = 0;
@@ -201,6 +207,12 @@ export class MapEngine {
     this.queueRender();
   }
 
+  /** Navigate's stops and route (empty stops + null trip when Navigate is closed). */
+  setNavigation(navigation: Navigation): void {
+    this.navigation = navigation;
+    this.queueRender();
+  }
+
   /** Crosshair cursor while clicks add points rather than select. */
   setPlacingCursor(placing: boolean): void {
     this.canvas.classList.toggle("is-placing", placing);
@@ -323,6 +335,7 @@ export class MapEngine {
       }
     }
     this.drawMapLabels(occupied);
+    this.drawTrip();
     this.drawSelection();
     this.drawPath(this.annotations.measurement, markerColors.amber, true);
     // User-authored places are the top layer by design: always visible over source-derived data.
@@ -411,6 +424,68 @@ export class MapEngine {
       }
     });
     ctx.restore();
+  }
+
+  /**
+   * Navigate: the on-road route as a bold solid line (unlike the dashed saved paths), the off-road
+   * walking legs dashed, then a labelled pill per stop — Start, 1, 2…, End.
+   */
+  private drawTrip(): void {
+    const { stops, trip } = this.navigation;
+    const { ctx } = this;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (const leg of trip?.legs ?? []) {
+      this.strokeScreenLine(leg.road, [], 9, "rgba(245, 242, 224, 0.95)");
+      this.strokeScreenLine(leg.road, [], 5, mapColors.route);
+      for (const walk of [leg.startLeg, leg.endLeg]) {
+        this.strokeScreenLine(walk, [], 5, "rgba(245, 242, 224, 0.9)");
+        this.strokeScreenLine(walk, [2, 6], 2.5, mapColors.route);
+      }
+    }
+    ctx.restore();
+
+    stops.forEach((stop, index) => {
+      const tag = stopTag(index, stops.length);
+      const color =
+        tag === "Start" ? mapColors.start : tag === "End" ? mapColors.destination : mapColors.ink;
+      const screen = this.toScreen(stop.point);
+      ctx.save();
+      ctx.font = `800 12px Inter, "Segoe UI", sans-serif`;
+      const width = Math.max(24, ctx.measureText(tag).width + 14);
+      const height = 22;
+      ctx.shadowColor = "rgba(20, 25, 23, 0.4)";
+      ctx.shadowBlur = 6;
+      roundedRect(ctx, screen.x - width / 2, screen.y - height / 2, width, height, height / 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#fff8e9";
+      ctx.stroke();
+      ctx.fillStyle = "#fff8e9";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(tag, screen.x, screen.y + 0.5);
+      ctx.restore();
+    });
+  }
+
+  private strokeScreenLine(points: Point[], dash: number[], width: number, color: string): void {
+    if (points.length < 2) return;
+    const { ctx } = this;
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      const screen = this.toScreen(point);
+      if (index === 0) ctx.moveTo(screen.x, screen.y);
+      else ctx.lineTo(screen.x, screen.y);
+    });
+    ctx.setLineDash(dash);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   /** Crosshair on the selected point. A selected saved place is already its own marker. */
@@ -727,6 +802,24 @@ function buildPath(points: Point[], close = true): Path2D {
   }
   if (close && points.length > 2) path.closePath();
   return path;
+}
+
+/** Trace a rounded rectangle path (fill/stroke it afterwards). */
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
 }
 
 /** Anchor a street label at the midpoint of its longest segment, aligned to that segment. */

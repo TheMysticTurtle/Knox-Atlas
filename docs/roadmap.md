@@ -38,20 +38,31 @@ layouts the player hasn't discovered need an owner decision before they're plann
       fallback). Alignment checked visually by the owner (2026-10-11).
 - [x] Coordinate tools: X/Y jump box, hover readout (tile / cell / chunk), copy X/Y on cards.
 - [x] **Saved places, paths, measuring, saved view** — restored on the released storage keys and
-      shapes (2026-10-11). Click anything → Save place · Copy X/Y · Measure from here.
+      shapes (2026-10-11). Click anything → Save place · Copy X/Y · Measure from here. Saved view =
+      "Home" (toolbar: Full · Home · Set Home · Nav).
+- [x] **🧭 Navigate** (2026-10-11) — "+ Add route", click the map to add stops in order (Start, 1,
+      2…, End); routed along named streets; edit/reorder/remove stops; save as a path.
 
 ## Next — in order
 
-1. [ ] **🧭 Navigate — road path plotting, no live position needed.** A separate toolbar button opens
-       an A/B panel; each end is typed X/Y, picked on the map, or a saved place. Route along the
-       `streets.xml` centerlines (one connected network at ~12-tile snapping; dirt trails are not in
-       that data), draw it with its distance and street sequence, save it as a path.
-2. [ ] **Search** (owner request). One search bar for room types ("gun store"), category groups
-       ("weapons"), and specific items ("chisel") → highlight every location whose loot table lists
-       it. Likely-loot hints, not actual contents. Needs the loot index uncapped first.
-3. [ ] **Released-app parity leftovers:** game-folder picker; prove a real packaged 0.1.1 → 0.2.0
+1. [ ] **Saved routes.** "Save route" keeps the stops with the saved path (an optional field the
+       released app ignores, so old data is unaffected); routes show with 🧭 in Your map and reopen
+       in Nav to edit, extend or re-save.
+2. [ ] **Roads from the map's road shapes.** Turn `worldmap.xml` road shapes into centerlines
+       (paint onto the tile grid, thin to a skeleton, join to the named streets) so real side roads —
+       winding ones included — are routable. Strips narrower than a car are dropped (footpaths);
+       dirt trails sit behind **"Include backroads / shortcuts", off by default**. Parking lots are
+       not a concern: only 1 of 3,370 road shapes is lot-sized. Computed once per map version
+       (fingerprint) and cached; works on modded maps with nothing to maintain.
+3. [ ] **Drag-to-reroute.** Grab the route anywhere and drag, Google-Maps style: the route re-plans
+       through an unnumbered via handle (double-click removes it); vias are saved with the route.
+4. [ ] **Search** (owner request). One search bar for room types ("gun store"), category groups
+       ("weapons"), specific items ("chisel"), and towns/streets ("Main St") → highlight every
+       location whose loot table lists it, dim the rest. Likely-loot hints, not actual contents.
+       Needs the loot index uncapped first; houses excluded by default ("also in N houses").
+5. [ ] **Released-app parity leftovers:** game-folder picker; prove a real packaged 0.1.1 → 0.2.0
        profile upgrade keeps saved items (not just dev storage).
-4. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
+6. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
        book / video stores, groceries, gas, schools…); highlight-and-dim focus instead of hiding;
        loot cards ordered by what players actually want; landmark/business-name accuracy;
        optional floor (Z) room outlines from existing RoomDefs.

@@ -1,14 +1,18 @@
 import { create } from "zustand";
 
-import type { Bounds, Point, Selection } from "./engine/types";
+import type { Bounds, NavStop, Point, Selection } from "./engine/types";
 import { LIMITS } from "./savedStorage";
 
 /** A request for the map to frame these bounds; `nonce` makes repeat requests fire again. */
 export type FocusRequest = { bounds: Bounds; nonce: number };
 
+/** Most stops a trip can have (start + end + up to 23 in between). */
+export const MAX_STOPS = 25;
+
 /**
- * Transient map interaction state shared by the map and the side panel. React decides what a map
- * click means here (select, or add a measure point); the engine only reports clicks and draws.
+ * Transient map interaction state shared by the map and the panels. React decides what a map click
+ * means here (add a Navigate stop, add a measure point, or select); the engine only reports clicks
+ * and draws.
  */
 type MapUiState = {
   selection: Selection | null;
@@ -16,6 +20,12 @@ type MapUiState = {
   measuring: boolean;
   measurement: Point[];
   focus: FocusRequest | null;
+
+  /** Navigate: panel open; stops in the order the user made them (first = Start, last = End). */
+  navOpen: boolean;
+  navStops: NavStop[];
+  /** True while map clicks append Navigate stops. */
+  addingStops: boolean;
 
   select: (selection: Selection | null) => void;
   /** Start measuring, optionally from a first point. Clears the selection. */
@@ -27,6 +37,16 @@ type MapUiState = {
   clearMeasure: () => void;
   /** Frame a point (zooms in to street level) or a whole path's bounds. */
   focusOn: (bounds: Bounds) => void;
+
+  toggleNav: () => void;
+  setAddingStops: (adding: boolean) => void;
+  /** Add a stop at the end of the trip (the new End). */
+  appendStop: (stop: NavStop) => void;
+  updateStop: (index: number, stop: NavStop) => void;
+  removeStop: (index: number) => void;
+  /** Move a stop one place earlier (-1) or later (+1). */
+  moveStop: (index: number, direction: -1 | 1) => void;
+  clearStops: () => void;
 };
 
 export const useMapUi = create<MapUiState>((set, get) => ({
@@ -34,10 +54,14 @@ export const useMapUi = create<MapUiState>((set, get) => ({
   measuring: false,
   measurement: [],
   focus: null,
+  navOpen: false,
+  navStops: [],
+  addingStops: false,
 
   select: (selection) => set({ selection }),
 
-  startMeasure: (from) => set({ measuring: true, measurement: from ? [from] : [], selection: null }),
+  startMeasure: (from) =>
+    set({ measuring: true, measurement: from ? [from] : [], selection: null, addingStops: false }),
 
   addMeasurePoint: (point) => {
     const { measurement } = get();
@@ -52,6 +76,32 @@ export const useMapUi = create<MapUiState>((set, get) => ({
   clearMeasure: () => set({ measuring: false, measurement: [] }),
 
   focusOn: (bounds) => set({ focus: { bounds, nonce: (get().focus?.nonce ?? 0) + 1 } }),
+
+  toggleNav: () => set({ navOpen: !get().navOpen, addingStops: false }),
+
+  setAddingStops: (adding) =>
+    set(adding ? { addingStops: true, measuring: false, selection: null } : { addingStops: false }),
+
+  appendStop: (stop) => {
+    const { navStops } = get();
+    if (navStops.length >= MAX_STOPS) return;
+    const next = [...navStops, stop];
+    set({ navStops: next, addingStops: next.length < MAX_STOPS });
+  },
+
+  updateStop: (index, stop) => set({ navStops: get().navStops.map((item, i) => (i === index ? stop : item)) }),
+
+  removeStop: (index) => set({ navStops: get().navStops.filter((_, i) => i !== index) }),
+
+  moveStop: (index, direction) => {
+    const target = index + direction;
+    const navStops = [...get().navStops];
+    if (target < 0 || target >= navStops.length) return;
+    [navStops[index], navStops[target]] = [navStops[target], navStops[index]];
+    set({ navStops });
+  },
+
+  clearStops: () => set({ navStops: [], addingStops: false }),
 }));
 
 /** Bounds for a single point (the engine zooms to street level for these). */

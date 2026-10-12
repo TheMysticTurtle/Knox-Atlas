@@ -18,6 +18,8 @@ export function MeasurePanel() {
   const clear = useMapUi((state) => state.clearMeasure);
   const pathCount = useSaved((state) => state.paths.length);
   const addPath = useSaved((state) => state.addPath);
+  const allGroups = useSaved((state) => state.layout.groups);
+  const groups = allGroups.filter((group) => group.section === "paths");
   const [formOpen, setFormOpen] = useState(false);
 
   if (!measuring && points.length === 0) return null;
@@ -65,8 +67,9 @@ export function MeasurePanel() {
           placeholder="Supply run, patrol, shortcut…"
           submitLabel="Save path"
           note={`Saved on this computer · ${pathCount}/${LIMITS.paths}`}
-          onSubmit={(name, color) => {
-            if (addPath(points, name, color)) close();
+          groups={groups}
+          onSubmit={(name, color, group) => {
+            if (addPath(points, name, color, undefined, group)) close();
           }}
           onCancel={() => setFormOpen(false)}
         />

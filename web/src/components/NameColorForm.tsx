@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { markerColors } from "../engine/colors";
-import type { MarkerColor } from "../engine/types";
+import type { MarkerColor, SavedGroup } from "../engine/types";
 import { LIMITS, MARKER_COLORS, cleanLabel } from "../savedStorage";
 
 type NameColorFormProps = {
@@ -11,25 +11,35 @@ type NameColorFormProps = {
   submitLabel: string;
   /** Small print under the form, e.g. "Saved on this computer · 3/100". */
   note?: string;
-  onSubmit: (name: string, color: MarkerColor) => void;
+  /** The section's groups; a Group picker appears when there are any. */
+  groups?: SavedGroup[];
+  initialGroup?: string;
+  /** `group` is the chosen group id, or undefined for "No group". */
+  onSubmit: (name: string, color: MarkerColor, group?: string) => void;
   onCancel: () => void;
   /** Extra controls on the button row (e.g. Delete when editing). */
   extra?: ReactNode;
 };
 
-/** Name + colour picker shared by "Save place" and "Save as path". */
+/** Name + colour (+ group, once the section has groups) — shared by every save form. */
 export function NameColorForm({
   initialName,
   initialColor,
   placeholder,
   submitLabel,
   note,
+  groups = [],
+  initialGroup,
   onSubmit,
   onCancel,
   extra,
 }: NameColorFormProps) {
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState<MarkerColor>(initialColor);
+  // Only keep a group that still exists (it may have been deleted since).
+  const [group, setGroup] = useState(
+    groups.some((item) => item.id === initialGroup) ? (initialGroup ?? "") : "",
+  );
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,7 +55,7 @@ export function NameColorForm({
       inputRef.current?.focus();
       return;
     }
-    onSubmit(name, color);
+    onSubmit(name, color, group || undefined);
   }
 
   return (
@@ -77,6 +87,19 @@ export function NameColorForm({
           />
         ))}
       </div>
+      {groups.length > 0 && (
+        <label className="group-picker">
+          Group
+          <select value={group} onChange={(event) => setGroup(event.target.value)}>
+            <option value="">No group</option>
+            {groups.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="form-actions">
         <button type="submit" className="primary-action">
           {submitLabel}

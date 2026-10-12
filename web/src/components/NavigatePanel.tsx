@@ -3,7 +3,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { parseCoordinates } from "../engine/coordinates";
 import { simplifyPath } from "../engine/geometry";
 import { tripPolyline, type TripResult } from "../engine/roadGraph";
-import { countBends, countNumbered, legTags, numberedIndices, tagAt } from "../engine/stops";
+import {
+  countBends,
+  countNumbered,
+  legTags,
+  numberedIndices,
+  rerouteCount,
+  tagAt,
+} from "../engine/stops";
 import type { Bounds, NavStop } from "../engine/types";
 import { MAX_STOPS, useMapUi } from "../mapUiStore";
 import { LIMITS } from "../savedStorage";
@@ -42,6 +49,8 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
   const openRoute = useSaved((state) => state.paths.find((path) => path.id === openRouteId));
   const addPath = useSaved((state) => state.addPath);
   const updatePath = useSaved((state) => state.updatePath);
+  const allGroups = useSaved((state) => state.layout.groups);
+  const groups = allGroups.filter((group) => group.section === "routes");
   const [saving, setSaving] = useState(false);
 
   const trip = result?.ok ? result.trip : null;
@@ -53,13 +62,13 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
   const atLimit = !openRoute && pathCount >= LIMITS.paths;
 
   /** Save the trip as a route: its line (released path format) plus its stops. */
-  function saveRoute(name: string, color: Parameters<typeof addPath>[2]) {
+  function saveRoute(name: string, color: Parameters<typeof addPath>[2], group?: string) {
     if (!trip) return;
     const line = simplifyPath(tripPolyline(trip), LIMITS.pathPoints);
     if (openRoute) {
-      updatePath(openRoute.id, line, name, color, stops);
+      updatePath(openRoute.id, line, name, color, stops, group);
     } else {
-      const saved = addPath(line, name, color, stops);
+      const saved = addPath(line, name, color, stops, group);
       if (!saved) return;
       setOpenRoute(saved.id);
     }
@@ -120,8 +129,8 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
       {trip && (
         <p className="navigate-tip">
           {bends > 0
-            ? `${bends} ${bends === 1 ? "bend" : "bends"} · drag to move · double-click to remove`
-            : "Tip: drag the blue line to reroute it"}
+            ? `${rerouteCount(bends)} · Click and drag route to edit · Double-click a re-route to delete it`
+            : "Click and drag route to edit"}
         </p>
       )}
 
@@ -157,6 +166,8 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
                     initialColor={openRoute?.color ?? "blue"}
                     placeholder="Supply run, patrol, shortcut…"
                     submitLabel={openRoute ? "Save changes" : "Save route"}
+                    groups={groups}
+                    initialGroup={openRoute?.group}
                     note={openRoute ? undefined : `Saved on this computer · ${pathCount}/${LIMITS.paths}`}
                     onSubmit={saveRoute}
                     onCancel={() => setSaving(false)}

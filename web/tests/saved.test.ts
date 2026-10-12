@@ -9,17 +9,22 @@ import {
   STORAGE_KEYS,
   cleanLabel,
   newId,
+  parseLayout,
   parseMarkers,
   parsePaths,
   parseView,
 } from "../src/savedStorage.ts";
 
 test("storage keys are the released 0.1.x keys (existing users' data must load)", () => {
-  assert.deepEqual(STORAGE_KEYS, {
-    markers: "knox-atlas.custom-markers.v1",
-    paths: "knox-atlas.saved-paths.v1",
-    view: "knox-atlas.saved-map-view.v1",
-  });
+  const { markers: markerKey, paths: pathKey, view: viewKey } = STORAGE_KEYS;
+  assert.deepEqual(
+    { markers: markerKey, paths: pathKey, view: viewKey },
+    {
+      markers: "knox-atlas.custom-markers.v1",
+      paths: "knox-atlas.saved-paths.v1",
+      view: "knox-atlas.saved-map-view.v1",
+    },
+  );
   // The released limits must not change (the newer `routeStops` is additive).
   const { markers, paths, pathPoints, label } = LIMITS;
   assert.deepEqual({ markers, paths, pathPoints, label }, { markers: 100, paths: 50, pathPoints: 250, label: 40 });
@@ -150,6 +155,47 @@ test("a route with broken stops still loads as a plain line", () => {
   const [path] = parsePaths(raw);
   assert.equal(path.label, "Half broken");
   assert.equal(path.stops, undefined);
+});
+
+test("places and paths keep their group and hidden flags; old records gain neither", () => {
+  const [filed, legacy] = parseMarkers(
+    JSON.stringify([
+      { id: "a", label: "Base", color: "teal", x: 1, y: 2, group: "g1", hidden: true },
+      { id: "b", label: "Shop", color: "red", x: 3, y: 4, group: "", hidden: "yes" },
+    ]),
+  );
+  assert.deepEqual(filed, { id: "a", label: "Base", color: "teal", x: 1, y: 2, group: "g1", hidden: true });
+  assert.deepEqual(legacy, { id: "b", label: "Shop", color: "red", x: 3, y: 4 });
+  const [path] = parsePaths(
+    JSON.stringify([{ id: "p", label: "Run", color: "blue", points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], group: "g2" }]),
+  );
+  assert.equal(path.group, "g2");
+  assert.equal("hidden" in path, false);
+});
+
+test("your-map layout keeps valid, unique groups and collapsed sections", () => {
+  const layout = parseLayout(
+    JSON.stringify({
+      groups: [
+        { id: "g1", name: " Bases ", section: "places", collapsed: true },
+        { id: "g1", name: "Duplicate id", section: "places" },
+        { id: "g2", name: "Supply runs", section: "routes" },
+        { id: "g3", name: "", section: "places" },
+        { id: "g4", name: "Bad section", section: "cars" },
+        "junk",
+      ],
+      collapsed: ["paths", "nonsense"],
+    }),
+  );
+  assert.deepEqual(layout, {
+    groups: [
+      { id: "g1", name: "Bases", section: "places", collapsed: true },
+      { id: "g2", name: "Supply runs", section: "routes" },
+    ],
+    collapsed: ["paths"],
+  });
+  assert.deepEqual(parseLayout(null), { groups: [], collapsed: [] });
+  assert.deepEqual(parseLayout("{oops"), { groups: [], collapsed: [] });
 });
 
 test("caps path points at the released limit", () => {

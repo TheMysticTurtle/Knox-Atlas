@@ -57,7 +57,7 @@ layouts the player hasn't discovered need an owner decision before they're plann
        (fingerprint) and cached; works on modded maps with nothing to maintain.
 3. [x] **Drag-to-reroute** (2026-10-11). Grab the route anywhere and drag, Google-Maps style: the route re-plans
        through an unnumbered via handle (double-click removes it); vias are saved with the route.
-4. [ ] **Your map groups.** One tier of groups per section (Places / Routes / Paths), show/hide on
+4. [x] **Your map groups** (2026-10-11). One tier of groups per section (Places / Routes / Paths), show/hide on
        every level, collapsible; the old app ignores the new fields.
 5. [ ] **🔍 Search** (owner request): a top-center button that expands into a search bar. One search bar for room types ("gun store"), category groups
        ("weapons"), specific items ("chisel"), and towns/streets ("Main St") → highlight every

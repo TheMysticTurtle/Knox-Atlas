@@ -114,10 +114,14 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
     engineRef.current?.setView({ towns, streets, buildings, businesses, satellite });
   }, [towns, streets, buildings, businesses, satellite, snapshot]);
 
-  // A saved route open in Navigate is drawn live by Navigate, so hide its saved copy meanwhile.
+  // Hidden items (Your map show/hide) aren't drawn. A saved route open in Navigate is drawn live by
+  // Navigate, so its saved copy is skipped meanwhile.
   useEffect(() => {
-    const shown = navOpen && openRouteId ? paths.filter((path) => path.id !== openRouteId) : paths;
-    engineRef.current?.setAnnotations({ markers, paths: shown, measurement });
+    const shownMarkers = markers.filter((marker) => !marker.hidden);
+    const shownPaths = paths.filter(
+      (path) => !path.hidden && !(navOpen && path.id === openRouteId),
+    );
+    engineRef.current?.setAnnotations({ markers: shownMarkers, paths: shownPaths, measurement });
   }, [markers, paths, measurement, navOpen, openRouteId, snapshot]);
 
   useEffect(() => {

@@ -9,6 +9,7 @@ import {
   moveNumbered,
   numberedIndices,
   removeAt,
+  rerouteCount,
   stopTag,
   tagAt,
 } from "../src/engine/stops.ts";
@@ -53,4 +54,9 @@ test("removing a stop keeps bends that still sit between numbered stops", () => 
   assert.deepEqual(labels(removeAt(stops, 4)), ["a", "~1", "b"], "dangling bend after the end dropped");
   assert.deepEqual(labels(removeAt(stops, 1)), ["a", "b", "~2", "c"], "removing a bend");
   assert.deepEqual(removeAt([stop("a")], 0), []);
+});
+
+test("bends read as re-routes on screen", () => {
+  assert.equal(rerouteCount(1), "1 re-route");
+  assert.equal(rerouteCount(3), "3 re-routes");
 });

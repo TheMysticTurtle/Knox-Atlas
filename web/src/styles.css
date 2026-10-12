@@ -582,15 +582,137 @@ input:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Your map (saved places & paths) --- */
+/* --- Your map (saved places, routes & paths; one tier of groups; show/hide) --- */
 .your-map-section .panel-eyebrow {
   margin-bottom: 0.35rem;
 }
-.saved-group-heading {
-  margin: 0.35rem 0 0.2rem;
-  font-size: 0.72rem;
-  font-weight: 600;
+.saved-section + .saved-section {
+  margin-top: 0.2rem;
+}
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 30px;
+  border-radius: 7px;
+}
+.saved-row:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+.saved-disclosure {
+  flex: 0 0 auto;
+  width: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
   color: #8a8571;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.saved-disclosure.is-open {
+  transform: rotate(90deg);
+}
+.saved-visibility {
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: #6e655c;
+  cursor: pointer;
+}
+.saved-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.25rem 0.2rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.saved-row-title small {
+  font-weight: 500;
+  color: #8a8571;
+}
+.saved-group-row .saved-row-title {
+  font-weight: 600;
+}
+.saved-add-group {
+  flex: 0 0 auto;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid rgba(45, 48, 43, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  color: #4f5049;
+  font: 600 0.72rem "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.saved-add-group:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.saved-row-action {
+  flex: 0 0 auto;
+  padding: 0.15rem 0.4rem;
+  border: 0;
+  background: none;
+  color: #8a8571;
+  font-size: 0.95rem;
+  cursor: pointer;
+  visibility: hidden;
+}
+.saved-row:hover .saved-row-action,
+.saved-row-action:focus-visible {
+  visibility: visible;
+}
+.saved-section-body {
+  padding-left: 1.1rem;
+}
+.saved-group-items {
+  padding-left: 1.1rem;
+}
+.saved-empty {
+  padding: 0.2rem 0.4rem 0.35rem;
+  font-size: 0.76rem;
+  font-style: italic;
+  color: #8a8571;
+}
+.saved-inline-name {
+  width: 100%;
+  margin: 0.15rem 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid #c9c3ad;
+  border-radius: 6px;
+  background: #fffdf5;
+  color: #2d302b;
+  font: inherit;
+  font-size: 0.86rem;
+}
+.saved-item.is-hidden .saved-focus {
+  opacity: 0.45;
+}
+.group-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #67685f;
+}
+.group-picker select {
+  flex: 1;
+  padding: 0.3rem 0.35rem;
+  border: 1px solid #c9c3ad;
+  border-radius: 6px;
+  background: #fffdf5;
+  color: #2d302b;
+  font: inherit;
+  font-size: 0.86rem;
 }
 .saved-list {
   display: flex;
@@ -603,6 +725,8 @@ input:focus-visible {
 .saved-item {
   display: flex;
   align-items: center;
+  gap: 0.3rem;
+  padding-left: 0.15rem;
   border-radius: 7px;
 }
 .saved-item:hover {

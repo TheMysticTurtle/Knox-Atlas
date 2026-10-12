@@ -30,6 +30,8 @@ export function SelectionCard({ selection, loot, cellSize, chunkSize, onClose }:
   const addMarker = useSaved((state) => state.addMarker);
   const updateMarker = useSaved((state) => state.updateMarker);
   const removeMarker = useSaved((state) => state.removeMarker);
+  const allGroups = useSaved((state) => state.layout.groups);
+  const groups = allGroups.filter((group) => group.section === "places");
   const select = useMapUi((state) => state.select);
   const startMeasure = useMapUi((state) => state.startMeasure);
   const [formOpen, setFormOpen] = useState(false);
@@ -47,11 +49,11 @@ export function SelectionCard({ selection, loot, cellSize, chunkSize, onClose }:
     }
   }
 
-  function savePlace(name: string, color: Parameters<typeof addMarker>[2]) {
+  function savePlace(name: string, color: Parameters<typeof addMarker>[2], group?: string) {
     if (marker) {
-      updateMarker(marker.id, name, color);
+      updateMarker(marker.id, name, color, group);
     } else {
-      const saved = addMarker(point, name, color);
+      const saved = addMarker(point, name, color, group);
       if (saved) select({ point: { x: saved.x, y: saved.y }, poi, markerId: saved.id });
     }
     setFormOpen(false);
@@ -81,6 +83,8 @@ export function SelectionCard({ selection, loot, cellSize, chunkSize, onClose }:
           initialColor={marker?.color ?? "amber"}
           placeholder="Safehouse, meetup, supplies…"
           submitLabel={marker ? "Save changes" : "Save place"}
+          groups={groups}
+          initialGroup={marker?.group}
           note={marker ? undefined : `Saved on this computer · ${markerCount}/${LIMITS.markers}`}
           onSubmit={savePlace}
           onCancel={() => setFormOpen(false)}

@@ -76,3 +76,8 @@ export function countNumbered(stops: NavStop[]): number {
 export function countBends(stops: NavStop[]): number {
   return stops.length - countNumbered(stops);
 }
+
+/** Bends are called "re-routes" on screen (owner's wording): "1 re-route", "2 re-routes". */
+export function rerouteCount(count: number): string {
+  return `${count} ${count === 1 ? "re-route" : "re-routes"}`;
+}

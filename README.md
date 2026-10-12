@@ -57,8 +57,10 @@ because an app is unsigned. The source and build workflow are available for insp
   and save it as a path; save your view so the map opens there. Uses the same storage format as
   0.1.1 so existing saved items carry over (packaged upgrade still to be verified).
 - **🧭 Navigate:** click the map to add stops in order and get a route along the streets, with its
-  distance and the streets to take; drag the line to reroute it; save your favourite routes and
-  reopen them to edit.
+  distance and the streets to take; click and drag the route to re-route it; save your favourite
+  routes and reopen them to edit.
+- **Organise your map:** group your places, routes and paths, and show or hide any item, group or
+  section.
 
 Room types are not unique business names; static loot is not live inventory. Current filtering
 hides unmatched dots, and POIs from different floors are still mixed.
@@ -71,7 +73,7 @@ Search, game-path selection, and vehicle overlays still need their active-branch
 Knox Atlas stays **simple by default** and **helpful, not a cheat**: it helps you plan where to go,
 without revealing exactly where everything is.
 
-**Next:** folders with show/hide for your places and routes. Then **search** for a store type, a category, or a specific item to see every place it's
+**Next:** **search** for a store type, a category, or a specific item to see every place it's
 likely found. After that, polish: quick place-finding toggles, focus highlighting, better loot
 cards, and floor outlines.
 

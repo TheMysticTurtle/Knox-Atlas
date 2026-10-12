@@ -8,11 +8,9 @@ released 0.1.1 lives in the preserved prototype history.
 release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
 behavior.
 
-> **▶ RESUME HERE:** 🧭 Navigate, saved routes, 🎯 re-pick and **drag-to-reroute** are built and
-> committed. Owner dropped routable side roads/backroads ("any side streets or smaller dirt roads
-> I've used showed up"). **Next (owner-agreed):**
-> 1. **Your map groups** — one tier of user groups per section (Places / Routes / Paths) with
->    show/hide checkboxes on every level (tri-state), collapsible; group picker in the save forms.
+> **▶ RESUME HERE:** 🧭 Navigate, saved routes, 🎯 re-pick, drag-to-reroute ("re-routes" on
+> screen) and **Your map groups with show/hide** are built and committed. **Next (owner-agreed):**
+> 1. ~~Your map groups~~ — done 2026-10-11.
 > 2. **🔍 Search** — a top-center button ("Search" label) that expands into a bar: towns/streets,
 >    loot categories, specific loot (uncapped loot index) → highlight matches, dim the rest;
 >    independent of Nav (found places can be clicked as stops); houses excluded by default.
@@ -70,7 +68,7 @@ treating CI coverage as sufficient.
 - [x] Saved routes (reopen/edit favourite routes from Your map) (2026-10-11).
 - [x] ~~Routable roads from road shapes~~ — dropped by the owner (2026-10-11): routing on named streets is good enough.
 - [x] Drag-to-reroute (unnumbered bends, snapped to streets, saved with routes) (2026-10-11).
-- [ ] Your map groups: one tier per section, show/hide per item/group/section, collapsible.
+- [x] Your map groups: one tier per section, show/hide per item/group/section, collapsible (2026-10-11).
 - [ ] Search bar: room types, categories, specific items, towns/streets → highlight matches (uncap loot index first; houses opt-in).
 - [ ] Game-folder picker (released-app parity).
 - [ ] Polish: quick-finds, highlight-and-dim, loot ordering, landmark names, floor outlines.
@@ -99,6 +97,29 @@ treating CI coverage as sufficient.
 Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
 "never hide," satellite depending on a detailed decoder, old check results) are superseded by later
 entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — Your map groups + show/hide; "re-routes" wording
+
+- **Owner ask:** places (and routes) as a dropdown you can make groups in, with visibility per item or
+  group, "so people can see just what they want to see". Owner chose **one tier** of groups ("if
+  people really want multi tier they can ask for it").
+- **Design:** sections Places / Routes / Paths, each with user groups (one tier). Items carry optional
+  `group` / `hidden` fields (released app ignores them; records stay minimal — fields only when set).
+  New key `knox-atlas.your-map.v1` holds the group list (id, name, section, collapsed) and collapsed
+  sections. Visibility is stored per item; section/group checkboxes are derived tri-state bulk
+  toggles (Google-Earth style). Hidden items stay listed (dimmed) but aren't drawn or clickable.
+  Deleting a group keeps its items (ungrouped); items filed in a missing group show as ungrouped.
+- **UI:** `YourMapSection` rewritten around a generic section/group/entry list (disclosure,
+  tri-state checkbox, inline name field for create/rename, hover ✎/×). Group picker in every save
+  form (Save place / Edit place, Save route, Save as path), shown once the section has groups.
+- **Owner-reported bug & fix:** a saved route showed its dragged bends as stops ("5 stops"). Storage
+  was right (bends tagged `via`, restored as draggable handles on reopen); the list counted every
+  entry. Now: "2 stops · 1 re-route · 1,840 tiles".
+- **Wording (owner):** "bends" isn't intuitive → on screen they're **re-routes**: "2 re-routes · Click
+  and drag route to edit · Double-click a re-route to delete it". Code keeps `via`/bend.
+- **Tested:** `tsc` clean; 43 web tests (new: group/hidden flags round-trip while legacy records gain
+  neither; layout parsing keeps valid unique groups and drops junk; re-route wording); vite build.
+  Owner: "it's all working great".
 
 ### 2026-10-11 — Drag-to-reroute; side-road routing dropped
 

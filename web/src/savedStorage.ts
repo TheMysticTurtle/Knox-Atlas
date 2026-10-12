@@ -7,12 +7,24 @@
 //
 // Self-contained on purpose (type-only imports): the parse functions run under the Node test runner.
 
-import type { MarkerColor, NavStop, Point, SavedMarker, SavedPath, SavedView } from "./engine/types";
+import type {
+  MarkerColor,
+  NavStop,
+  Point,
+  SavedGroup,
+  SavedLayout,
+  SavedMarker,
+  SavedPath,
+  SavedSection,
+  SavedView,
+} from "./engine/types";
 
 export const STORAGE_KEYS = {
   markers: "knox-atlas.custom-markers.v1",
   paths: "knox-atlas.saved-paths.v1",
   view: "knox-atlas.saved-map-view.v1",
+  /** Newer (not in 0.1.x): Your-map groups and collapsed sections. */
+  layout: "knox-atlas.your-map.v1",
 } as const;
 
 /**
@@ -26,7 +38,10 @@ export const LIMITS = {
   label: 40,
   routeStops: 25,
   routeBends: 35,
+  groups: 60,
 } as const;
+
+export const SECTIONS: readonly SavedSection[] = ["places", "routes", "paths"];
 
 /** Allowed colour names, in picker order. Must match `markerColors` (checked by a unit test). */
 export const MARKER_COLORS: readonly MarkerColor[] = [
@@ -53,7 +68,7 @@ export function parseMarkers(raw: string | null): SavedMarker[] {
       if (typeof id !== "string" || typeof label !== "string") return [];
       if (!isFiniteNumber(x) || !isFiniteNumber(y)) return [];
       const name = cleanLabel(label);
-      return name ? [{ id, label: name, color: toColor(value.color), x, y }] : [];
+      return name ? [{ id, label: name, color: toColor(value.color), x, y, ...organised(value) }] : [];
     })
     .slice(0, LIMITS.markers);
 }
@@ -71,7 +86,13 @@ export function parsePaths(raw: string | null): SavedPath[] {
       const name = cleanLabel(label);
       const valid = points.flatMap(toPoint).slice(0, LIMITS.pathPoints);
       if (!name || valid.length < 2) return [];
-      const path: SavedPath = { id, label: name, color: toColor(value.color), points: valid };
+      const path: SavedPath = {
+        id,
+        label: name,
+        color: toColor(value.color),
+        points: valid,
+        ...organised(value),
+      };
       const stops = parseStops(value.stops);
       if (stops) path.stops = stops;
       return [path];
@@ -106,6 +127,32 @@ function toPoint(value: unknown): Point[] {
     : [];
 }
 
+/** Your-map layout: valid, uniquely-identified groups and collapsed sections. */
+export function parseLayout(raw: string | null): SavedLayout {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw ?? "null");
+  } catch {
+    value = null;
+  }
+  if (!isRecord(value)) return { groups: [], collapsed: [] };
+  const seen = new Set<string>();
+  const groups = (Array.isArray(value.groups) ? value.groups : [])
+    .flatMap((group): SavedGroup[] => {
+      if (!isRecord(group) || typeof group.id !== "string" || typeof group.name !== "string") return [];
+      const name = cleanLabel(group.name);
+      const section = SECTIONS.find((item) => item === group.section);
+      if (!name || !section || seen.has(group.id)) return [];
+      seen.add(group.id);
+      return [{ id: group.id, name, section, ...(group.collapsed === true ? { collapsed: true } : {}) }];
+    })
+    .slice(0, LIMITS.groups);
+  const collapsed = SECTIONS.filter(
+    (section) => Array.isArray(value.collapsed) && value.collapsed.includes(section),
+  );
+  return { groups, collapsed };
+}
+
 export function parseView(raw: string | null): SavedView | undefined {
   try {
     const value: unknown = JSON.parse(raw ?? "null");
@@ -131,11 +178,17 @@ export function newId(): string {
 
 // --- storage I/O (the map stays usable when WebView storage is unavailable) ----
 
-export function loadSaved(): { markers: SavedMarker[]; paths: SavedPath[]; view?: SavedView } {
+export function loadSaved(): {
+  markers: SavedMarker[];
+  paths: SavedPath[];
+  view?: SavedView;
+  layout: SavedLayout;
+} {
   return {
     markers: parseMarkers(read(STORAGE_KEYS.markers)),
     paths: parsePaths(read(STORAGE_KEYS.paths)),
     view: parseView(read(STORAGE_KEYS.view)),
+    layout: parseLayout(read(STORAGE_KEYS.layout)),
   };
 }
 
@@ -164,6 +217,14 @@ function parseArray(raw: string | null): unknown[] {
   } catch {
     return [];
   }
+}
+
+/** The optional group/hidden fields, only when present and valid (records stay minimal). */
+function organised(value: Record<string, unknown>): { group?: string; hidden?: boolean } {
+  return {
+    ...(typeof value.group === "string" && value.group ? { group: value.group.slice(0, 64) } : {}),
+    ...(value.hidden === true ? { hidden: true } : {}),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

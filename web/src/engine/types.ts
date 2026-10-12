@@ -13,7 +13,14 @@ export type Selection = { point: Point; poi: MapPoi | null; markerId: string | n
 // --- user annotations (saved by the app; shapes are the released 0.1.x storage contract) ---
 
 export type MarkerColor = "amber" | "teal" | "red" | "blue" | "violet" | "green" | "white";
-export type SavedMarker = Point & { id: string; label: string; color: MarkerColor };
+
+/**
+ * Your-map organisation fields (newer, optional — the released app ignores them): the id of the user
+ * group an item is filed in, and whether it is hidden from the map.
+ */
+type Organised = { group?: string; hidden?: boolean };
+
+export type SavedMarker = Point & { id: string; label: string; color: MarkerColor } & Organised;
 /**
  * A saved line. `stops` makes it a saved ROUTE (reopens in Navigate); it is an optional addition to
  * the released 0.1.x shape, which ignores it — old apps still see and draw the line.
@@ -24,7 +31,13 @@ export type SavedPath = {
   color: MarkerColor;
   points: Point[];
   stops?: NavStop[];
-};
+} & Organised;
+
+/** The three Your-map sections; each has its own (one-tier) user groups. */
+export type SavedSection = "places" | "routes" | "paths";
+export type SavedGroup = { id: string; name: string; section: SavedSection; collapsed?: boolean };
+/** Your-map organisation: user groups and which sections are collapsed. */
+export type SavedLayout = { groups: SavedGroup[]; collapsed: SavedSection[] };
 /** A saved camera: world center + zoom scale (CSS pixels per tile). */
 export type SavedView = Point & { scale: number };
 

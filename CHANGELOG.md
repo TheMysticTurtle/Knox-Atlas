@@ -23,8 +23,11 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
   Save place · Copy X/Y · Measure from here; saved items are listed under "Your map".
 - 🧭 Navigate: add stops by clicking the map (Start, 1, 2…, End); the route follows the named
   streets, shows its distance and street sequence. 🎯 moves a stop; Save route keeps the stops,
-  and saved routes reopen from Your map → Routes for editing. Drag the route line to bend it
-  through a different street (bends snap to roads and are saved with the route).
+  and saved routes reopen from Your map → Routes for editing. Click and drag the route to
+  re-route it through a different street (re-routes snap to roads and are saved with the route;
+  double-click one to delete it).
+- Your map: Places, Routes and Paths sections with your own groups and show/hide checkboxes for
+  every item, group and section.
 - Labelled toolbar: Full · Home · Set Home · Nav (the saved view is now called Home).
 
 ### Changed

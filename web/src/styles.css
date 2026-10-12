@@ -319,7 +319,7 @@ body {
   gap: 0.4rem;
   pointer-events: auto;
 }
-.map-controls button,
+.map-tool,
 .coordinate-jump,
 .pointer-coordinates,
 .satellite-status {
@@ -329,7 +329,8 @@ body {
   box-shadow: 0 3px 12px rgba(20, 25, 23, 0.13);
   color: #2d302b;
 }
-.map-controls button {
+/* Toolbar buttons (+, −, Full, Home, Set Home, Nav, Search). */
+.map-tool {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -353,7 +354,7 @@ body {
   white-space: nowrap;
   color: #4f5049;
 }
-.map-controls button:disabled {
+.map-tool:disabled {
   color: #b3ad98;
   cursor: default;
 }
@@ -614,11 +615,40 @@ input:focus-visible {
 .saved-disclosure.is-open {
   transform: rotate(90deg);
 }
-.saved-visibility {
+/* Show/hide eye: solid = shown, faint = hidden, half-faded = partly shown. */
+.saved-eye {
   flex: 0 0 auto;
-  margin: 0;
-  accent-color: #6e655c;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: #3f4139;
   cursor: pointer;
+}
+.saved-eye svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.saved-eye.is-hidden {
+  opacity: 0.22;
+}
+.saved-eye.is-partly {
+  opacity: 0.55;
+}
+.saved-eye:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+.saved-eye:disabled {
+  opacity: 0.15;
+  cursor: default;
 }
 .saved-row-title {
   flex: 1;
@@ -801,7 +831,7 @@ input:focus-visible {
 }
 
 /* --- Navigate --- */
-.map-controls button.is-active {
+.map-tool.is-active {
   background: #e0b56f;
   border-color: #9a7448;
 }
@@ -974,6 +1004,234 @@ input:focus-visible {
   font-size: 0.82rem;
   line-height: 1.4;
   color: #67685f;
+}
+
+/* --- 🔍 Search (left toolbar; the box opens to the right of its button and stays open) --- */
+.search-anchor {
+  position: relative;
+  display: flex;
+}
+.search-panel {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 0.4rem);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: min(470px, 62vw);
+}
+.search-row {
+  display: flex;
+  gap: 0.35rem;
+}
+.search-input {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.search-input input,
+.search-save,
+.search-saved-toggle,
+.search-current,
+.search-results,
+.search-saved {
+  background: rgba(247, 244, 232, 0.97);
+  border: 1px solid rgba(45, 48, 43, 0.18);
+  border-radius: 9px;
+  box-shadow: 0 3px 12px rgba(20, 25, 23, 0.13);
+  color: #2d302b;
+}
+.search-input input {
+  width: 100%;
+  height: 52px;
+  padding: 0 2.2rem 0 0.85rem;
+  font: inherit;
+  font-size: 0.98rem;
+}
+.search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  background: none;
+  color: #8a8571;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.search-save,
+.search-saved-toggle {
+  flex: 0 0 auto;
+  height: 52px;
+  padding: 0 0.75rem;
+  font: 600 0.86rem "Segoe UI", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.search-save {
+  border-color: #9a7448;
+  background: #e0b56f;
+  color: #302b24;
+}
+.search-save:disabled {
+  border-color: rgba(45, 48, 43, 0.18);
+  background: rgba(247, 244, 232, 0.97);
+  color: #8a8571;
+  cursor: default;
+}
+.search-saved-toggle small {
+  font-weight: 500;
+  color: #8a8571;
+}
+.search-saved-toggle.is-open {
+  background: #efe6cf;
+}
+/* The current search: what it is, how many places, and "All" for loot. */
+.search-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.86rem;
+  color: #4f5049;
+}
+.search-results {
+  max-height: min(55vh, 480px);
+  overflow-y: auto;
+  padding: 0.35rem;
+  box-shadow: 0 10px 34px rgba(20, 25, 23, 0.25);
+}
+.search-group {
+  margin: 0.45rem 0.45rem 0.2rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8a8571;
+}
+.search-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+.search-result small {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: #8a8571;
+}
+.search-result.is-active {
+  background: rgba(224, 181, 111, 0.28);
+}
+.search-empty {
+  margin: 0.5rem;
+  font-size: 0.84rem;
+  color: #8a8571;
+}
+/* Saved filters dropdown: compact rows with eyes. */
+.search-saved {
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding: 0.3rem 0.35rem;
+}
+.search-saved ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.search-saved-actions {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.15rem 0.2rem 0.35rem;
+  border-bottom: 1px solid rgba(45, 48, 43, 0.1);
+}
+.search-saved-actions button {
+  padding: 0.2rem 0.65rem;
+  border: 1px solid rgba(45, 48, 43, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #2d302b;
+  font: 600 0.76rem "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.search-saved-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 30px;
+  padding: 0 0.2rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
+}
+.search-saved-row:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+.search-saved-row.is-hidden .search-saved-label,
+.search-saved-row.is-hidden .search-saved-count,
+.search-saved-row.is-hidden .search-dot {
+  opacity: 0.45;
+}
+.search-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(45, 48, 43, 0.25);
+}
+.search-saved-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.search-saved-count {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: #67685f;
+  font-variant-numeric: tabular-nums;
+}
+.search-all {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.76rem;
+  color: #67685f;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.search-all input {
+  margin: 0;
+  accent-color: #6e655c;
+}
+.search-saved-remove {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.35rem;
+  border: 0;
+  background: none;
+  color: #8a8571;
+  font-size: 1.05rem;
+  cursor: pointer;
+  visibility: hidden;
+}
+.search-saved-row:hover .search-saved-remove,
+.search-saved-remove:focus-visible {
+  visibility: visible;
 }
 
 /* --- narrow windows --- */

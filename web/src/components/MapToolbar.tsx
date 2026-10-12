@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { parseCoordinates } from "../engine/coordinates";
 import type { Bounds, Point } from "../engine/types";
@@ -14,9 +14,11 @@ type MapToolbarProps = {
   onSaveView: () => void;
   onReturnToView: () => void;
   onJump: (point: Point) => void;
+  /** The search control, shown in the left group after Nav (it opens to the right). */
+  search?: ReactNode;
 };
 
-/** Top-of-map controls: zoom, Full (fit), Home / Set Home (saved view), Nav, and jump-to-X/Y. */
+/** Top-of-map controls: zoom, Full (fit), Home / Set Home (saved view), Nav, Search, jump-to-X/Y. */
 export function MapToolbar({
   bounds,
   hasSavedView,
@@ -27,6 +29,7 @@ export function MapToolbar({
   onSaveView,
   onReturnToView,
   onJump,
+  search,
 }: MapToolbarProps) {
   const [jumpX, setJumpX] = useState("");
   const [jumpY, setJumpY] = useState("");
@@ -53,10 +56,10 @@ export function MapToolbar({
   return (
     <div className="map-toolbar">
       <div className="map-controls" aria-label="Map controls">
-        <button onClick={() => onZoom(1.5)} aria-label="Zoom in" title="Zoom in">
+        <button className="map-tool" onClick={() => onZoom(1.5)} aria-label="Zoom in" title="Zoom in">
           +
         </button>
-        <button onClick={() => onZoom(1 / 1.5)} aria-label="Zoom out" title="Zoom out">
+        <button className="map-tool" onClick={() => onZoom(1 / 1.5)} aria-label="Zoom out" title="Zoom out">
           −
         </button>
         <ToolButton icon="⛶" label="Full" title="Fit the whole map" onClick={onFit} />
@@ -83,6 +86,7 @@ export function MapToolbar({
           active={navOpen}
           onClick={onToggleNavigate}
         />
+        {search}
       </div>
 
       <form className="coordinate-jump" onSubmit={jump} aria-label="Jump to coordinates">
@@ -133,7 +137,7 @@ type ToolButtonProps = {
 function ToolButton({ icon, label, title, onClick, disabled, active }: ToolButtonProps) {
   return (
     <button
-      className={`tool-button${active ? " is-active" : ""}`}
+      className={`map-tool tool-button${active ? " is-active" : ""}`}
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}

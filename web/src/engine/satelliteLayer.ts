@@ -21,6 +21,7 @@ export class SatelliteLayer {
   private active = false;
   private lastStatus = "";
 
+  /** `status` receives a message only when the imagery can't be shown ("" clears it). */
   constructor(
     private gameRoot: string,
     private redraw: () => void,
@@ -53,10 +54,8 @@ export class SatelliteLayer {
       this.report("Satellite unavailable · using the map view");
       return false;
     }
-    if (!this.info) {
-      this.report("Reading satellite imagery…");
-      return false;
-    }
+    // Only a failure is reported (owner: no status box while it simply works or loads).
+    if (!this.info) return false;
 
     const tiles = visibleImageTiles(this.info, viewport, scale);
     const keys = new Set(tiles.map((tile) => tile.key));
@@ -81,8 +80,6 @@ export class SatelliteLayer {
     }
     ctx.restore();
 
-    const loading = tiles.some((tile) => !this.cache.has(tile.key) && !this.broken.has(tile.key));
-    this.report(loading ? "Loading visible satellite tiles…" : "Satellite · game-supplied terrain imagery");
     this.pump();
     return true;
   }

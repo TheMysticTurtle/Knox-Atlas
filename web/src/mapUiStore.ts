@@ -1,11 +1,18 @@
 import { create } from "zustand";
 
+import type { SearchHit } from "./engine/search";
 import { countBends, countNumbered, insertBend, moveNumbered, removeAt } from "./engine/stops";
 import type { Bounds, NavStop, Point, SavedPath, Selection } from "./engine/types";
 import { LIMITS } from "./savedStorage";
 
 /** A request for the map to frame these bounds; `nonce` makes repeat requests fire again. */
 export type FocusRequest = { bounds: Bounds; nonce: number };
+
+/**
+ * The search currently shown in the search box (not yet saved as a filter). `all` includes
+ * "possible" places for loot (otherwise only "likely" ones).
+ */
+export type CurrentSearch = { hit: SearchHit; all: boolean };
 
 /** Most numbered stops / dragged bends a trip can have — the same limits a saved route stores. */
 export const MAX_STOPS = LIMITS.routeStops;
@@ -35,6 +42,9 @@ type MapUiState = {
   movingStop: number | null;
   /** The saved route currently open in Navigate (re-saving updates it), if any. */
   openRouteId: string | null;
+
+  /** 🔍 Search: the current (unsaved) search, highlighted alongside any shown saved filters. */
+  currentSearch: CurrentSearch | null;
 
   select: (selection: Selection | null) => void;
   /** Start measuring, optionally from a first point. Clears the selection. */
@@ -69,6 +79,11 @@ type MapUiState = {
   openRoute: (route: SavedPath) => void;
   /** The open route was saved as / became this saved path (or was deleted: null). */
   setOpenRoute: (id: string | null) => void;
+
+  /** Show a search result (null clears the current search). */
+  setCurrentSearch: (hit: SearchHit | null) => void;
+  /** Include "possible" places for the current loot search, or only "likely" ones. */
+  toggleCurrentAll: () => void;
 };
 
 export const useMapUi = create<MapUiState>((set, get) => ({
@@ -81,6 +96,7 @@ export const useMapUi = create<MapUiState>((set, get) => ({
   addingStops: false,
   movingStop: null,
   openRouteId: null,
+  currentSearch: null,
 
   select: (selection) => set({ selection }),
 
@@ -175,6 +191,13 @@ export const useMapUi = create<MapUiState>((set, get) => ({
     }),
 
   setOpenRoute: (id) => set({ openRouteId: id }),
+
+  setCurrentSearch: (hit) => set({ currentSearch: hit ? { hit, all: false } : null }),
+
+  toggleCurrentAll: () => {
+    const { currentSearch } = get();
+    if (currentSearch) set({ currentSearch: { ...currentSearch, all: !currentSearch.all } });
+  },
 }));
 
 /** Bounds for a single point (the engine zooms to street level for these). */

@@ -26,8 +26,13 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
   and saved routes reopen from Your map → Routes for editing. Click and drag the route to
   re-route it through a different street (re-routes snap to roads and are saved with the route;
   double-click one to delete it).
-- Your map: Places, Routes and Paths sections with your own groups and show/hide checkboxes for
-  every item, group and section.
+- Your map: Places, Routes and Paths sections with your own groups and a show/hide eye for every
+  item, group and section.
+- 🔍 Search: find towns, streets, places, loot categories and specific loot as you type. Towns and
+  streets fly the map there; everything else highlights where it's likely found (and, with "All",
+  where it's possible) while the rest of the map dims. Save searches as filters and switch them
+  on and off.
+- The app remembers your View toggles and loot filters between launches.
 - Labelled toolbar: Full · Home · Set Home · Nav (the saved view is now called Home).
 
 ### Changed
@@ -39,7 +44,7 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
 
 ### Not yet ready
 
-- Released search, game-source picker, and vehicle UI still need porting. Saved items use the
+- Released game-source picker and vehicle UI still need porting. Saved items use the
   released storage format, but a real packaged upgrade has not been verified yet.
 - Floor-aware rendering, live player tracking, and server sharing are not implemented.
 - CI and Windows packaging need migration to the workspace/frontend layout before release.

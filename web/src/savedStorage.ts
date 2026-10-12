@@ -11,6 +11,7 @@ import type {
   MarkerColor,
   NavStop,
   Point,
+  SavedFilter,
   SavedGroup,
   SavedLayout,
   SavedMarker,
@@ -25,6 +26,8 @@ export const STORAGE_KEYS = {
   view: "knox-atlas.saved-map-view.v1",
   /** Newer (not in 0.1.x): Your-map groups and collapsed sections. */
   layout: "knox-atlas.your-map.v1",
+  /** Newer (not in 0.1.x): saved search filters. */
+  filters: "knox-atlas.saved-filters.v1",
 } as const;
 
 /**
@@ -39,6 +42,7 @@ export const LIMITS = {
   routeStops: 25,
   routeBends: 35,
   groups: 60,
+  filters: 30,
 } as const;
 
 export const SECTIONS: readonly SavedSection[] = ["places", "routes", "paths"];
@@ -153,6 +157,30 @@ export function parseLayout(raw: string | null): SavedLayout {
   return { groups, collapsed };
 }
 
+/** Saved search filters: valid, unique by search key, capped. */
+export function parseFilters(raw: string | null): SavedFilter[] {
+  const seen = new Set<string>();
+  return parseArray(raw)
+    .flatMap((value): SavedFilter[] => {
+      if (!isRecord(value)) return [];
+      const { id, key, label } = value;
+      if (typeof id !== "string" || typeof key !== "string" || typeof label !== "string") return [];
+      const name = cleanLabel(label);
+      if (!key || !name || seen.has(key)) return [];
+      seen.add(key);
+      return [
+        {
+          id,
+          key,
+          label: name,
+          ...(value.all === true ? { all: true } : {}),
+          ...(value.hidden === true ? { hidden: true } : {}),
+        },
+      ];
+    })
+    .slice(0, LIMITS.filters);
+}
+
 export function parseView(raw: string | null): SavedView | undefined {
   try {
     const value: unknown = JSON.parse(raw ?? "null");
@@ -183,12 +211,14 @@ export function loadSaved(): {
   paths: SavedPath[];
   view?: SavedView;
   layout: SavedLayout;
+  filters: SavedFilter[];
 } {
   return {
     markers: parseMarkers(read(STORAGE_KEYS.markers)),
     paths: parsePaths(read(STORAGE_KEYS.paths)),
     view: parseView(read(STORAGE_KEYS.view)),
     layout: parseLayout(read(STORAGE_KEYS.layout)),
+    filters: parseFilters(read(STORAGE_KEYS.filters)),
   };
 }
 

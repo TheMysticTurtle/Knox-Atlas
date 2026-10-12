@@ -70,10 +70,9 @@ classes; keep an understandable legend without pretending they are interior room
 ## Expected loot — wording and future index
 
 Use **Likely loot** or **Possible items**, not “contains” or percentage probabilities.
-Current extraction keeps maximum raw weight per duplicate item, caps at 60 items/room type, and
-shows 24 in the card. A weight ordered across mixed containers is not a room-wide chance.
-
-Retain the complete item set with container/source context before item search or item-based
-filters. Display truncation is fine; silently dropping source items from the search index is not.
+Current extraction keeps maximum raw weight per duplicate item and every item per room type
+(uncapped 2026-10-11 for search); the card shows 24. A weight ordered across mixed containers is not
+a room-wide chance — search therefore only splits "likely" (top 50 in a room) from "possible".
+Display truncation is fine; silently dropping source items from the search index is not.
 Do not infer perishable status, car condition, keys, survivor homes, or water availability from a
 room name alone. Those require additional validated sources.

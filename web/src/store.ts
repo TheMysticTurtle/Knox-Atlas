@@ -2,6 +2,13 @@ import { create } from "zustand";
 
 import { allSubIds, subBucketsFor } from "./engine/subcategories";
 import type { Category } from "./engine/types";
+import {
+  SETTINGS_KEYS,
+  filterChoicesRecord,
+  parseFilterChoices,
+  readSetting,
+  writeSetting,
+} from "./settingsStorage";
 
 /** Likely-loot categories, in display order. Homes last (the noisy residential layer). */
 export const LOOT_CATEGORIES: Category[] = [
@@ -35,8 +42,9 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 // Sub-buckets that would flood the map, off by default.
 const OFF_BY_DEFAULT = new Set(["food:homeKitchens", "homes:homes", "homes:other"]);
 
-function defaultEnabled(): Set<string> {
-  return new Set(allSubIds().filter((id) => !OFF_BY_DEFAULT.has(id)));
+/** The user's last filter choices (or the defaults the first time). */
+function initialEnabled(): Set<string> {
+  return parseFilterChoices(readSetting(SETTINGS_KEYS.filters), allSubIds(), (id) => !OFF_BY_DEFAULT.has(id));
 }
 
 type FilterState = {
@@ -47,8 +55,9 @@ type FilterState = {
   setAll: (value: boolean) => void;
 };
 
+/** Likely-loot filter state — restored from last time, and remembered whenever it changes. */
 export const useFilters = create<FilterState>((set) => ({
-  enabled: defaultEnabled(),
+  enabled: initialEnabled(),
   toggleSub: (id) =>
     set((state) => {
       const next = new Set(state.enabled);
@@ -69,3 +78,7 @@ export const useFilters = create<FilterState>((set) => ({
     }),
   setAll: (value) => set(() => ({ enabled: value ? new Set(allSubIds()) : new Set() })),
 }));
+
+useFilters.subscribe((state) => {
+  writeSetting(SETTINGS_KEYS.filters, filterChoicesRecord(state.enabled, allSubIds()));
+});

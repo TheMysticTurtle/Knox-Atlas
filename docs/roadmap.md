@@ -59,10 +59,10 @@ layouts the player hasn't discovered need an owner decision before they're plann
        through an unnumbered via handle (double-click removes it); vias are saved with the route.
 4. [x] **Your map groups** (2026-10-11). One tier of groups per section (Places / Routes / Paths), show/hide on
        every level, collapsible; the old app ignores the new fields.
-5. [ ] **🔍 Search** (owner request): a top-center button that expands into a search bar. One search bar for room types ("gun store"), category groups
-       ("weapons"), specific items ("chisel"), and towns/streets ("Main St") → highlight every
-       location whose loot table lists it, dim the rest. Likely-loot hints, not actual contents.
-       Needs the loot index uncapped first; houses excluded by default ("also in N houses").
+5. [x] **🔍 Search** (2026-10-11). A toolbar button opening a search box: towns & streets fly
+       there; places, loot categories/groups and specific loot highlight (likely ringed, "All" adds
+       possible places as plain dots) while the rest dims. + Save keeps searches as saved filters
+       (eye per filter, All on / All off). Likely-loot hints, not actual contents.
 6. [ ] **Released-app parity leftovers:** game-folder picker; prove a real packaged 0.1.1 → 0.2.0
        profile upgrade keeps saved items (not just dev storage).
 7. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /

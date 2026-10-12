@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { categoryColors } from "../engine/colors";
 import { coordinateText } from "../engine/coordinates";
+import { prettyItem } from "../engine/search";
 import type { RoomLoot, Selection } from "../engine/types";
 import { useMapUi } from "../mapUiStore";
 import { LIMITS } from "../savedStorage";
@@ -156,13 +157,4 @@ function floorLabel(floor: number): string {
   if (floor < 0) return `BASEMENT ${Math.abs(floor)}`;
   if (floor > 0) return `FLOOR ${floor}`;
   return "GROUND FLOOR";
-}
-
-/** `Base.CannedBeans` → `Canned Beans`. */
-function prettyItem(id: string): string {
-  const bare = id.includes(".") ? id.slice(id.indexOf(".") + 1) : id;
-  return bare
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ")
-    .trim();
 }

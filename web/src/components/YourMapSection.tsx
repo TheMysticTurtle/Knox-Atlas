@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { markerColors } from "../engine/colors";
 import { pathLength, pointBounds } from "../engine/geometry";
@@ -7,6 +7,7 @@ import type { MarkerColor, SavedGroup, SavedSection } from "../engine/types";
 import { pointFocus, useMapUi } from "../mapUiStore";
 import { LIMITS } from "../savedStorage";
 import { useSaved } from "../savedStore";
+import { Eye, type EyeState } from "./Eye";
 
 /** One saved thing as the list shows it, whatever its kind. */
 type Entry = {
@@ -24,10 +25,14 @@ type Entry = {
 
 type SetHidden = (ids: string[], hidden: boolean) => void;
 
+/** Dot shape per kind: round places, compass routes, square-ish paths. */
+const DOT_SHAPE: Record<Entry["icon"], string> = { place: "", route: " is-route", path: " is-path" };
+
 /**
  * "Your map": saved places, routes and paths in three collapsible sections, each with one tier of
- * user groups. Every level has a show/hide checkbox (tri-state for sections and groups); hidden
- * items stay listed (dimmed) but are not drawn. Hidden until something is saved.
+ * user groups. Every level has a show/hide eye (solid = shown, faint = hidden, half = partly, for
+ * sections and groups); hidden items stay listed (dimmed) but are not drawn. Hidden until something
+ * is saved.
  */
 export function YourMapSection() {
   const markers = useSaved((state) => state.markers);
@@ -148,7 +153,7 @@ type SectionProps = {
   onSetHidden: SetHidden;
 };
 
-/** One section: collapsible, show/hide-all, its groups (each collapsible), then ungrouped items. */
+/** One section: collapsible, show/hide-all eye, its groups (each collapsible), then ungrouped items. */
 function SavedSectionList({ section, title, entries, onSetHidden }: SectionProps) {
   const allGroups = useSaved((state) => state.layout.groups);
   const collapsed = useSaved((state) => state.layout.collapsed.includes(section));
@@ -168,7 +173,7 @@ function SavedSectionList({ section, title, entries, onSetHidden }: SectionProps
     <div className="saved-section">
       <div className="saved-row saved-section-row">
         <Disclosure open={!collapsed} label={title} onToggle={() => toggleSectionCollapsed(section)} />
-        <VisibilityBox entries={entries} label={title} onSetHidden={onSetHidden} />
+        <GroupEye entries={entries} label={title} onSetHidden={onSetHidden} />
         <button className="saved-row-title" onClick={() => toggleSectionCollapsed(section)}>
           {title} <small>· {entries.length}</small>
         </button>
@@ -217,7 +222,7 @@ function SavedSectionList({ section, title, entries, onSetHidden }: SectionProps
 
 type GroupProps = { group: SavedGroup; entries: Entry[]; onSetHidden: SetHidden };
 
-/** A user group: collapsible, show/hide-all, rename / delete on hover. */
+/** A user group: collapsible, show/hide-all eye, rename / delete on hover. */
 function GroupBlock({ group, entries, onSetHidden }: GroupProps) {
   const toggleGroupCollapsed = useSaved((state) => state.toggleGroupCollapsed);
   const renameGroup = useSaved((state) => state.renameGroup);
@@ -242,7 +247,7 @@ function GroupBlock({ group, entries, onSetHidden }: GroupProps) {
             label={group.name}
             onToggle={() => toggleGroupCollapsed(group.id)}
           />
-          <VisibilityBox entries={entries} label={group.name} onSetHidden={onSetHidden} />
+          <GroupEye entries={entries} label={group.name} onSetHidden={onSetHidden} />
           <button className="saved-row-title" onClick={() => toggleGroupCollapsed(group.id)}>
             {group.name} <small>· {entries.length}</small>
           </button>
@@ -277,18 +282,15 @@ function GroupBlock({ group, entries, onSetHidden }: GroupProps) {
   );
 }
 
-/** One saved item: show/hide, open (fly to / reopen), delete on hover. Hidden items are dimmed. */
+/** One saved item: show/hide eye, open (fly to / reopen), delete on hover. Hidden items are dimmed. */
 function EntryRow({ entry, onSetHidden }: { entry: Entry; onSetHidden: SetHidden }) {
   const classes = ["saved-item", entry.active && "is-open", entry.hidden && "is-hidden"];
   return (
     <li className={classes.filter(Boolean).join(" ")}>
-      <input
-        type="checkbox"
-        className="saved-visibility"
-        checked={!entry.hidden}
-        onChange={() => onSetHidden([entry.id], !entry.hidden)}
-        aria-label={`Show ${entry.label} on the map`}
-        title={entry.hidden ? "Hidden — click to show on the map" : "Shown — click to hide from the map"}
+      <Eye
+        state={entry.hidden ? "hidden" : "shown"}
+        label={entry.label}
+        onToggle={() => onSetHidden([entry.id], !entry.hidden)}
       />
       <button
         className="saved-focus"
@@ -296,7 +298,7 @@ function EntryRow({ entry, onSetHidden }: { entry: Entry; onSetHidden: SetHidden
         title={entry.icon === "route" ? "Open this route in Navigate" : undefined}
       >
         <i
-          className={`saved-dot${entry.icon === "path" ? " is-path" : entry.icon === "route" ? " is-route" : ""}`}
+          className={`saved-dot${DOT_SHAPE[entry.icon]}`}
           style={{ background: markerColors[entry.color] }}
         >
           {entry.icon === "route" ? "🧭" : null}
@@ -332,8 +334,8 @@ function Disclosure({ open, label, onToggle }: { open: boolean; label: string; o
   );
 }
 
-/** Show/hide-all checkbox for a set of items: checked, unchecked, or partly (indeterminate). */
-function VisibilityBox({
+/** Show/hide eye for a section or group: shown, hidden, or partly (some items hidden). */
+function GroupEye({
   entries,
   label,
   onSetHidden,
@@ -342,26 +344,16 @@ function VisibilityBox({
   label: string;
   onSetHidden: SetHidden;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
   const hiddenCount = entries.filter((entry) => entry.hidden).length;
-  const allShown = hiddenCount === 0;
-  const partly = hiddenCount > 0 && hiddenCount < entries.length;
-
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = partly;
-  }, [partly]);
-
+  const state: EyeState =
+    hiddenCount === 0 ? "shown" : hiddenCount === entries.length ? "hidden" : "partly";
   return (
-    <input
-      ref={ref}
-      type="checkbox"
-      className="saved-visibility"
-      checked={allShown && entries.length > 0}
+    <Eye
+      state={state}
+      label={label}
       disabled={entries.length === 0}
       // Anything hidden → show all; everything shown → hide all.
-      onChange={() => onSetHidden(entries.map((entry) => entry.id), allShown)}
-      aria-label={`Show ${label} on the map`}
-      title={allShown ? "Hide all" : "Show all"}
+      onToggle={() => onSetHidden(entries.map((entry) => entry.id), state === "shown")}
     />
   );
 }

@@ -4,6 +4,7 @@ import type {
   MarkerColor,
   NavStop,
   Point,
+  SavedFilter,
   SavedGroup,
   SavedLayout,
   SavedMarker,
@@ -22,6 +23,7 @@ type SavedState = {
   paths: SavedPath[];
   view?: SavedView;
   layout: SavedLayout;
+  filters: SavedFilter[];
   /** Returns the new place, or null when the name is empty or the limit is reached. */
   addMarker: (point: Point, label: string, color: MarkerColor, group?: string) => SavedMarker | null;
   updateMarker: (id: string, label: string, color: MarkerColor, group?: string) => void;
@@ -58,6 +60,14 @@ type SavedState = {
   deleteGroup: (id: string) => void;
   toggleGroupCollapsed: (id: string) => void;
   toggleSectionCollapsed: (section: SavedSection) => void;
+
+  /** Save a search as a filter (shown); ignored if that search is already saved or at the limit. */
+  addFilter: (key: string, label: string, all: boolean) => void;
+  removeFilter: (id: string) => void;
+  /** Switch one filter on/off — or every filter, when `id` is omitted (All on / All off). */
+  setFilterHidden: (hidden: boolean, id?: string) => void;
+  /** Include "possible" places for a saved loot filter, or only "likely" ones. */
+  toggleFilterAll: (id: string) => void;
 };
 
 const initial = loadSaved();
@@ -67,6 +77,7 @@ export const useSaved = create<SavedState>((set, get) => ({
   paths: initial.paths,
   view: initial.view,
   layout: initial.layout,
+  filters: initial.filters,
 
   addMarker: (point, label, color, group) => {
     const name = cleanLabel(label);
@@ -201,7 +212,40 @@ export const useSaved = create<SavedState>((set, get) => ({
       : [...layout.collapsed, section];
     saveLayout({ ...layout, collapsed });
   },
+
+  addFilter: (key, label, all) => {
+    const { filters } = get();
+    const name = cleanLabel(label);
+    if (!name || filters.length >= LIMITS.filters || filters.some((filter) => filter.key === key)) return;
+    saveFilters([...filters, { id: newId(), key, label: name, ...(all ? { all: true } : {}) }]);
+  },
+
+  removeFilter: (id) => saveFilters(get().filters.filter((filter) => filter.id !== id)),
+
+  setFilterHidden: (hidden, id) =>
+    saveFilters(
+      get().filters.map((filter) => {
+        if (id !== undefined && filter.id !== id) return filter;
+        const { hidden: _previous, ...rest } = filter;
+        return hidden ? { ...rest, hidden: true } : rest;
+      }),
+    ),
+
+  toggleFilterAll: (id) =>
+    saveFilters(
+      get().filters.map((filter) => {
+        if (filter.id !== id) return filter;
+        const { all, ...rest } = filter;
+        return all ? rest : { ...rest, all: true };
+      }),
+    ),
 }));
+
+/** Persist and publish the saved search filters. */
+function saveFilters(filters: SavedFilter[]): void {
+  useSaved.setState({ filters });
+  persist("filters", filters);
+}
 
 /** Persist and publish a new Your-map layout. */
 function saveLayout(layout: SavedLayout): void {

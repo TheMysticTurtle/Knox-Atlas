@@ -88,15 +88,18 @@ counts are not a count of all water access: rivers remain base-map geometry.
 
 The current parser scans braces and extracts item pairs/procedural references with regex; it does
 not execute Lua or fully parse Lua string/comment semantics. It merges duplicates by **maximum
-weight**, sorts descending, and retains at most **60 items per room type**. The UI displays 24.
+weight**, sorts descending, and keeps **every item** (uncapped since 2026-10-11, so item search
+can't silently miss places). The selection card displays the top 24.
 
-A local generated sample has 502 room-type loot lists; 197 reach that 60-item cap. This is a sample,
-not a promised count for every build. Weight is neither percentage chance nor a reliable ranking
+A local generated sample has 502 room-type loot lists (longest 1,682 items; 3,225 distinct items).
+Search treats an item as **likely** in a room type when it is among that room's top 50 by weight,
+otherwise **possible**; the game's generic `all` table (containers in any room) makes an item
+possible anywhere. This is a sample, not a promised count for every build. Weight is neither percentage chance nor a reliable ranking
 across different container/procedural definitions. Container rolls, procedural constraints,
 sandbox settings, and mod overrides are not modeled completely.
 
-Before item search: retain all items and container/source context in a separate index; truncate
-only presentation. Before probability claims: implement and validate the underlying semantics.
+Container/source context is still not retained (only the merged room-type list). Before probability
+claims: implement and validate the underlying semantics.
 Unknown/new data should yield a warning or an explicit unknown, not a fabricated result.
 
 ## Save and runtime boundaries

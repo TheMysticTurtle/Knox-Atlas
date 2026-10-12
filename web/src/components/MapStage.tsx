@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { MapEngine } from "../engine/mapEngine";
+import { MapEngine, type HighlightTier } from "../engine/mapEngine";
+import { pointBounds } from "../engine/geometry";
 import { planTrip, roadGraphFor, snapToRoad } from "../engine/roadGraph";
-import type { GameSnapshot, MapPoi, NavStop, Point, RoomLoot, Selection } from "../engine/types";
+import { buildSearchIndex, matchTiers, type SearchHit } from "../engine/search";
+import { poiSubIds, subBucketsFor } from "../engine/subcategories";
+import type { Category, GameSnapshot, MapPoi, NavStop, Point, RoomLoot, Selection } from "../engine/types";
 import { pointFocus, useMapUi } from "../mapUiStore";
 import { useSaved } from "../savedStore";
-import { useFilters } from "../store";
+import { CATEGORY_LABELS, useFilters } from "../store";
 import { useView } from "../viewStore";
 import { CoordinateReadout } from "./CoordinateReadout";
 import { MapToolbar } from "./MapToolbar";
 import { MeasurePanel } from "./MeasurePanel";
 import { NavigatePanel } from "./NavigatePanel";
+import { SearchBar } from "./SearchBar";
 import { SelectionCard } from "./SelectionCard";
 
 type MapStageProps = {
@@ -45,6 +49,8 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   const movingStop = useMapUi((state) => state.movingStop);
   const toggleNav = useMapUi((state) => state.toggleNav);
   const openRouteId = useMapUi((state) => state.openRouteId);
+  const currentSearch = useMapUi((state) => state.currentSearch);
+  const filters = useSaved((state) => state.filters);
   const [pointer, setPointer] = useState<Point | null>(null);
   const [satelliteStatus, setSatelliteStatus] = useState("");
 
@@ -54,6 +60,66 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
     () => (snapshot && navOpen ? roadGraphFor(snapshot.streets) : null),
     [snapshot, navOpen],
   );
+  // 🔍 Search: index everything once per data load. The current search and every shown saved filter
+  // resolve to the places they highlight (loot: "likely" places unless "All" is on).
+  const searchIdx = useMemo(
+    () =>
+      snapshot
+        ? buildSearchIndex({
+            labels: snapshot.labels,
+            streets: snapshot.streets,
+            pois,
+            loot,
+            categoryLabels: CATEGORY_LABELS,
+            subGroups: (Object.keys(CATEGORY_LABELS) as Category[]).flatMap(subBucketsFor),
+            poiSubIds,
+          })
+        : null,
+    [snapshot, pois, loot],
+  );
+  const hitsByKey = useMemo(
+    () => new Map((searchIdx?.entries ?? []).map((hit) => [hit.key, hit])),
+    [searchIdx],
+  );
+  // Each search's places in two tiers: "likely" (ringed) and, with "All" on, "possible" (plain).
+  const currentTiers = useMemo(
+    () => (currentSearch ? withAll(matchTiers(currentSearch.hit, pois, poiSubIds), currentSearch.all) : null),
+    [currentSearch, pois],
+  );
+  // Each saved filter re-matched against the current data (null: its search no longer exists).
+  const filterTiers = useMemo(
+    () =>
+      filters.map((filter) => {
+        const hit = hitsByKey.get(filter.key);
+        return hit ? withAll(matchTiers(hit, pois, poiSubIds), Boolean(filter.all)) : null;
+      }),
+    [filters, hitsByKey, pois],
+  );
+  const filterCounts = useMemo(
+    () => Object.fromEntries(filters.map((filter, index) => [filter.id, tierCounts(filterTiers[index])])),
+    [filters, filterTiers],
+  );
+  // Highlighted together, in their usual category colours: the current search + shown filters.
+  // A place that is "likely" for any of them is ringed.
+  const highlight = useMemo(() => {
+    const tiers = new Map<MapPoi, HighlightTier>();
+    const add = (matched: MatchTiers | null) => {
+      matched?.possible.forEach((poi) => {
+        if (!tiers.has(poi)) tiers.set(poi, "possible");
+      });
+      matched?.likely.forEach((poi) => tiers.set(poi, "likely"));
+    };
+    add(currentTiers);
+    filters.forEach((filter, index) => {
+      if (!filter.hidden) add(filterTiers[index]);
+    });
+    return tiers;
+  }, [currentTiers, filters, filterTiers]);
+  const currentMatches = useMemo(
+    () => (currentTiers ? [...currentTiers.likely, ...currentTiers.possible] : []),
+    [currentTiers],
+  );
+
   // The engine's drag callbacks are set once; they read the current road network through this ref.
   const graphRef = useRef(graph);
   graphRef.current = graph;
@@ -109,6 +175,19 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   useEffect(() => {
     engineRef.current?.setEnabledSubs(enabled);
   }, [enabled, snapshot]);
+
+  useEffect(() => {
+    engineRef.current?.setHighlight(highlight.size > 0 ? highlight : null);
+  }, [highlight, snapshot]);
+
+  // A newly chosen current search frames the places it found ("All" widening it doesn't move the map).
+  const framedKey = useRef<string | null>(null);
+  useEffect(() => {
+    const key = currentSearch?.hit.key ?? null;
+    if (key === framedKey.current) return;
+    framedKey.current = key;
+    if (key && currentMatches.length > 0) focusOn(pointBounds(currentMatches));
+  }, [currentSearch, currentMatches, focusOn]);
 
   useEffect(() => {
     engineRef.current?.setView({ towns, streets, buildings, businesses, satellite });
@@ -181,11 +260,22 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
               focusOn(pointFocus(point));
               select({ point, poi: null, markerId: null });
             }}
+            search={
+              <SearchBar
+                index={searchIdx}
+                currentCount={tierCounts(currentTiers)}
+                filterCounts={filterCounts}
+                onFly={(hit: SearchHit) => {
+                  if (hit.kind === "town") focusOn(pointFocus(hit.point));
+                  else if (hit.kind === "street") focusOn(hit.bounds);
+                }}
+              />
+            }
           />
 
-          {satellite && (
+          {satellite && satelliteStatus && (
             <div className="satellite-status" role="status">
-              {satelliteStatus || "Reading satellite imagery…"}
+              {satelliteStatus}
             </div>
           )}
 
@@ -229,4 +319,16 @@ function stopFromHit(hit: Selection): NavStop {
     ? useSaved.getState().markers.find((item) => item.id === hit.markerId)
     : undefined;
   return { point: hit.point, label: marker?.label ?? hit.poi?.name ?? `${hit.point.x}, ${hit.point.y}` };
+}
+
+type MatchTiers = { likely: MapPoi[]; possible: MapPoi[] };
+
+/** Drop the "possible" tier unless the search's "All" toggle is on. */
+function withAll(tiers: MatchTiers, all: boolean): MatchTiers {
+  return all ? tiers : { likely: tiers.likely, possible: [] };
+}
+
+/** Place counts per tier for the search box (null: the search no longer exists). */
+function tierCounts(tiers: MatchTiers | null): { likely: number; possible: number } | null {
+  return tiers ? { likely: tiers.likely.length, possible: tiers.possible.length } : null;
 }

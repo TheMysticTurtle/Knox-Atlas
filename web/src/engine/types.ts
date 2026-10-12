@@ -33,6 +33,13 @@ export type SavedPath = {
   stops?: NavStop[];
 } & Organised;
 
+/**
+ * A saved search filter. Stores what was searched for (the search `key`, e.g. "item:hammer"), not a
+ * frozen list of places, so it re-matches the current map data. `all` includes "possible" places for
+ * loot; `hidden` switches it off without deleting it.
+ */
+export type SavedFilter = { id: string; key: string; label: string; all?: boolean; hidden?: boolean };
+
 /** The three Your-map sections; each has its own (one-tier) user groups. */
 export type SavedSection = "places" | "routes" | "paths";
 export type SavedGroup = { id: string; name: string; section: SavedSection; collapsed?: boolean };

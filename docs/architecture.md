@@ -84,14 +84,15 @@ base. No floor selector yet; current POI drawing and clicking mix floors.
 Room categories are multi-tag: a kitchen can be Food + Homes, a garage Tools + Homes.
 There are no Retail or Civic category tags. Unknown names can remain unclassified.
 
-Current subcategory filters **hide unmatched dots**. The earlier highlight/enlarge-and-dim design
-is a planned behavior change, not current behavior. Counts describe matching rooms, not unique
+Subcategory filters **hide unmatched dots**. Search **highlights and dims**: matches are drawn at
+any zoom (even if filtered out) in their usual colours — "likely" ringed, "possible" as plain dots —
+while everything else dims (`engine/search.ts` + `MapEngine.setHighlight`). Counts describe matching rooms, not unique
 businesses. Homes-only rooms are currently omitted from the POI payload.
 
 Static loot is inferred from installed Lua distributions. It is not live inventory. The current
-approximate extractor merges by maximum raw weight and caps each room type at 60 items; the card
-shows 24. We need retained container/source context and an uncapped index before reliable item
-search. Details and known classification gaps: [taxonomy](taxonomy.md).
+approximate extractor merges by maximum raw weight and keeps every item per room type (the card
+shows 24). Item search splits "likely" (top 50 in a room type) from "possible"; container/source
+context is still not retained. Details and known classification gaps: [taxonomy](taxonomy.md).
 
 ## User state and upgrade contract
 
@@ -110,6 +111,12 @@ pending). The engine draws saved items but never touches storage. Do not delete 
 existing profile to make development work. Packaged upgrade testing must demonstrate
 marker/path/view/install preservation. Browser development storage and packaged WebView storage
 are not interchangeable; matching identifiers alone does not prove a migration.
+
+Newer keys (not in 0.1.x, so they never disturb released data): `knox-atlas.your-map.v1` (Your map
+groups + collapsed sections), `knox-atlas.saved-filters.v1` (saved search filters — stored as the
+search key, re-matched against current data), `knox-atlas.view-options.v1` (View toggles) and
+`knox-atlas.loot-filters.v1` (loot filter choices, stored as on + off so filters added later get
+their default). Place/route/path records gain optional `group`/`hidden`/`stops` fields only when set.
 
 New floor-aware records should accept legacy records without Z as general map annotations.
 Add export/import and a documented backup path before calling the state truly transferable.

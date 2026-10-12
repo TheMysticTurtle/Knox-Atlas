@@ -8,12 +8,11 @@ released 0.1.1 lives in the preserved prototype history.
 release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
 behavior.
 
-> **▶ RESUME HERE:** 🧭 Navigate, saved routes, 🎯 re-pick, drag-to-reroute ("re-routes" on
-> screen) and **Your map groups with show/hide** are built and committed. **Next (owner-agreed):**
-> 1. ~~Your map groups~~ — done 2026-10-11.
-> 2. **🔍 Search** — a top-center button ("Search" label) that expands into a bar: towns/streets,
->    loot categories, specific loot (uncapped loot index) → highlight matches, dim the rest;
->    independent of Nav (found places can be clicked as stops); houses excluded by default.
+> **▶ RESUME HERE:** Navigate (saved routes, re-routes), Your map groups with eye toggles, and
+> **🔍 Search with saved filters** are built, committed and pushed (`feature/core-evolution`).
+> Settings (View toggles, loot filters) are remembered. **Next: ask the owner** — candidates:
+> game-folder picker + a real packaged 0.1.1 → 0.2.0 upgrade test (release gate), or the polish
+> queue (quick-finds, loot-card ordering, landmark names, floor outlines).
 > Also: game-folder picker; desktop upgrade test against a real 0.1.1 profile; polish queue.
 >
 > Principles: **simple by default** (extras opt-in) and **helpful, not a cheat** (no high-res decoder;
@@ -30,6 +29,8 @@ behavior.
 | Room identity | Generic room type, center, categories, Z; no stable frontend room ID, rectangles, or verified building membership. |
 | Filters | Hide nonmatching dots; first matching sub-bucket wins; home kitchens/Homes default off. Floors are mixed. |
 | “Business names” | Annotation/landmark labels, not an individual business-name directory. |
+| Search | 🔍 toolbar button → box to its right (stays open): results as you type (towns, streets, places, loot categories/groups, loot items). Towns/streets fly; the rest highlight (likely ringed; "All" adds possible as plain dots; rest dims). + Save → saved filters (eye, All on/off, persisted). Item colour = category of the places it's mostly found in. |
+| Settings | View toggles and loot filter choices remembered between launches. Satellite status shown only on failure. |
 | Personal-map parity | Places/paths/measure/saved view restored. Search, game-folder picker, and vehicle overlay not yet ported. |
 | Storage | `savedStorage.ts` reads/writes the released keys and shapes with the released validation (unit-tested with 0.1.1-format data). Same Tauri v2 runtime + identifier → same WebView origin, so existing items should load; **not yet proven** with a real packaged upgrade. Browser dev storage is separate from the desktop app's. |
 | Floors | Not implemented (polish queue). Satellite pyramid levels are zoom resolutions, not floors. |
@@ -38,8 +39,8 @@ behavior.
 | Live player/server | Optional extras; not implemented. No mod-free live position exists (see map views doc). |
 | Distribution | CI/release scripts still target old root npm and `src-tauri/target` layout. Not release-ready. |
 
-Local generated preview sample: **15,405 POIs**, **502 loot room types**. The parser caps each loot
-list at 60 items (197 lists hit that cap); the card shows 24. Do not claim a complete item index,
+Local generated preview sample: **15,405 POIs**, **502 loot room types**, 3,225 distinct items. Loot
+lists are uncapped (were 60; 197 hit it); the card shows 24. Do not claim a complete item index,
 room-wide probabilities, or actual inventory.
 
 ## Latest verification — 2026-10-11
@@ -69,7 +70,7 @@ treating CI coverage as sufficient.
 - [x] ~~Routable roads from road shapes~~ — dropped by the owner (2026-10-11): routing on named streets is good enough.
 - [x] Drag-to-reroute (unnumbered bends, snapped to streets, saved with routes) (2026-10-11).
 - [x] Your map groups: one tier per section, show/hide per item/group/section, collapsible (2026-10-11).
-- [ ] Search bar: room types, categories, specific items, towns/streets → highlight matches (uncap loot index first; houses opt-in).
+- [x] Search: towns/streets, places, loot categories/groups, loot items; saved filters (2026-10-11).
 - [ ] Game-folder picker (released-app parity).
 - [ ] Polish: quick-finds, highlight-and-dim, loot ordering, landmark names, floor outlines.
 
@@ -88,7 +89,7 @@ treating CI coverage as sufficient.
 - [ ] Real save item locations — **on hold**, owner to confirm (may cross "not a cheat").
 
 ### Parked
-- [ ] Uncapped, container/source-aware loot index before item search.
+- [ ] Container/source-aware loot index (lists are uncapped since 2026-10-11; source context isn't kept).
 - [ ] Export/import for portable transfer of saved items.
 - [ ] Owner's friend's-base auto-repair coordinates: inspect actual rooms when supplied.
 
@@ -97,6 +98,37 @@ treating CI coverage as sufficient.
 Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
 "never hide," satellite depending on a detailed decoder, old check results) are superseded by later
 entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — 🔍 Search with saved filters; eye toggles; remembered settings
+
+- **Owner design (several rounds):** search lives in the left toolbar and opens to the right; it stays
+  open showing the current search; **+ Save** makes it a saved filter (and clears it from the box,
+  so its eye takes over — owner hit this); **Saved ▾** has eyes plus All on / All off. Stacking
+  searches as a separate bar was tried and rejected ("I don't like that bar just sitting there").
+  No new colours: matches keep their category colours; an item's dot is the category of the places
+  it's mostly found in. The 🔍 button is highlighted only while open. Flexible by design: searching
+  a street flies there without touching saved filters, so you can find a buddy, Nav there, and
+  still see loot to stop at on the way back.
+- **Data:** the Rust loot reader no longer caps lists at 60 items (it silently hid items from ~200
+  room types). loot.json 0.7 → 1.9 MB.
+- **Relevance (owner-approved after testing):** uncapped, "hammer" matched 10,237 of 15,405 places
+  (every kitchen/garage has some tiny chance). Rule: an item is **likely** in a room type when it's
+  in that room's top 50 by weight (ties included), else **possible**; the game's generic `all` table
+  (containers in any room) makes it possible anywhere. Hammer → 762 likely + 9,475 possible. With
+  "All" on the map shows two tiers: likely ringed, possible as plain dots (owner's spec). Items that
+  spawn nowhere else read "only in N places" and offer no All box (a greyed box read as a bug).
+- **Code:** `engine/search.ts` (pure, tested: index over labels/streets/POIs/categories/sub-groups/loot;
+  ranking exact → starts-with → word-start → contains, ties by place count; `matchTiers`),
+  `MapEngine.setHighlight(Map<poi, likely|possible>)` (matches at any zoom, rest dimmed, hit-testable),
+  `SearchBar` (box, results, current search, Save, Saved filters), saved filters in `savedStore`
+  (`knox-atlas.saved-filters.v1`, stored by search key and re-matched against current data).
+- **Also this round (owner asks):** Your map checkboxes → **eye** toggles (solid / faint / half for
+  partly; shared `Eye` component); the satellite status box removed except on failure; **View toggles
+  and loot filters remembered** between launches (`settingsStorage.ts`; filters stored as on + off so
+  filters added later get their default).
+- **Tested:** `tsc` clean; 58 web tests (search ×10 incl. real-map checks — index ~40 ms, query < 1 ms;
+  settings ×5; saved filters; likely/possible tiers; "anywhere" items; category colours); Rust 14/14,
+  clippy and fmt clean; vite build. Owner click-tested each round in the browser build.
 
 ### 2026-10-11 — Your map groups + show/hide; "re-routes" wording
 

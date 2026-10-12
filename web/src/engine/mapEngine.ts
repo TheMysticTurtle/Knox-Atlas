@@ -25,6 +25,9 @@ import type {
   Selection,
 } from "./types";
 
+/** How a search match is shown: "likely" ringed, "possible" (loot with "All" on) as a plain dot. */
+export type HighlightTier = "likely" | "possible";
+
 /** What Navigate shows: the stops in trip order and the routed trip, if any. */
 export type Navigation = { stops: NavStop[]; trip: Trip | null };
 
@@ -66,6 +69,11 @@ export class MapEngine {
   private preparedStreets: PreparedStreet[] = [];
   private pois: { poi: MapPoi; subIds: string[] }[] = [];
   private enabledSubs: Set<string> | null = null;
+  /**
+   * Search results, shown at any zoom (even if filtered out) while everything else dims: "likely"
+   * places ringed, "possible" ones (loot with "All" on) as plain dots.
+   */
+  private highlight: Map<MapPoi, HighlightTier> | null = null;
   private view: ViewOptions = {
     towns: true,
     streets: true,
@@ -141,6 +149,12 @@ export class MapEngine {
   /** Provide the categorized RoomDef POIs to draw (loaded separately by React). */
   setPois(pois: MapPoi[]): void {
     this.pois = pois.map((poi) => ({ poi, subIds: poiSubIds(poi) }));
+    this.queueRender();
+  }
+
+  /** Highlight these POIs by tier and dim the rest (null clears). Used by search. */
+  setHighlight(pois: Map<MapPoi, HighlightTier> | null): void {
+    this.highlight = pois && pois.size > 0 ? pois : null;
     this.queueRender();
   }
 
@@ -653,21 +667,61 @@ export class MapEngine {
   }
 
   private drawPois(view: Bounds): void {
-    if (this.scale < 0.3 || this.pois.length === 0) return; // declutter until zoomed into a town
+    if (this.pois.length === 0) return;
     const { ctx } = this;
-    const radius = this.scale > 0.7 ? 4 : 3;
-    const enabled = this.enabledSubs;
-    for (const { poi, subIds } of this.pois) {
-      if (poi.x < view.minX || poi.x > view.maxX || poi.y < view.minY || poi.y > view.maxY) continue;
-      // Show if any of the POI's sub-buckets is enabled; colour by the first enabled one.
-      const shownId = enabled ? subIds.find((id) => enabled.has(id)) : subIds[0];
-      if (!shownId) continue;
-      const category = shownId.slice(0, shownId.indexOf(":")) as Category;
-      const screen = this.toScreen(poi);
+    const highlight = this.highlight;
+    const inView = (poi: MapPoi) =>
+      poi.x >= view.minX && poi.x <= view.maxX && poi.y >= view.minY && poi.y <= view.maxY;
+
+    // Normal dots (declutter until zoomed into a town). With a search active they are dimmed and
+    // the matches are drawn separately, on top.
+    if (this.scale >= 0.3) {
+      const radius = this.scale > 0.7 ? 4 : 3;
+      const enabled = this.enabledSubs;
+      ctx.save();
+      if (highlight) ctx.globalAlpha = 0.25;
+      for (const { poi, subIds } of this.pois) {
+        if (!inView(poi) || highlight?.has(poi)) continue;
+        // Show if any of the POI's sub-buckets is enabled; colour by the first enabled one.
+        const shownId = enabled ? subIds.find((id) => enabled.has(id)) : subIds[0];
+        if (!shownId) continue;
+        this.drawDot(poi, shownId.slice(0, shownId.indexOf(":")) as Category, radius, false);
+      }
+      ctx.restore();
+    }
+
+    // Search matches, at every zoom and regardless of filters, in their usual category colours:
+    // "possible" places as plain dots, then "likely" ones bigger and ringed on top.
+    if (highlight) {
+      const plain = this.scale > 0.7 ? 4 : 3;
+      const ringed = this.scale >= 0.3 ? 6 : 4.5;
+      for (const tier of ["possible", "likely"] as const) {
+        for (const [poi, poiTier] of highlight) {
+          if (poiTier !== tier || !inView(poi)) continue;
+          this.drawDot(poi, poi.categories[0], tier === "likely" ? ringed : plain, tier === "likely");
+        }
+      }
+    }
+  }
+
+  /** A POI dot in its category colour; a highlighted (search) match gets a ring. */
+  private drawDot(poi: MapPoi, category: Category, radius: number, highlighted: boolean): void {
+    const { ctx } = this;
+    const screen = this.toScreen(poi);
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = categoryColors[category] ?? mapColors.mutedInk;
+    ctx.fill();
+    if (highlighted) {
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#fffdf5";
+      ctx.stroke();
       ctx.beginPath();
-      ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = categoryColors[category] ?? mapColors.mutedInk;
-      ctx.fill();
+      ctx.arc(screen.x, screen.y, radius + 2.2, 0, Math.PI * 2);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = "rgba(31, 39, 37, 0.75)";
+      ctx.stroke();
+    } else {
       ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(255, 248, 233, 0.85)";
       ctx.stroke();
@@ -914,15 +968,17 @@ export class MapEngine {
 
   /** Nearest visible POI within POI_HIT_RADIUS pixels of the click, or null. */
   private hitTestPoi(clientX: number, clientY: number): MapPoi | null {
-    if (this.scale < 0.3) return null;
     const rect = this.canvas.getBoundingClientRect();
     const px = clientX - rect.left;
     const py = clientY - rect.top;
     const enabled = this.enabledSubs;
+    const zoomedIn = this.scale >= 0.3;
     let best: MapPoi | null = null;
     let bestDistance = POI_HIT_RADIUS;
     for (const { poi, subIds } of this.pois) {
-      if (enabled && !subIds.some((id) => enabled.has(id))) continue;
+      // Clickable when drawn: normal dots when zoomed in and enabled; search matches always.
+      const highlighted = this.highlight?.has(poi) ?? false;
+      if (!highlighted && (!zoomedIn || (enabled && !subIds.some((id) => enabled.has(id))))) continue;
       const screen = this.toScreen(poi);
       const distance = Math.hypot(screen.x - px, screen.y - py);
       if (distance < bestDistance) {

@@ -28,9 +28,6 @@ pub struct LootItem {
 /// room type (lowercase) → items the game can spawn there, most-likely first.
 pub type RoomLoot = HashMap<String, Vec<LootItem>>;
 
-/// Keep at most this many items per room so payloads stay reasonable.
-const MAX_ITEMS_PER_ROOM: usize = 60;
-
 /// Index of the matching `}` for the `{` at `open`, scanning a byte slice.
 fn matching_brace(bytes: &[u8], open: usize) -> Option<usize> {
     let mut depth = 0i32;
@@ -124,7 +121,8 @@ fn rank(items: HashMap<String, f32>) -> Vec<LootItem> {
             .unwrap_or(std::cmp::Ordering::Equal)
             .then_with(|| a.item.cmp(&b.item))
     });
-    ranked.truncate(MAX_ITEMS_PER_ROOM);
+    // Uncapped: item search must find every room type that lists an item (a 60-item cap hid
+    // items from ~200 room types). The selection card shows only the top of this list.
     ranked
 }
 

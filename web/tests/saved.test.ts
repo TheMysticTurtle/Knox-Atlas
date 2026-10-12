@@ -9,6 +9,7 @@ import {
   STORAGE_KEYS,
   cleanLabel,
   newId,
+  parseFilters,
   parseLayout,
   parseMarkers,
   parsePaths,
@@ -196,6 +197,25 @@ test("your-map layout keeps valid, unique groups and collapsed sections", () => 
   });
   assert.deepEqual(parseLayout(null), { groups: [], collapsed: [] });
   assert.deepEqual(parseLayout("{oops"), { groups: [], collapsed: [] });
+});
+
+test("saved search filters keep valid, unique entries with their switches", () => {
+  const filters = parseFilters(
+    JSON.stringify([
+      { id: "f1", key: "category:fuel", label: "Fuel & gas" },
+      { id: "f2", key: "item:hammer", label: " Hammer ", all: true, hidden: true },
+      { id: "f3", key: "item:hammer", label: "Duplicate key" },
+      { id: "f4", key: "", label: "No key" },
+      { id: "f5", key: "store:gun store", label: "", all: "yes" },
+      "junk",
+    ]),
+  );
+  assert.deepEqual(filters, [
+    { id: "f1", key: "category:fuel", label: "Fuel & gas" },
+    { id: "f2", key: "item:hammer", label: "Hammer", all: true, hidden: true },
+  ]);
+  assert.deepEqual(parseFilters(null), []);
+  assert.equal(STORAGE_KEYS.filters, "knox-atlas.saved-filters.v1");
 });
 
 test("caps path points at the released limit", () => {

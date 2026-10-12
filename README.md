@@ -61,6 +61,8 @@ because an app is unsigned. The source and build workflow are available for insp
   routes and reopen them to edit.
 - **Organise your map:** group your places, routes and paths, and show or hide any item, group or
   section.
+- **🔍 Search:** towns, streets, places, loot categories, and specific loot ("9mm clip") — see where
+  it's likely found, save searches as filters, and switch them on and off.
 
 Room types are not unique business names; static loot is not live inventory. Current filtering
 hides unmatched dots, and POIs from different floors are still mixed.
@@ -73,9 +75,8 @@ Search, game-path selection, and vehicle overlays still need their active-branch
 Knox Atlas stays **simple by default** and **helpful, not a cheat**: it helps you plan where to go,
 without revealing exactly where everything is.
 
-**Next:** **search** for a store type, a category, or a specific item to see every place it's
-likely found. After that, polish: quick place-finding toggles, focus highlighting, better loot
-cards, and floor outlines.
+**Next:** the game-folder picker and upgrade testing for release, then polish: quick
+place-finding toggles, better loot cards, and floor outlines.
 
 **Optional extras later**, always opt-in and never cluttering the default: live own-player
 coordinates via a small companion mod, last-saved position from your own saves, and a shareable

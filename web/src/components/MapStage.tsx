@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MapEngine } from "../engine/mapEngine";
-import { planTrip, roadGraphFor } from "../engine/roadGraph";
+import { planTrip, roadGraphFor, snapToRoad } from "../engine/roadGraph";
 import type { GameSnapshot, MapPoi, NavStop, Point, RoomLoot, Selection } from "../engine/types";
 import { pointFocus, useMapUi } from "../mapUiStore";
 import { useSaved } from "../savedStore";
@@ -54,6 +54,9 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
     () => (snapshot && navOpen ? roadGraphFor(snapshot.streets) : null),
     [snapshot, navOpen],
   );
+  // The engine's drag callbacks are set once; they read the current road network through this ref.
+  const graphRef = useRef(graph);
+  graphRef.current = graph;
   const tripResult = useMemo(() => {
     const points = navStops.map((stop) => stop.point);
     return graph && points.length >= 2 ? planTrip(graph, points) : null;
@@ -76,6 +79,15 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
         point && previous?.x === point.x && previous.y === point.y ? previous : point,
       );
     engine.onSatelliteStatus = setSatelliteStatus;
+    // Route editing on the map: drag the line to add a bend, drag stops/bends, remove bends.
+    // Bends snap onto the nearest street (like Google Maps) so the route never detours off-road.
+    const onRoad = (point: Point) => (graphRef.current ? snapToRoad(graphRef.current, point) : point);
+    engine.onAddBend = (index, point) => useMapUi.getState().addBend(index, onRoad(point));
+    engine.onDragStop = (index, point) => {
+      const ui = useMapUi.getState();
+      ui.dragStop(index, ui.navStops[index]?.via ? onRoad(point) : point);
+    };
+    engine.onRemoveBend = (index) => useMapUi.getState().removeStop(index);
     // Open where the user left their saved view; otherwise the engine fits the whole map.
     const initialView = useSaved.getState().view;
     if (initialView) engine.setCamera(initialView);

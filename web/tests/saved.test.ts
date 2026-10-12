@@ -99,6 +99,44 @@ test("saved routes keep their stops; plain paths and old data load unchanged", (
   assert.equal("stops" in loadedPlain, false, "plain paths gain no stops field");
 });
 
+test("a route keeps its dragged bends, flagged and unnamed", () => {
+  const raw = JSON.stringify([
+    {
+      id: "r",
+      label: "Around town",
+      color: "blue",
+      points: [{ x: 0, y: 0 }, { x: 9, y: 9 }],
+      stops: [
+        { point: { x: 0, y: 0 }, label: "Home" },
+        { point: { x: 4, y: 7 }, label: "ignored", via: true },
+        { point: { x: 9, y: 9 }, label: "Mall" },
+      ],
+    },
+  ]);
+  const [route] = parsePaths(raw);
+  assert.deepEqual(route.stops, [
+    { point: { x: 0, y: 0 }, label: "Home" },
+    { point: { x: 4, y: 7 }, label: "", via: true },
+    { point: { x: 9, y: 9 }, label: "Mall" },
+  ]);
+});
+
+test("bends alone don't make a route", () => {
+  const raw = JSON.stringify([
+    {
+      id: "r",
+      label: "Only bends",
+      color: "blue",
+      points: [{ x: 0, y: 0 }, { x: 9, y: 9 }],
+      stops: [
+        { point: { x: 0, y: 0 }, label: "Home" },
+        { point: { x: 4, y: 7 }, label: "", via: true },
+      ],
+    },
+  ]);
+  assert.equal(parsePaths(raw)[0].stops, undefined);
+});
+
 test("a route with broken stops still loads as a plain line", () => {
   const raw = JSON.stringify([
     {

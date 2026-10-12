@@ -91,13 +91,6 @@ export function tripPolyline(trip: Trip): Point[] {
   return points;
 }
 
-/** Stop label: "Start" for the first, "End" for the last (once there are two), 1, 2… in between. */
-export function stopTag(index: number, count: number): string {
-  if (index === 0) return "Start";
-  if (index === count - 1) return "End";
-  return String(index);
-}
-
 /** The road network is built once per street list (cheap, ~30 ms, but no need to repeat it). */
 const graphCache = new WeakMap<Street[], RoadGraph>();
 export function roadGraphFor(streets: Street[]): RoadGraph {
@@ -313,6 +306,11 @@ export function findRoute(graph: RoadGraph, from: Point, to: Point): RouteResult
       streets: names.filter((name, index) => index === 0 || names[index - 1] !== name),
     },
   };
+}
+
+/** The nearest point on a street — dragged route bends are snapped onto the road like this. */
+export function snapToRoad(graph: RoadGraph, point: Point): Point {
+  return nearestEdge(graph, point)?.point ?? point;
 }
 
 /** The closest point on any road to `point` (searching outward through the spatial index). */

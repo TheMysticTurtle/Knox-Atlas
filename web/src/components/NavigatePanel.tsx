@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { parseCoordinates } from "../engine/coordinates";
 import { simplifyPath } from "../engine/geometry";
-import { stopTag, tripPolyline, type TripResult } from "../engine/roadGraph";
+import { tripPolyline, type TripResult } from "../engine/roadGraph";
+import { countBends, countNumbered, legTags, numberedIndices, tagAt } from "../engine/stops";
 import type { Bounds, NavStop } from "../engine/types";
 import { MAX_STOPS, useMapUi } from "../mapUiStore";
 import { LIMITS } from "../savedStorage";
@@ -44,7 +45,10 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
   const [saving, setSaving] = useState(false);
 
   const trip = result?.ok ? result.trip : null;
-  const full = stops.length >= MAX_STOPS;
+  // The list shows numbered stops only; dragged bends shape the route but aren't listed.
+  const numbered = numberedIndices(stops);
+  const bends = countBends(stops);
+  const full = countNumbered(stops) >= MAX_STOPS;
   // Re-saving an opened route updates it; otherwise it's a new saved route (limit applies).
   const atLimit = !openRoute && pathCount >= LIMITS.paths;
 
@@ -87,23 +91,23 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
             disabled={full}
             title={full ? `A route can have up to ${MAX_STOPS} stops` : undefined}
           >
-            {stops.length === 0 ? "+ Add route" : "+ Add stops"}
+            {numbered.length === 0 ? "+ Add route" : "+ Add stops"}
           </button>
           {stops.length > 0 && <button onClick={clearStops}>Clear</button>}
         </div>
       )}
 
-      {stops.length > 0 && (
+      {numbered.length > 0 && (
         <ol className="stop-list">
-          {stops.map((stop, index) => (
+          {numbered.map((index, position) => (
             <StopRow
               key={index}
-              tag={stopTag(index, stops.length)}
-              stop={stop}
+              tag={tagAt(stops, index)}
+              stop={stops[index]}
               bounds={bounds}
               moving={movingStop === index}
-              canMoveUp={index > 0}
-              canMoveDown={index < stops.length - 1}
+              canMoveUp={position > 0}
+              canMoveDown={position < numbered.length - 1}
               onChange={(next) => updateStop(index, next)}
               onRepick={() => startMovingStop(movingStop === index ? null : index)}
               onMove={(direction) => moveStop(index, direction)}
@@ -113,22 +117,29 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
         </ol>
       )}
 
+      {trip && (
+        <p className="navigate-tip">
+          {bends > 0
+            ? `${bends} ${bends === 1 ? "bend" : "bends"} · drag to move · double-click to remove`
+            : "Tip: drag the blue line to reroute it"}
+        </p>
+      )}
+
       {result && (
         <div className="navigate-result" role="status">
           {!result.ok ? (
             <p className="navigate-hint is-error">
               {result.reason === "no-roads"
                 ? "No road data is available for this map."
-                : `No road connects ${stopTag(result.leg, stops.length)} to ${stopTag(result.leg + 1, stops.length)}. Dirt trails aren't in the road data, so remote spots may not connect.`}
+                : `No road connects ${legTags(stops, result.leg).join(" to ")}. Remote spots off the street network may not connect.`}
             </p>
           ) : (
             trip && (
               <>
                 <p className="navigate-distance">
-                  <strong>{Math.round(trip.roadLength).toLocaleString()} tiles</strong> by road
-                  {trip.offRoadLength >= 1 && (
-                    <span> + {Math.round(trip.offRoadLength).toLocaleString()} off-road</span>
-                  )}
+                  <strong>
+                    {Math.round(trip.roadLength + trip.offRoadLength).toLocaleString()} tiles
+                  </strong>
                 </p>
                 {trip.streets.length > 0 && (
                   <p className="navigate-streets">
@@ -139,7 +150,10 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
                 )}
                 {saving ? (
                   <NameColorForm
-                    initialName={openRoute?.label ?? `${stops[0].label} → ${stops[stops.length - 1].label}`}
+                    initialName={
+                      openRoute?.label ??
+                      `${stops[numbered[0]].label} → ${stops[numbered[numbered.length - 1]].label}`
+                    }
                     initialColor={openRoute?.color ?? "blue"}
                     placeholder="Supply run, patrol, shortcut…"
                     submitLabel={openRoute ? "Save changes" : "Save route"}

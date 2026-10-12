@@ -88,7 +88,7 @@ export const useSaved = create<SavedState>((set, get) => ({
   },
 }));
 
-/** A path record in the released shape; `stops` only when it is a route (2+ stops). */
+/** A path record in the released shape; `stops` only when it is a route (2+ numbered stops). */
 function makePath(
   id: string,
   points: Point[],
@@ -102,10 +102,13 @@ function makePath(
     color,
     points: points.slice(0, LIMITS.pathPoints).map((point) => ({ x: point.x, y: point.y })),
   };
-  if (stops && stops.length >= 2) {
-    path.stops = stops
-      .slice(0, LIMITS.routeStops)
-      .map((stop) => ({ point: { x: stop.point.x, y: stop.point.y }, label: stop.label }));
+  if (stops && stops.filter((stop) => !stop.via).length >= 2) {
+    // Copy only the stored fields; bends keep their flag (numbered stops omit it).
+    path.stops = stops.map((stop) => ({
+      point: { x: stop.point.x, y: stop.point.y },
+      label: stop.label,
+      ...(stop.via ? { via: true } : {}),
+    }));
   }
   return path;
 }

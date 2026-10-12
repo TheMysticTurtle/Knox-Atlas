@@ -197,9 +197,13 @@ body {
 .map-canvas:active {
   cursor: grabbing;
 }
-/* Clicks add points (measuring) rather than select. */
+/* Clicks add points (measuring, adding route stops) rather than select. */
 .map-canvas.is-placing {
   cursor: crosshair;
+}
+/* Over the Navigate route, a stop or a bend: it can be dragged. */
+.map-canvas.is-over-route {
+  cursor: move;
 }
 
 .map-status {
@@ -835,6 +839,11 @@ input:focus-visible {
 }
 .navigate-distance span {
   color: #67685f;
+}
+.navigate-tip {
+  margin: -0.25rem 0 0.6rem;
+  font-size: 0.76rem;
+  color: #8a8571;
 }
 .navigate-streets {
   margin: 0 0 0.7rem;

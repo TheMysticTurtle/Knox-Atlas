@@ -15,8 +15,18 @@ export const STORAGE_KEYS = {
   view: "knox-atlas.saved-map-view.v1",
 } as const;
 
-/** Released limits, plus `routeStops` for the (newer, optional) stops stored with a saved route. */
-export const LIMITS = { markers: 100, paths: 50, pathPoints: 250, label: 40, routeStops: 25 } as const;
+/**
+ * Released limits, plus the newer optional route fields: `routeStops` numbered stops and
+ * `routeBends` dragged bends stored with a saved route.
+ */
+export const LIMITS = {
+  markers: 100,
+  paths: 50,
+  pathPoints: 250,
+  label: 40,
+  routeStops: 25,
+  routeBends: 35,
+} as const;
 
 /** Allowed colour names, in picker order. Must match `markerColors` (checked by a unit test). */
 export const MARKER_COLORS: readonly MarkerColor[] = [
@@ -69,17 +79,25 @@ export function parsePaths(raw: string | null): SavedPath[] {
     .slice(0, LIMITS.paths);
 }
 
-/** A route's stops: each `{ point: {x, y}, label }`; invalid ones dropped; null if < 2 remain. */
+/**
+ * A route's stops: each `{ point: {x, y}, label, via? }`. Invalid entries are dropped, numbered stops
+ * and bends are capped separately, and null is returned unless at least two numbered stops remain.
+ */
 function parseStops(value: unknown): NavStop[] | null {
   if (!Array.isArray(value)) return null;
-  const stops = value
-    .flatMap((stop): NavStop[] => {
-      if (!isRecord(stop) || typeof stop.label !== "string") return [];
-      const [point] = toPoint(stop.point);
-      return point ? [{ point, label: stop.label.trim().slice(0, LIMITS.label) || `${point.x}, ${point.y}` }] : [];
-    })
-    .slice(0, LIMITS.routeStops);
-  return stops.length >= 2 ? stops : null;
+  let numbered = 0;
+  let bends = 0;
+  const stops = value.flatMap((stop): NavStop[] => {
+    if (!isRecord(stop) || typeof stop.label !== "string") return [];
+    const [point] = toPoint(stop.point);
+    if (!point) return [];
+    if (stop.via === true) {
+      return ++bends <= LIMITS.routeBends ? [{ point, label: "", via: true }] : [];
+    }
+    if (++numbered > LIMITS.routeStops) return [];
+    return [{ point, label: stop.label.trim().slice(0, LIMITS.label) || `${point.x}, ${point.y}` }];
+  });
+  return Math.min(numbered, LIMITS.routeStops) >= 2 ? stops : null;
 }
 
 function toPoint(value: unknown): Point[] {

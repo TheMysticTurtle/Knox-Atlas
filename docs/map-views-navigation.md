@@ -125,7 +125,9 @@ No bridge/no valid source must leave the atlas fully usable.
   are treated as junctions (a rare overpass could be wrong). Off-road ends get a short dashed
   connector to the nearest street; unreachable ends are reported honestly. A street may also join
   itself where it loops back (Scenic Grove Road ends 3 tiles from its own start).
-- **Next — roads from road shapes:** the 832 road shapes with no named street on them (482 trails,
+- **Drag-to-reroute (implemented 2026-10-11):** drag the line to add a bend (snapped to the nearest
+  street, unnumbered, saved with the route); drag stops/bends; double-click/right-click removes.
+- **Dropped (owner, 2026-10-11) — roads from road shapes:** the 832 road shapes with no named street on them (482 trails,
   193 side roads/driveways, 146 secondary, 11 primary; ~80% curvy) will be skeletonized into
   centerlines and joined to the network. Width filter drops footpaths; dirt trails are opt-in
   ("Include backroads / shortcuts", off by default). Parking lots are essentially absent from road

@@ -28,8 +28,11 @@ export type SavedPath = {
 /** A saved camera: world center + zoom scale (CSS pixels per tile). */
 export type SavedView = Point & { scale: number };
 
-/** A Navigate stop: where, plus a readable name (a place, a store, or its coordinates). */
-export type NavStop = { point: Point; label: string };
+/**
+ * A Navigate stop: where, plus a readable name (a place, a store, or its coordinates). A `via` stop
+ * is a bend made by dragging the route: it shapes the route but isn't a numbered, listed stop.
+ */
+export type NavStop = { point: Point; label: string; via?: boolean };
 
 /** Everything user-authored the engine draws on top of the map. */
 export type Annotations = {

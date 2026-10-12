@@ -8,7 +8,8 @@ import { buildingColor, categoryColors, mapColors, markerColors } from "./colors
 import { poiSubIds } from "./subcategories";
 import { tilePoint } from "./coordinates";
 import { intersects, pointBounds } from "./geometry";
-import { stopTag, type Trip } from "./roadGraph";
+import type { Trip } from "./roadGraph";
+import { tagAt } from "./stops";
 import { SatelliteLayer } from "./satelliteLayer";
 import type {
   Annotations,
@@ -47,6 +48,13 @@ const FOCUS_SCALE = 0.8;
 const MARKER_HIT_RADIUS = 16;
 const POI_HIT_RADIUS = 14;
 const MARKER_LABEL_MAX = 24;
+/** Navigate drag targets: stop pills / bend handles, and the route line itself (CSS pixels). */
+const STOP_HIT_RADIUS = 14;
+const BEND_HIT_RADIUS = 10;
+const ROUTE_HIT_DISTANCE = 7;
+
+/** What a press is dragging: a Navigate stop/bend, the route line (adds a bend), or the map (null). */
+type DragTarget = { kind: "stop"; index: number } | { kind: "line"; insertAt: number } | null;
 // Draw order: background layers first so buildings sit on top.
 const DRAW_ORDER: MapFeature["kind"][] = ["terrain", "water", "road", "railway", "building"];
 
@@ -70,6 +78,11 @@ export class MapEngine {
   private selection: Selection | null = null;
   private annotations: Annotations = { markers: [], paths: [], measurement: [] };
   private navigation: Navigation = { stops: [], trip: null };
+  /** World bounds of each routed leg's road line, for cheap hover/press hit tests. */
+  private legBounds: Bounds[] = [];
+  /** Latest hover position awaiting the once-per-frame "can this be dragged?" check. */
+  private hoverClient?: { x: number; y: number };
+  private hoverFrame = 0;
   private disposed = false;
   private renderFrame = 0;
   private pointerFrame = 0;
@@ -82,11 +95,20 @@ export class MapEngine {
   private userAdjusted = false;
   private dragging = false;
   private dragMoved = false;
+  private dragTarget: DragTarget = null;
   private dragOrigin = { x: 0, y: 0 };
   private centerOrigin = { x: 0, y: 0 };
 
   /** Set by React: a click (not a drag) and what it hit — saved place first, then POI, then ground. */
   onClick?: (hit: Selection) => void;
+  /**
+   * Navigate route editing (indices are into the stop list, bends included). Dragging the line adds
+   * a bend (return false to refuse, e.g. at the limit); dragging a stop or bend moves it;
+   * double-click or right-click a bend removes it.
+   */
+  onAddBend?: (index: number, point: Point) => boolean;
+  onDragStop?: (index: number, point: Point) => void;
+  onRemoveBend?: (index: number) => void;
   onPointerPosition?: (point: Point | null) => void;
   onSatelliteStatus?: (text: string) => void;
 
@@ -133,6 +155,7 @@ export class MapEngine {
     this.disposed = true;
     cancelAnimationFrame(this.renderFrame);
     cancelAnimationFrame(this.pointerFrame);
+    cancelAnimationFrame(this.hoverFrame);
     this.satellite.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
@@ -141,6 +164,8 @@ export class MapEngine {
     this.canvas.removeEventListener("pointercancel", this.onPointerCancel);
     this.canvas.removeEventListener("pointerleave", this.onPointerLeave);
     this.canvas.removeEventListener("wheel", this.onWheel);
+    this.canvas.removeEventListener("dblclick", this.onDoubleClick);
+    this.canvas.removeEventListener("contextmenu", this.onContextMenu);
   }
 
   /** Frame the whole map in the current viewport. */
@@ -210,6 +235,8 @@ export class MapEngine {
   /** Navigate's stops and route (empty stops + null trip when Navigate is closed). */
   setNavigation(navigation: Navigation): void {
     this.navigation = navigation;
+    this.legBounds = (navigation.trip?.legs ?? []).map((leg) => pointBounds(leg.road));
+    if (navigation.stops.length === 0) this.canvas.classList.remove("is-over-route");
     this.queueRender();
   }
 
@@ -428,7 +455,8 @@ export class MapEngine {
 
   /**
    * Navigate: the on-road route as a bold solid line (unlike the dashed saved paths), the off-road
-   * walking legs dashed, then a labelled pill per stop — Start, 1, 2…, End.
+   * walking legs dashed, then a labelled pill per stop — Start, 1, 2…, End — and a small white
+   * handle per dragged bend.
    */
   private drawTrip(): void {
     const { stops, trip } = this.navigation;
@@ -447,7 +475,11 @@ export class MapEngine {
     ctx.restore();
 
     stops.forEach((stop, index) => {
-      const tag = stopTag(index, stops.length);
+      if (stop.via) {
+        this.drawBend(stop.point);
+        return;
+      }
+      const tag = tagAt(stops, index);
       const color =
         tag === "Start" ? mapColors.start : tag === "End" ? mapColors.destination : mapColors.ink;
       const screen = this.toScreen(stop.point);
@@ -470,6 +502,21 @@ export class MapEngine {
       ctx.fillText(tag, screen.x, screen.y + 0.5);
       ctx.restore();
     });
+  }
+
+  /** A dragged bend: small white handle ringed in the route colour. */
+  private drawBend(point: Point): void {
+    const { ctx } = this;
+    const screen = this.toScreen(point);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#fffdf5";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = mapColors.route;
+    ctx.stroke();
+    ctx.restore();
   }
 
   private strokeScreenLine(points: Point[], dash: number[], width: number, color: string): void {
@@ -679,6 +726,8 @@ export class MapEngine {
     this.canvas.addEventListener("pointercancel", this.onPointerCancel);
     this.canvas.addEventListener("pointerleave", this.onPointerLeave);
     this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
+    this.canvas.addEventListener("dblclick", this.onDoubleClick);
+    this.canvas.addEventListener("contextmenu", this.onContextMenu);
   }
 
   private onPointerDown = (event: PointerEvent): void => {
@@ -688,6 +737,15 @@ export class MapEngine {
     this.dragMoved = false;
     this.dragOrigin = { x: event.clientX, y: event.clientY };
     this.centerOrigin = { ...this.center };
+    // A press on a Navigate stop/bend drags it; on the route line it will add a bend; else pan.
+    const stop = this.hitTestStop(event.clientX, event.clientY);
+    const leg = stop === null ? this.hitTestRouteLine(event.clientX, event.clientY) : null;
+    this.dragTarget =
+      stop !== null
+        ? { kind: "stop", index: stop }
+        : leg !== null
+          ? { kind: "line", insertAt: leg + 1 }
+          : null;
     this.canvas.setPointerCapture(event.pointerId);
   };
 
@@ -696,11 +754,28 @@ export class MapEngine {
       const moved =
         Math.abs(event.clientX - this.dragOrigin.x) + Math.abs(event.clientY - this.dragOrigin.y);
       if (moved > 4) this.dragMoved = true;
-      this.center = {
-        x: this.centerOrigin.x - (event.clientX - this.dragOrigin.x) / this.scale,
-        y: this.centerOrigin.y - (event.clientY - this.dragOrigin.y) / this.scale,
-      };
-      this.queueRender();
+      if (this.dragTarget) {
+        if (this.dragMoved) this.dragRoute(this.toWorld(event.clientX, event.clientY));
+      } else {
+        this.center = {
+          x: this.centerOrigin.x - (event.clientX - this.dragOrigin.x) / this.scale,
+          y: this.centerOrigin.y - (event.clientY - this.dragOrigin.y) / this.scale,
+        };
+        this.queueRender();
+      }
+    } else if (this.navigation.stops.length > 0) {
+      // Hint that the route, its stops and bends can be grabbed — checked at most once per frame.
+      this.hoverClient = { x: event.clientX, y: event.clientY };
+      if (!this.hoverFrame) {
+        this.hoverFrame = requestAnimationFrame(() => {
+          this.hoverFrame = 0;
+          const at = this.hoverClient;
+          if (!at) return;
+          const grabbable =
+            this.hitTestStop(at.x, at.y) !== null || this.hitTestRouteLine(at.x, at.y) !== null;
+          this.canvas.classList.toggle("is-over-route", grabbable);
+        });
+      }
     }
     // Report the hovered tile at most once per frame (drives the coordinate readout).
     this.pointerPosition = tilePoint(this.toWorld(event.clientX, event.clientY));
@@ -714,11 +789,14 @@ export class MapEngine {
 
   private onPointerUp = (event: PointerEvent): void => {
     if (!this.dragging) return;
+    const pressedStop = this.dragTarget?.kind === "stop";
     this.dragging = false;
+    this.dragTarget = null;
     if (this.canvas.hasPointerCapture(event.pointerId)) {
       this.canvas.releasePointerCapture(event.pointerId);
     }
-    if (this.dragMoved) return;
+    // A drag, or a press on a route stop/bend (those are only ever grabbed), is not a map click.
+    if (this.dragMoved || pressedStop) return;
     // A click (not a drag): report the saved place under it, else the nearest visible POI, else the
     // ground tile. React decides what the click means.
     const marker = this.hitTestMarker(event.clientX, event.clientY);
@@ -734,7 +812,79 @@ export class MapEngine {
 
   private onPointerCancel = (): void => {
     this.dragging = false;
+    this.dragTarget = null;
   };
+
+  /** Drag in progress on the route: the first move off the line adds a bend, then moves it. */
+  private dragRoute(point: Point): void {
+    const target = this.dragTarget;
+    if (!target) return;
+    if (target.kind === "line") {
+      const added = this.onAddBend?.(target.insertAt, point) ?? false;
+      this.dragTarget = added ? { kind: "stop", index: target.insertAt } : null;
+      return;
+    }
+    this.onDragStop?.(target.index, point);
+  }
+
+  private onDoubleClick = (event: MouseEvent): void => {
+    const index = this.hitTestStop(event.clientX, event.clientY);
+    if (index !== null && this.navigation.stops[index]?.via) this.onRemoveBend?.(index);
+  };
+
+  private onContextMenu = (event: MouseEvent): void => {
+    const index = this.hitTestStop(event.clientX, event.clientY);
+    if (index === null || !this.navigation.stops[index]?.via) return;
+    event.preventDefault();
+    this.onRemoveBend?.(index);
+  };
+
+  /** Index of the Navigate stop pill or bend handle under the pointer, or null. */
+  private hitTestStop(clientX: number, clientY: number): number | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    let best: number | null = null;
+    let bestDistance = Infinity;
+    this.navigation.stops.forEach((stop, index) => {
+      const screen = this.toScreen(stop.point);
+      const distance = Math.hypot(screen.x - px, screen.y - py);
+      const radius = stop.via ? BEND_HIT_RADIUS : STOP_HIT_RADIUS;
+      if (distance < radius && distance < bestDistance) {
+        best = index;
+        bestDistance = distance;
+      }
+    });
+    return best;
+  }
+
+  /**
+   * Index of the routed leg whose line passes under the pointer, or null. Done in world space with a
+   * per-leg bounds pre-filter, so hovering stays cheap even for long routes.
+   */
+  private hitTestRouteLine(clientX: number, clientY: number): number | null {
+    const legs = this.navigation.trip?.legs;
+    if (!legs) return null;
+    const pointer = this.toWorld(clientX, clientY);
+    const tolerance = ROUTE_HIT_DISTANCE / this.scale;
+    for (let leg = 0; leg < legs.length; leg += 1) {
+      const bounds = this.legBounds[leg];
+      if (
+        !bounds ||
+        pointer.x < bounds.minX - tolerance ||
+        pointer.x > bounds.maxX + tolerance ||
+        pointer.y < bounds.minY - tolerance ||
+        pointer.y > bounds.maxY + tolerance
+      ) {
+        continue;
+      }
+      const line = legs[leg].road;
+      for (let i = 1; i < line.length; i += 1) {
+        if (distanceToSegment(pointer, line[i - 1], line[i]) <= tolerance) return leg;
+      }
+    }
+    return null;
+  }
 
   private onPointerLeave = (): void => {
     if (this.dragging) return;
@@ -802,6 +952,16 @@ function buildPath(points: Point[], close = true): Path2D {
   }
   if (close && points.length > 2) path.closePath();
   return path;
+}
+
+function distanceToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared
+    ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSquared))
+    : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
 /** Trace a rounded rectangle path (fill/stroke it afterwards). */

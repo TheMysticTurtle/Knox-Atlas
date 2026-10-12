@@ -48,21 +48,24 @@ layouts the player hasn't discovered need an owner decision before they're plann
 1. [x] **Saved routes** (2026-10-11). "Save route" keeps the stops with the saved path (an optional field the
        released app ignores, so old data is unaffected); routes show with 🧭 in Your map and reopen
        in Nav to edit, extend or re-save.
-2. [ ] **Roads from the map's road shapes.** Turn `worldmap.xml` road shapes into centerlines
+2. [x] ~~**Roads from the map's road shapes.**~~ Dropped by the owner (2026-10-11): named-street
+       routing already covers the side streets and dirt roads players use. Original plan: Turn `worldmap.xml` road shapes into centerlines
        (paint onto the tile grid, thin to a skeleton, join to the named streets) so real side roads —
        winding ones included — are routable. Strips narrower than a car are dropped (footpaths);
        dirt trails sit behind **"Include backroads / shortcuts", off by default**. Parking lots are
        not a concern: only 1 of 3,370 road shapes is lot-sized. Computed once per map version
        (fingerprint) and cached; works on modded maps with nothing to maintain.
-3. [ ] **Drag-to-reroute.** Grab the route anywhere and drag, Google-Maps style: the route re-plans
+3. [x] **Drag-to-reroute** (2026-10-11). Grab the route anywhere and drag, Google-Maps style: the route re-plans
        through an unnumbered via handle (double-click removes it); vias are saved with the route.
-4. [ ] **Search** (owner request). One search bar for room types ("gun store"), category groups
+4. [ ] **Your map groups.** One tier of groups per section (Places / Routes / Paths), show/hide on
+       every level, collapsible; the old app ignores the new fields.
+5. [ ] **🔍 Search** (owner request): a top-center button that expands into a search bar. One search bar for room types ("gun store"), category groups
        ("weapons"), specific items ("chisel"), and towns/streets ("Main St") → highlight every
        location whose loot table lists it, dim the rest. Likely-loot hints, not actual contents.
        Needs the loot index uncapped first; houses excluded by default ("also in N houses").
-5. [ ] **Released-app parity leftovers:** game-folder picker; prove a real packaged 0.1.1 → 0.2.0
+6. [ ] **Released-app parity leftovers:** game-folder picker; prove a real packaged 0.1.1 → 0.2.0
        profile upgrade keeps saved items (not just dev storage).
-6. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
+7. [ ] **Polish queue** (each must keep the default simple): quick-find place toggles (police, gun /
        book / video stores, groceries, gas, schools…); highlight-and-dim focus instead of hiding;
        loot cards ordered by what players actually want; landmark/business-name accuracy;
        optional floor (Z) room outlines from existing RoomDefs.

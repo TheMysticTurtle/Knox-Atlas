@@ -8,18 +8,14 @@ released 0.1.1 lives in the preserved prototype history.
 release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
 behavior.
 
-> **▶ RESUME HERE:** 🧭 Navigate + **saved routes** are built and committed (owner-designed flow;
-> Start/1/2…/End; 🎯 re-pick per stop; routes reopen from Your map → Routes). Owner: "it's already
-> routing pretty well — on everything but some weird trails." **Next (confirm with owner):**
-> 1. ~~Saved routes~~ — done 2026-10-11.
-> 2. **Roads from the map's road shapes** — skeletonize `worldmap.xml` road polygons into
->    centerlines and join them to the named streets: all real side roads (winding included);
->    narrower-than-a-car strips dropped; dirt trails behind **"Include backroads / shortcuts", OFF by
->    default**. Cache per map fingerprint (only recompute when the map changes).
-> 3. **Drag-to-reroute** — grab the route, drag; an unnumbered via handle (double-click removes),
->    saved with the route.
-> 4. **Search** — room types, groups, specific items (uncapped loot index) + towns/streets; houses
->    excluded by default with an "also in N houses" option; highlight matches, dim the rest.
+> **▶ RESUME HERE:** 🧭 Navigate, saved routes, 🎯 re-pick and **drag-to-reroute** are built and
+> committed. Owner dropped routable side roads/backroads ("any side streets or smaller dirt roads
+> I've used showed up"). **Next (owner-agreed):**
+> 1. **Your map groups** — one tier of user groups per section (Places / Routes / Paths) with
+>    show/hide checkboxes on every level (tri-state), collapsible; group picker in the save forms.
+> 2. **🔍 Search** — a top-center button ("Search" label) that expands into a bar: towns/streets,
+>    loot categories, specific loot (uncapped loot index) → highlight matches, dim the rest;
+>    independent of Nav (found places can be clicked as stops); houses excluded by default.
 > Also: game-folder picker; desktop upgrade test against a real 0.1.1 profile; polish queue.
 >
 > Principles: **simple by default** (extras opt-in) and **helpful, not a cheat** (no high-res decoder;
@@ -39,7 +35,7 @@ behavior.
 | Personal-map parity | Places/paths/measure/saved view restored. Search, game-folder picker, and vehicle overlay not yet ported. |
 | Storage | `savedStorage.ts` reads/writes the released keys and shapes with the released validation (unit-tested with 0.1.1-format data). Same Tauri v2 runtime + identifier → same WebView origin, so existing items should load; **not yet proven** with a real packaged upgrade. Browser dev storage is separate from the desktop app's. |
 | Floors | Not implemented (polish queue). Satellite pyramid levels are zoom resolutions, not floors. |
-| Navigate | 🧭 Nav toolbar button → panel: "+ Add route", then each map click appends a stop (Start, 1, 2…, End) and re-routes; stops editable (X/Y, 🎯 click a new spot — a saved place's marker names the stop), reorderable (↑↓), removable; **Save route** (line + stops) → Your map → Routes reopens it for editing (Save changes updates it). Routes follow `streets.xml` named-street centerlines (`engine/roadGraph.ts`: crossings split, ends snapped within 12 tiles incl. a street onto its own far stretch; A*). Unnamed side roads/trails not yet routable (Next #2). |
+| Navigate | 🧭 Nav toolbar button → panel: "+ Add route", then each map click appends a stop (Start, 1, 2…, End) and re-routes; stops editable (X/Y, 🎯 click a new spot — a saved place's marker names the stop), reorderable (↑↓), removable; **drag the line** to add a bend (unnumbered, snapped to the street; drag to move; double-click/right-click removes); drag stop pills too; one total distance; **Save route** (line + stops + bends) → Your map → Routes reopens it for editing (Save changes updates it). Routes follow `streets.xml` named-street centerlines (`engine/roadGraph.ts`: crossings split, ends snapped within 12 tiles incl. a street onto its own far stretch; A*). Unnamed side roads/trails not yet routable (Next #2). |
 | Save detail | Isolated SQLite coordinate reader; no desktop command/UI. Live-read consistency unresolved. |
 | Live player/server | Optional extras; not implemented. No mod-free live position exists (see map views doc). |
 | Distribution | CI/release scripts still target old root npm and `src-tauri/target` layout. Not release-ready. |
@@ -72,8 +68,9 @@ treating CI coverage as sufficient.
 - [x] Restore saved places/paths/measuring/saved view on the legacy storage keys (2026-10-11).
 - [x] 🧭 Navigate: add-as-you-click stops, street-centerline routing, save as path (2026-10-11).
 - [x] Saved routes (reopen/edit favourite routes from Your map) (2026-10-11).
-- [ ] Routable roads from road shapes (side roads; footpaths dropped; backroads opt-in, off by default).
-- [ ] Drag-to-reroute (unnumbered via handles).
+- [x] ~~Routable roads from road shapes~~ — dropped by the owner (2026-10-11): routing on named streets is good enough.
+- [x] Drag-to-reroute (unnumbered bends, snapped to streets, saved with routes) (2026-10-11).
+- [ ] Your map groups: one tier per section, show/hide per item/group/section, collapsible.
 - [ ] Search bar: room types, categories, specific items, towns/streets → highlight matches (uncap loot index first; houses opt-in).
 - [ ] Game-folder picker (released-app parity).
 - [ ] Polish: quick-finds, highlight-and-dim, loot ordering, landmark names, floor outlines.
@@ -102,6 +99,26 @@ treating CI coverage as sufficient.
 Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
 "never hide," satellite depending on a detailed decoder, old check results) are superseded by later
 entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — Drag-to-reroute; side-road routing dropped
+
+- **Owner decisions:** drop routable side roads/backroads (the side streets and small dirt roads the
+  owner used already route fine); add Google-Maps-style dragging; show one total distance (the
+  "by road + off-road" split confused). Search next, as its own top-center button.
+- **Design:** a bend is a `via` stop in the stop list between the numbered stops of the leg it
+  shapes — routed through, never numbered or listed, saved with the route (≤ 35, separate from the
+  25 numbered stops). Bend rules live in pure `engine/stops.ts` (labels skip bends; reordering drops
+  bends between the swapped stops; removing drops bends left dangling). Bends snap onto the nearest
+  street (`snapToRoad`) so a reroute never detours off-road.
+- **Engine:** a press on a stop pill/bend drags it; a press on the route line adds a bend on the
+  first move (a plain click still selects); otherwise pan. Double-click/right-click removes a bend.
+  Move cursor over draggable route parts.
+- **Owner-reported issue & fix:** pressing a route dot opened the "map point" popup. Presses on
+  stops/bends are now grabs only. Hover hit-testing was made cheap at the same time: at most once per
+  animation frame, per-leg world-bounds pre-filter, world-space distance (no per-point screen
+  conversion).
+- **Tested:** `tsc` clean; 40 web tests (new: bend rules ×5, bends round-trip through storage, bends
+  alone aren't a route, road snapping); vite build. Owner dragged routes in the browser build.
 
 ### 2026-10-11 — Saved routes + 🎯 re-pick
 

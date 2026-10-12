@@ -1,13 +1,15 @@
 import { create } from "zustand";
 
+import { countBends, countNumbered, insertBend, moveNumbered, removeAt } from "./engine/stops";
 import type { Bounds, NavStop, Point, SavedPath, Selection } from "./engine/types";
 import { LIMITS } from "./savedStorage";
 
 /** A request for the map to frame these bounds; `nonce` makes repeat requests fire again. */
 export type FocusRequest = { bounds: Bounds; nonce: number };
 
-/** Most stops a trip can have — the same limit a saved route can store. */
+/** Most numbered stops / dragged bends a trip can have — the same limits a saved route stores. */
 export const MAX_STOPS = LIMITS.routeStops;
+export const MAX_BENDS = LIMITS.routeBends;
 
 /**
  * Transient map interaction state shared by the map and the panels. React decides what a map click
@@ -21,7 +23,10 @@ type MapUiState = {
   measurement: Point[];
   focus: FocusRequest | null;
 
-  /** Navigate: panel open; stops in the order the user made them (first = Start, last = End). */
+  /**
+   * Navigate: panel open; stops in trip order (first numbered = Start, last = End), with dragged
+   * bends (`via`) between the stops of the leg they shape.
+   */
   navOpen: boolean;
   navStops: NavStop[];
   /** True while map clicks append Navigate stops. */
@@ -47,9 +52,14 @@ type MapUiState = {
   /** Add a stop at the end of the trip (the new End). */
   appendStop: (stop: NavStop) => void;
   updateStop: (index: number, stop: NavStop) => void;
+  /** Remove a stop or a bend (indices are into the full list, bends included). */
   removeStop: (index: number) => void;
-  /** Move a stop one place earlier (-1) or later (+1) in the trip order. */
+  /** Swap a numbered stop with the previous (-1) or next (+1) numbered stop. */
   moveStop: (index: number, direction: -1 | 1) => void;
+  /** Dragging the route line: add a bend at `index`. Returns false at the bend limit. */
+  addBend: (index: number, point: Point) => boolean;
+  /** Dragging a stop or bend: move it (a dragged stop is renamed to its new coordinates). */
+  dragStop: (index: number, point: Point) => void;
   /** 🎯: the next map click relocates this stop (null cancels). */
   startMovingStop: (index: number | null) => void;
   /** Relocate the stop being moved to where the map was clicked. */
@@ -108,23 +118,35 @@ export const useMapUi = create<MapUiState>((set, get) => ({
 
   appendStop: (stop) => {
     const { navStops } = get();
-    if (navStops.length >= MAX_STOPS) return;
+    if (countNumbered(navStops) >= MAX_STOPS) return;
     const next = [...navStops, stop];
-    set({ navStops: next, addingStops: next.length < MAX_STOPS });
+    set({ navStops: next, addingStops: countNumbered(next) < MAX_STOPS });
   },
 
   updateStop: (index, stop) => set({ navStops: get().navStops.map((item, i) => (i === index ? stop : item)) }),
 
-  removeStop: (index) =>
-    set({ navStops: get().navStops.filter((_, i) => i !== index), movingStop: null }),
+  removeStop: (index) => set({ navStops: removeAt(get().navStops, index), movingStop: null }),
 
-  moveStop: (index, direction) => {
-    const target = index + direction;
-    const navStops = [...get().navStops];
-    if (target < 0 || target >= navStops.length) return;
-    [navStops[index], navStops[target]] = [navStops[target], navStops[index]];
-    set({ navStops, movingStop: null });
+  moveStop: (index, direction) =>
+    set({ navStops: moveNumbered(get().navStops, index, direction), movingStop: null }),
+
+  addBend: (index, point) => {
+    const { navStops } = get();
+    if (countBends(navStops) >= MAX_BENDS) return false;
+    set({ navStops: insertBend(navStops, index, point), movingStop: null, addingStops: false });
+    return true;
   },
+
+  dragStop: (index, point) =>
+    set({
+      navStops: get().navStops.map((stop, i) =>
+        i !== index
+          ? stop
+          : stop.via
+            ? { ...stop, point }
+            : { point, label: `${Math.round(point.x)}, ${Math.round(point.y)}` },
+      ),
+    }),
 
   startMovingStop: (index) =>
     set(
@@ -144,7 +166,7 @@ export const useMapUi = create<MapUiState>((set, get) => ({
   openRoute: (route) =>
     set({
       navOpen: true,
-      navStops: (route.stops ?? []).map((stop) => ({ point: { ...stop.point }, label: stop.label })),
+      navStops: (route.stops ?? []).map((stop) => ({ ...stop, point: { ...stop.point } })),
       openRouteId: route.id,
       addingStops: false,
       movingStop: null,

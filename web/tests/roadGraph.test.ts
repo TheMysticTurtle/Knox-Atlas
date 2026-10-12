@@ -8,9 +8,10 @@ import {
   buildRoadGraph,
   findRoute,
   planTrip,
-  stopTag,
+  snapToRoad,
   tripPolyline,
 } from "../src/engine/roadGraph.ts";
+import { stopTag } from "../src/engine/stops.ts";
 import type { GameSnapshot, Street } from "../src/engine/types.ts";
 
 const street = (name: string, ...coords: [number, number][]): Street => ({
@@ -127,6 +128,12 @@ test("stops are labelled Start, 1, 2…, End in the order they were added", () =
   assert.deepEqual([0].map((i) => stopTag(i, 1)), ["Start"]);
   assert.deepEqual([0, 1].map((i) => stopTag(i, 2)), ["Start", "End"]);
   assert.deepEqual([0, 1, 2, 3].map((i) => stopTag(i, 4)), ["Start", "1", "2", "End"]);
+});
+
+test("a dragged bend snaps onto the nearest street", () => {
+  const graph = buildRoadGraph([street("Main St", [0, 0], [200, 0])]);
+  assert.deepEqual(snapToRoad(graph, { x: 80, y: 35 }), { x: 80, y: 0 });
+  assert.deepEqual(snapToRoad(buildRoadGraph([]), { x: 5, y: 5 }), { x: 5, y: 5 }, "no roads: unchanged");
 });
 
 test("no streets at all is reported, not thrown", () => {

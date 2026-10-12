@@ -42,7 +42,9 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   const navOpen = useMapUi((state) => state.navOpen);
   const navStops = useMapUi((state) => state.navStops);
   const addingStops = useMapUi((state) => state.addingStops);
+  const movingStop = useMapUi((state) => state.movingStop);
   const toggleNav = useMapUi((state) => state.toggleNav);
+  const openRouteId = useMapUi((state) => state.openRouteId);
   const [pointer, setPointer] = useState<Point | null>(null);
   const [satelliteStatus, setSatelliteStatus] = useState("");
 
@@ -60,10 +62,11 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   useEffect(() => {
     if (!snapshot || !canvasRef.current) return;
     const engine = new MapEngine(canvasRef.current, snapshot);
-    // What a click means: add a Navigate stop, else add a measure point, else select.
+    // What a click means: move or add a Navigate stop, else add a measure point, else select.
     engine.onClick = (hit) => {
       const ui = useMapUi.getState();
-      if (ui.addingStops) ui.appendStop(stopFromHit(hit));
+      if (ui.movingStop !== null) ui.placeMovingStop(stopFromHit(hit));
+      else if (ui.addingStops) ui.appendStop(stopFromHit(hit));
       else if (ui.measuring) ui.addMeasurePoint(hit.point);
       else ui.select(hit);
     };
@@ -99,9 +102,11 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
     engineRef.current?.setView({ towns, streets, buildings, businesses, satellite });
   }, [towns, streets, buildings, businesses, satellite, snapshot]);
 
+  // A saved route open in Navigate is drawn live by Navigate, so hide its saved copy meanwhile.
   useEffect(() => {
-    engineRef.current?.setAnnotations({ markers, paths, measurement });
-  }, [markers, paths, measurement, snapshot]);
+    const shown = navOpen && openRouteId ? paths.filter((path) => path.id !== openRouteId) : paths;
+    engineRef.current?.setAnnotations({ markers, paths: shown, measurement });
+  }, [markers, paths, measurement, navOpen, openRouteId, snapshot]);
 
   useEffect(() => {
     engineRef.current?.setSelection(selection);
@@ -115,19 +120,20 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
   }, [navOpen, navStops, tripResult, snapshot]);
 
   useEffect(() => {
-    engineRef.current?.setPlacingCursor(measuring || addingStops);
-  }, [measuring, addingStops, snapshot]);
+    engineRef.current?.setPlacingCursor(measuring || addingStops || movingStop !== null);
+  }, [measuring, addingStops, movingStop, snapshot]);
 
   useEffect(() => {
     if (focus) engineRef.current?.focus(focus.bounds);
   }, [focus]);
 
-  // Esc: stop adding route stops, else stop measuring, else close the popup.
+  // Esc: cancel moving/adding route stops, else stop measuring, else close the popup.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       const ui = useMapUi.getState();
-      if (ui.addingStops) ui.setAddingStops(false);
+      if (ui.movingStop !== null) ui.startMovingStop(null);
+      else if (ui.addingStops) ui.setAddingStops(false);
       else if (ui.measuring) ui.finishMeasure();
       else if (ui.selection) ui.select(null);
     }
@@ -187,7 +193,7 @@ export function MapStage({ snapshot, pois, loot, error }: MapStageProps) {
       {!snapshot && !error && <div className="map-status">Reading Knox Country…</div>}
       {error && <div className="map-status map-status-error">Couldn’t load the map: {error}</div>}
 
-      {selection && snapshot && !measuring && !addingStops && (
+      {selection && snapshot && !measuring && !addingStops && movingStop === null && (
         <SelectionCard
           key={`${selection.point.x},${selection.point.y},${selection.markerId},${selection.poi?.rawName}`}
           selection={selection}

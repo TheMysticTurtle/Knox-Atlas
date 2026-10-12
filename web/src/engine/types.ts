@@ -14,7 +14,17 @@ export type Selection = { point: Point; poi: MapPoi | null; markerId: string | n
 
 export type MarkerColor = "amber" | "teal" | "red" | "blue" | "violet" | "green" | "white";
 export type SavedMarker = Point & { id: string; label: string; color: MarkerColor };
-export type SavedPath = { id: string; label: string; color: MarkerColor; points: Point[] };
+/**
+ * A saved line. `stops` makes it a saved ROUTE (reopens in Navigate); it is an optional addition to
+ * the released 0.1.x shape, which ignores it — old apps still see and draw the line.
+ */
+export type SavedPath = {
+  id: string;
+  label: string;
+  color: MarkerColor;
+  points: Point[];
+  stops?: NavStop[];
+};
 /** A saved camera: world center + zoom scale (CSS pixels per tile). */
 export type SavedView = Point & { scale: number };
 

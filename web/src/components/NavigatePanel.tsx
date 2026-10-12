@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { parseCoordinates } from "../engine/coordinates";
 import { simplifyPath } from "../engine/geometry";
 import { stopTag, tripPolyline, type TripResult } from "../engine/roadGraph";
-import type { Bounds, NavStop, SavedMarker } from "../engine/types";
+import type { Bounds, NavStop } from "../engine/types";
 import { MAX_STOPS, useMapUi } from "../mapUiStore";
 import { LIMITS } from "../savedStorage";
 import { useSaved } from "../savedStore";
@@ -22,7 +22,7 @@ type NavigatePanelProps = {
 /**
  * 🧭 Navigate. "+ Add route", then click the map: each click adds a stop in order (Start, 1, 2…,
  * End) and the route follows the streets through them. Stops can be edited, reordered or removed,
- * and the trip saved as a path.
+ * and the trip saved as a route (reopened later from Your map).
  */
 export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
   const stops = useMapUi((state) => state.navStops);
@@ -32,24 +32,41 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
   const updateStop = useMapUi((state) => state.updateStop);
   const removeStop = useMapUi((state) => state.removeStop);
   const moveStop = useMapUi((state) => state.moveStop);
+  const movingStop = useMapUi((state) => state.movingStop);
+  const startMovingStop = useMapUi((state) => state.startMovingStop);
   const clearStops = useMapUi((state) => state.clearStops);
-  const markers = useSaved((state) => state.markers);
+  const openRouteId = useMapUi((state) => state.openRouteId);
+  const setOpenRoute = useMapUi((state) => state.setOpenRoute);
   const pathCount = useSaved((state) => state.paths.length);
+  const openRoute = useSaved((state) => state.paths.find((path) => path.id === openRouteId));
   const addPath = useSaved((state) => state.addPath);
+  const updatePath = useSaved((state) => state.updatePath);
   const [saving, setSaving] = useState(false);
 
   const trip = result?.ok ? result.trip : null;
   const full = stops.length >= MAX_STOPS;
+  // Re-saving an opened route updates it; otherwise it's a new saved route (limit applies).
+  const atLimit = !openRoute && pathCount >= LIMITS.paths;
 
-  function saveTrip(name: string, color: Parameters<typeof addPath>[2]) {
+  /** Save the trip as a route: its line (released path format) plus its stops. */
+  function saveRoute(name: string, color: Parameters<typeof addPath>[2]) {
     if (!trip) return;
-    if (addPath(simplifyPath(tripPolyline(trip), LIMITS.pathPoints), name, color)) setSaving(false);
+    const line = simplifyPath(tripPolyline(trip), LIMITS.pathPoints);
+    if (openRoute) {
+      updatePath(openRoute.id, line, name, color, stops);
+    } else {
+      const saved = addPath(line, name, color, stops);
+      if (!saved) return;
+      setOpenRoute(saved.id);
+    }
+    setSaving(false);
   }
 
   return (
     <section className="navigate-panel" aria-label="Navigate">
       <header className="navigate-heading">
         <small>NAVIGATE</small>
+        {openRoute && <strong className="navigate-route-name">{openRoute.label}</strong>}
         <button className="selection-close" onClick={toggleNav} aria-label="Close Navigate">
           ×
         </button>
@@ -84,10 +101,11 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
               tag={stopTag(index, stops.length)}
               stop={stop}
               bounds={bounds}
-              markers={markers}
+              moving={movingStop === index}
               canMoveUp={index > 0}
               canMoveDown={index < stops.length - 1}
               onChange={(next) => updateStop(index, next)}
+              onRepick={() => startMovingStop(movingStop === index ? null : index)}
               onMove={(direction) => moveStop(index, direction)}
               onRemove={() => removeStop(index)}
             />
@@ -121,12 +139,12 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
                 )}
                 {saving ? (
                   <NameColorForm
-                    initialName={`${stops[0].label} → ${stops[stops.length - 1].label}`}
-                    initialColor="blue"
+                    initialName={openRoute?.label ?? `${stops[0].label} → ${stops[stops.length - 1].label}`}
+                    initialColor={openRoute?.color ?? "blue"}
                     placeholder="Supply run, patrol, shortcut…"
-                    submitLabel="Save path"
-                    note={`Saved on this computer · ${pathCount}/${LIMITS.paths}`}
-                    onSubmit={saveTrip}
+                    submitLabel={openRoute ? "Save changes" : "Save route"}
+                    note={openRoute ? undefined : `Saved on this computer · ${pathCount}/${LIMITS.paths}`}
+                    onSubmit={saveRoute}
                     onCancel={() => setSaving(false)}
                   />
                 ) : (
@@ -134,12 +152,10 @@ export function NavigatePanel({ bounds, result }: NavigatePanelProps) {
                     <button
                       className="primary-action"
                       onClick={() => setSaving(true)}
-                      disabled={pathCount >= LIMITS.paths}
-                      title={
-                        pathCount >= LIMITS.paths ? `You can save up to ${LIMITS.paths} paths` : undefined
-                      }
+                      disabled={atLimit}
+                      title={atLimit ? `You can save up to ${LIMITS.paths} paths and routes` : undefined}
                     >
-                      Save as path
+                      {openRoute ? "Save changes" : "Save route"}
                     </button>
                   </div>
                 )}
@@ -156,23 +172,27 @@ type StopRowProps = {
   tag: string;
   stop: NavStop;
   bounds: Bounds;
-  markers: SavedMarker[];
+  /** Waiting for a map click to relocate this stop. */
+  moving: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onChange: (stop: NavStop) => void;
+  /** 🎯: relocate this stop with the next map click (again to cancel). */
+  onRepick: () => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
 };
 
-/** One stop: editable X/Y (applied on Enter or leaving the pair), saved places, reorder, remove. */
+/** One stop: editable X/Y (applied on Enter or leaving the pair), 🎯 re-pick, reorder, remove. */
 function StopRow({
   tag,
   stop,
   bounds,
-  markers,
+  moving,
   canMoveUp,
   canMoveDown,
   onChange,
+  onRepick,
   onMove,
   onRemove,
 }: StopRowProps) {
@@ -225,25 +245,16 @@ function StopRow({
           value={y}
           onChange={(event) => setY(event.target.value)}
         />
-        {markers.length > 0 && (
-          <select
-            className="stop-saved"
-            aria-label={`Use a saved place for ${tag}`}
-            title="Use a saved place"
-            value=""
-            onChange={(event) => {
-              const marker = markers.find((item) => item.id === event.target.value);
-              if (marker) onChange({ point: { x: marker.x, y: marker.y }, label: marker.label });
-            }}
-          >
-            <option value="">★</option>
-            {markers.map((marker) => (
-              <option key={marker.id} value={marker.id}>
-                {marker.label}
-              </option>
-            ))}
-          </select>
-        )}
+        <button
+          type="button"
+          className={`stop-repick${moving ? " is-active" : ""}`}
+          onClick={onRepick}
+          aria-pressed={moving}
+          aria-label={`Pick a new spot for ${tag}`}
+          title={moving ? "Click the map to move this stop (Esc to cancel)" : "Pick a new spot on the map"}
+        >
+          🎯
+        </button>
         <button type="button" onClick={() => onMove(-1)} disabled={!canMoveUp} aria-label={`Move ${tag} earlier`} title="Move earlier">
           ↑
         </button>
@@ -254,7 +265,11 @@ function StopRow({
           ×
         </button>
       </form>
-      {name && <span className="stop-label">{name}</span>}
+      {moving ? (
+        <span className="stop-label is-moving">Click the map to move this stop…</span>
+      ) : (
+        name && <span className="stop-label">{name}</span>
+      )}
     </li>
   );
 }

@@ -45,7 +45,7 @@ layouts the player hasn't discovered need an owner decision before they're plann
 
 ## Next — in order
 
-1. [ ] **Saved routes.** "Save route" keeps the stops with the saved path (an optional field the
+1. [x] **Saved routes** (2026-10-11). "Save route" keeps the stops with the saved path (an optional field the
        released app ignores, so old data is unaffected); routes show with 🧭 in Your map and reopen
        in Nav to edit, extend or re-save.
 2. [ ] **Roads from the map's road shapes.** Turn `worldmap.xml` road shapes into centerlines

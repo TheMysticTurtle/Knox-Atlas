@@ -8,10 +8,10 @@ released 0.1.1 lives in the preserved prototype history.
 release blockers; [map views/navigation](map-views-navigation.md) owns imagery/floor/routing/position
 behavior.
 
-> **▶ RESUME HERE:** 🧭 Navigate is built and committed (owner-designed flow; Start/1/2…/End;
-> street-centerline routing with the Scenic Grove self-loop fix). **Next (owner-agreed order):**
-> 1. **Saved routes** — "Save route" stores a regular saved path + its stops (optional field the
->    released app ignores); routes show with 🧭 in Your map and reopen in Nav for editing.
+> **▶ RESUME HERE:** 🧭 Navigate + **saved routes** are built and committed (owner-designed flow;
+> Start/1/2…/End; 🎯 re-pick per stop; routes reopen from Your map → Routes). Owner: "it's already
+> routing pretty well — on everything but some weird trails." **Next (confirm with owner):**
+> 1. ~~Saved routes~~ — done 2026-10-11.
 > 2. **Roads from the map's road shapes** — skeletonize `worldmap.xml` road polygons into
 >    centerlines and join them to the named streets: all real side roads (winding included);
 >    narrower-than-a-car strips dropped; dirt trails behind **"Include backroads / shortcuts", OFF by
@@ -39,7 +39,7 @@ behavior.
 | Personal-map parity | Places/paths/measure/saved view restored. Search, game-folder picker, and vehicle overlay not yet ported. |
 | Storage | `savedStorage.ts` reads/writes the released keys and shapes with the released validation (unit-tested with 0.1.1-format data). Same Tauri v2 runtime + identifier → same WebView origin, so existing items should load; **not yet proven** with a real packaged upgrade. Browser dev storage is separate from the desktop app's. |
 | Floors | Not implemented (polish queue). Satellite pyramid levels are zoom resolutions, not floors. |
-| Navigate | 🧭 Nav toolbar button → panel: "+ Add route", then each map click appends a stop (Start, 1, 2…, End) and re-routes; stops editable (X/Y, ★ saved place), reorderable (↑↓), removable; Save as path. Routes follow `streets.xml` named-street centerlines (`engine/roadGraph.ts`: crossings split, ends snapped within 12 tiles incl. a street onto its own far stretch; A*). Unnamed side roads/trails not yet routable (Next #2). |
+| Navigate | 🧭 Nav toolbar button → panel: "+ Add route", then each map click appends a stop (Start, 1, 2…, End) and re-routes; stops editable (X/Y, 🎯 click a new spot — a saved place's marker names the stop), reorderable (↑↓), removable; **Save route** (line + stops) → Your map → Routes reopens it for editing (Save changes updates it). Routes follow `streets.xml` named-street centerlines (`engine/roadGraph.ts`: crossings split, ends snapped within 12 tiles incl. a street onto its own far stretch; A*). Unnamed side roads/trails not yet routable (Next #2). |
 | Save detail | Isolated SQLite coordinate reader; no desktop command/UI. Live-read consistency unresolved. |
 | Live player/server | Optional extras; not implemented. No mod-free live position exists (see map views doc). |
 | Distribution | CI/release scripts still target old root npm and `src-tauri/target` layout. Not release-ready. |
@@ -71,7 +71,7 @@ treating CI coverage as sufficient.
 ### Next (owner order)
 - [x] Restore saved places/paths/measuring/saved view on the legacy storage keys (2026-10-11).
 - [x] 🧭 Navigate: add-as-you-click stops, street-centerline routing, save as path (2026-10-11).
-- [ ] Saved routes (reopen/edit favourite routes from Your map).
+- [x] Saved routes (reopen/edit favourite routes from Your map) (2026-10-11).
 - [ ] Routable roads from road shapes (side roads; footpaths dropped; backroads opt-in, off by default).
 - [ ] Drag-to-reroute (unnumbered via handles).
 - [ ] Search bar: room types, categories, specific items, towns/streets → highlight matches (uncap loot index first; houses opt-in).
@@ -102,6 +102,22 @@ treating CI coverage as sufficient.
 Newest first. Older entries are history: their claims ("full item list," "immutable snapshot,"
 "never hide," satellite depending on a detailed decoder, old check results) are superseded by later
 entries and the current docs. The 2026-10-11 entry supersedes the 2026-10-10 "out of scope" framing.
+
+### 2026-10-11 — Saved routes + 🎯 re-pick
+
+- **Owner asks:** save routes so people can reopen favourites; then (after testing) replace the ★
+  saved-place dropdown on each stop with a button to click a new spot ("crosshair").
+- **Design:** a route is a regular saved path (released format, so 0.1.1 still reads/draws the line)
+  plus an optional `stops` field (≤ 25; `LIMITS.routeStops`). Invalid stops degrade to a plain line.
+  Reopening re-routes from the stops, so saved routes benefit from future routing upgrades. Your map
+  lists **Routes** (🧭) separately from measured **Paths**; clicking a route opens it in Nav
+  (`openRouteId`), where Save changes updates it in place; its saved copy is hidden while open.
+- **🎯 re-pick:** `movingStop` in `mapUiStore`; the next map click relocates that stop (clicking a
+  saved place's marker names the stop after it); Esc / 🎯 again cancels; crosshair cursor.
+- **Tested:** `tsc` clean; 32 web tests (new: routes keep stops while plain/legacy paths load
+  unchanged with no `stops` field; broken stops degrade to a line; released limits pinned
+  separately from the new one); vite build. Owner click-tested Nav, saved routes and 🎯; drag isn't
+  built yet (planned).
 
 ### 2026-10-11 — 🧭 Navigate: road routing through your stops
 

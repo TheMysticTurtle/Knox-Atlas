@@ -22,7 +22,8 @@ for 0.1.1. Milestones in the roadmap are feature goals, not release numbers.
   the measuring tool with saved paths, and a saved map view. Click anything on the map for
   Save place · Copy X/Y · Measure from here; saved items are listed under "Your map".
 - 🧭 Navigate: add stops by clicking the map (Start, 1, 2…, End); the route follows the named
-  streets, shows its distance and street sequence, and can be saved as a path.
+  streets, shows its distance and street sequence. 🎯 moves a stop; Save route keeps the stops,
+  and saved routes reopen from Your map → Routes for editing.
 - Labelled toolbar: Full · Home · Set Home · Nav (the saved view is now called Home).
 
 ### Changed

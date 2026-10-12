@@ -645,6 +645,19 @@ input:focus-visible {
 .saved-dot.is-path {
   border-radius: 3px;
 }
+/* A saved route: compass in a coloured disc. */
+.saved-dot.is-route {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1;
+}
+.saved-item.is-open {
+  background: rgba(224, 181, 111, 0.22);
+}
 .saved-remove {
   padding: 0.2rem 0.55rem;
   border: 0;
@@ -685,6 +698,15 @@ input:focus-visible {
   font-size: 0.66rem;
   letter-spacing: 0.14em;
   color: #8a8571;
+}
+.navigate-route-name {
+  display: block;
+  margin-top: 0.1rem;
+  padding-right: 1.5rem;
+  overflow: hidden;
+  font-size: 1rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .navigate-heading .selection-close {
   top: -0.35rem;
@@ -737,8 +759,7 @@ input:focus-visible {
 .stop-row input[aria-invalid="true"] {
   border-color: #c0453b;
 }
-.stop-row button,
-.stop-saved {
+.stop-row button {
   flex: 0 0 auto;
   height: 30px;
   padding: 0 0.45rem;
@@ -753,9 +774,9 @@ input:focus-visible {
   opacity: 0.35;
   cursor: default;
 }
-.stop-saved {
-  width: 42px;
-  padding: 0 0.2rem;
+.stop-repick.is-active {
+  background: #e0b56f;
+  border-color: #9a7448;
 }
 .stop-remove {
   color: #8a8571;
@@ -768,6 +789,10 @@ input:focus-visible {
   color: #67685f;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.stop-label.is-moving {
+  color: #9a7448;
+  font-weight: 600;
 }
 /* "+ Add route" in progress: the one-line instruction and Done. */
 .navigate-adding {

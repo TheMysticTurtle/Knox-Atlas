@@ -20,7 +20,9 @@ test("storage keys are the released 0.1.x keys (existing users' data must load)"
     paths: "knox-atlas.saved-paths.v1",
     view: "knox-atlas.saved-map-view.v1",
   });
-  assert.deepEqual(LIMITS, { markers: 100, paths: 50, pathPoints: 250, label: 40 });
+  // The released limits must not change (the newer `routeStops` is additive).
+  const { markers, paths, pathPoints, label } = LIMITS;
+  assert.deepEqual({ markers, paths, pathPoints, label }, { markers: 100, paths: 50, pathPoints: 250, label: 40 });
 });
 
 test("colour names match the palette exactly", () => {
@@ -77,6 +79,39 @@ test("reads paths written by the released app; needs a name and two valid points
   assert.deepEqual(parsePaths(raw), [
     { id: "p1", label: "Supply run", color: "green", points: [{ x: 0, y: 0 }, { x: 3, y: 4 }] },
   ]);
+});
+
+test("saved routes keep their stops; plain paths and old data load unchanged", () => {
+  const route = {
+    id: "r1",
+    label: "Supply loop",
+    color: "blue",
+    points: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 80 }],
+    stops: [
+      { point: { x: 0, y: 0 }, label: "Safehouse" },
+      { point: { x: 50, y: 80 }, label: "Gun store" },
+    ],
+  };
+  const plain = { id: "p1", label: "Old path", color: "teal", points: [{ x: 1, y: 1 }, { x: 2, y: 2 }] };
+  const [loadedRoute, loadedPlain] = parsePaths(JSON.stringify([route, plain]));
+  assert.deepEqual(loadedRoute, route);
+  assert.deepEqual(loadedPlain, plain);
+  assert.equal("stops" in loadedPlain, false, "plain paths gain no stops field");
+});
+
+test("a route with broken stops still loads as a plain line", () => {
+  const raw = JSON.stringify([
+    {
+      id: "r",
+      label: "Half broken",
+      color: "red",
+      points: [{ x: 0, y: 0 }, { x: 9, y: 9 }],
+      stops: [{ point: { x: 0, y: 0 }, label: "A" }, { point: { x: "9", y: 9 }, label: "B" }, "junk"],
+    },
+  ]);
+  const [path] = parsePaths(raw);
+  assert.equal(path.label, "Half broken");
+  assert.equal(path.stops, undefined);
 });
 
 test("caps path points at the released limit", () => {

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { MarkerColor, Point, SavedMarker, SavedPath, SavedView } from "./engine/types";
+import type { MarkerColor, NavStop, Point, SavedMarker, SavedPath, SavedView } from "./engine/types";
 import { LIMITS, cleanLabel, loadSaved, newId, persist } from "./savedStorage";
 
 /** The user's own map: saved places, saved paths and the saved camera. Persisted on every change. */
@@ -12,8 +12,13 @@ type SavedState = {
   addMarker: (point: Point, label: string, color: MarkerColor) => SavedMarker | null;
   updateMarker: (id: string, label: string, color: MarkerColor) => void;
   removeMarker: (id: string) => void;
-  /** Returns the new path, or null when the name is empty, it has < 2 points, or the limit is reached. */
-  addPath: (points: Point[], label: string, color: MarkerColor) => SavedPath | null;
+  /**
+   * Returns the new path, or null when the name is empty, it has < 2 points, or the limit is reached.
+   * Passing `stops` saves it as a route that reopens in Navigate.
+   */
+  addPath: (points: Point[], label: string, color: MarkerColor, stops?: NavStop[]) => SavedPath | null;
+  /** Replace a saved path's line, name, colour and stops (re-saving an opened route). */
+  updatePath: (id: string, points: Point[], label: string, color: MarkerColor, stops?: NavStop[]) => void;
   removePath: (id: string) => void;
   saveView: (view: SavedView) => void;
 };
@@ -51,19 +56,24 @@ export const useSaved = create<SavedState>((set, get) => ({
     persist("markers", markers);
   },
 
-  addPath: (points, label, color) => {
+  addPath: (points, label, color, stops) => {
     const name = cleanLabel(label);
     if (!name || points.length < 2 || get().paths.length >= LIMITS.paths) return null;
-    const path: SavedPath = {
-      id: newId(),
-      label: name,
-      color,
-      points: points.slice(0, LIMITS.pathPoints).map((point) => ({ x: point.x, y: point.y })),
-    };
+    const path = makePath(newId(), points, name, color, stops);
     const paths = [...get().paths, path];
     set({ paths });
     persist("paths", paths);
     return path;
+  },
+
+  updatePath: (id, points, label, color, stops) => {
+    const name = cleanLabel(label);
+    if (!name || points.length < 2) return;
+    const paths = get().paths.map((path) =>
+      path.id === id ? makePath(id, points, name, color, stops) : path,
+    );
+    set({ paths });
+    persist("paths", paths);
   },
 
   removePath: (id) => {
@@ -77,3 +87,25 @@ export const useSaved = create<SavedState>((set, get) => ({
     persist("view", view);
   },
 }));
+
+/** A path record in the released shape; `stops` only when it is a route (2+ stops). */
+function makePath(
+  id: string,
+  points: Point[],
+  label: string,
+  color: MarkerColor,
+  stops?: NavStop[],
+): SavedPath {
+  const path: SavedPath = {
+    id,
+    label,
+    color,
+    points: points.slice(0, LIMITS.pathPoints).map((point) => ({ x: point.x, y: point.y })),
+  };
+  if (stops && stops.length >= 2) {
+    path.stops = stops
+      .slice(0, LIMITS.routeStops)
+      .map((stop) => ({ point: { x: stop.point.x, y: stop.point.y }, label: stop.label }));
+  }
+  return path;
+}

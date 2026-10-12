@@ -7,7 +7,7 @@
 //
 // Self-contained on purpose (type-only imports): the parse functions run under the Node test runner.
 
-import type { MarkerColor, Point, SavedMarker, SavedPath, SavedView } from "./engine/types";
+import type { MarkerColor, NavStop, Point, SavedMarker, SavedPath, SavedView } from "./engine/types";
 
 export const STORAGE_KEYS = {
   markers: "knox-atlas.custom-markers.v1",
@@ -15,7 +15,8 @@ export const STORAGE_KEYS = {
   view: "knox-atlas.saved-map-view.v1",
 } as const;
 
-export const LIMITS = { markers: 100, paths: 50, pathPoints: 250, label: 40 } as const;
+/** Released limits, plus `routeStops` for the (newer, optional) stops stored with a saved route. */
+export const LIMITS = { markers: 100, paths: 50, pathPoints: 250, label: 40, routeStops: 25 } as const;
 
 /** Allowed colour names, in picker order. Must match `markerColors` (checked by a unit test). */
 export const MARKER_COLORS: readonly MarkerColor[] = [
@@ -47,7 +48,10 @@ export function parseMarkers(raw: string | null): SavedMarker[] {
     .slice(0, LIMITS.markers);
 }
 
-/** Parse stored paths; a path needs a name and at least two valid points. */
+/**
+ * Parse stored paths; a path needs a name and at least two valid points. Optional `stops` (a saved
+ * route) are kept when at least two are valid; otherwise the path loads as a plain line.
+ */
 export function parsePaths(raw: string | null): SavedPath[] {
   return parseArray(raw)
     .flatMap((value): SavedPath[] => {
@@ -55,18 +59,33 @@ export function parsePaths(raw: string | null): SavedPath[] {
       const { id, label, points } = value;
       if (typeof id !== "string" || typeof label !== "string" || !Array.isArray(points)) return [];
       const name = cleanLabel(label);
-      const valid = points
-        .flatMap((point): Point[] =>
-          isRecord(point) && isFiniteNumber(point.x) && isFiniteNumber(point.y)
-            ? [{ x: point.x, y: point.y }]
-            : [],
-        )
-        .slice(0, LIMITS.pathPoints);
-      return name && valid.length >= 2
-        ? [{ id, label: name, color: toColor(value.color), points: valid }]
-        : [];
+      const valid = points.flatMap(toPoint).slice(0, LIMITS.pathPoints);
+      if (!name || valid.length < 2) return [];
+      const path: SavedPath = { id, label: name, color: toColor(value.color), points: valid };
+      const stops = parseStops(value.stops);
+      if (stops) path.stops = stops;
+      return [path];
     })
     .slice(0, LIMITS.paths);
+}
+
+/** A route's stops: each `{ point: {x, y}, label }`; invalid ones dropped; null if < 2 remain. */
+function parseStops(value: unknown): NavStop[] | null {
+  if (!Array.isArray(value)) return null;
+  const stops = value
+    .flatMap((stop): NavStop[] => {
+      if (!isRecord(stop) || typeof stop.label !== "string") return [];
+      const [point] = toPoint(stop.point);
+      return point ? [{ point, label: stop.label.trim().slice(0, LIMITS.label) || `${point.x}, ${point.y}` }] : [];
+    })
+    .slice(0, LIMITS.routeStops);
+  return stops.length >= 2 ? stops : null;
+}
+
+function toPoint(value: unknown): Point[] {
+  return isRecord(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y)
+    ? [{ x: value.x, y: value.y }]
+    : [];
 }
 
 export function parseView(raw: string | null): SavedView | undefined {

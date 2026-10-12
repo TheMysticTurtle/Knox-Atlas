@@ -1,11 +1,12 @@
 import { markerColors } from "../engine/colors";
 import { pathLength, pointBounds } from "../engine/geometry";
+import type { SavedPath } from "../engine/types";
 import { pointFocus, useMapUi } from "../mapUiStore";
 import { useSaved } from "../savedStore";
 
 /**
- * "Your map": the user's saved places and paths. Hidden until something is saved. Clicking an entry
- * flies the map to it (and opens a place's card); × deletes it.
+ * "Your map": saved places, routes and paths. Hidden until something is saved. Clicking a place
+ * flies to it and opens its card; a route reopens in Navigate; a path flies to it. × deletes.
  */
 export function YourMapSection() {
   const markers = useSaved((state) => state.markers);
@@ -14,9 +15,20 @@ export function YourMapSection() {
   const removePath = useSaved((state) => state.removePath);
   const select = useMapUi((state) => state.select);
   const focusOn = useMapUi((state) => state.focusOn);
+  const openRoute = useMapUi((state) => state.openRoute);
+  const openRouteId = useMapUi((state) => state.openRouteId);
+  const setOpenRoute = useMapUi((state) => state.setOpenRoute);
   const selectedMarkerId = useMapUi((state) => state.selection?.markerId);
 
   if (markers.length === 0 && paths.length === 0) return null;
+
+  const routes = paths.filter((path) => path.stops);
+  const lines = paths.filter((path) => !path.stops);
+
+  function deletePath(path: SavedPath) {
+    removePath(path.id);
+    if (openRouteId === path.id) setOpenRoute(null);
+  }
 
   return (
     <section className="your-map-section">
@@ -60,11 +72,50 @@ export function YourMapSection() {
         </>
       )}
 
-      {paths.length > 0 && (
+      {routes.length > 0 && (
         <>
-          <p className="saved-group-heading">Paths · {paths.length}</p>
+          <p className="saved-group-heading">Routes · {routes.length}</p>
           <ul className="saved-list">
-            {paths.map((path) => (
+            {routes.map((route) => (
+              <li key={route.id} className={`saved-item${openRouteId === route.id ? " is-open" : ""}`}>
+                <button
+                  className="saved-focus"
+                  title="Open this route in Navigate"
+                  onClick={() => {
+                    openRoute(route);
+                    focusOn(pointBounds(route.points));
+                  }}
+                >
+                  <i className="saved-dot is-route" style={{ background: markerColors[route.color] }}>
+                    🧭
+                  </i>
+                  <span>
+                    <strong>{route.label}</strong>
+                    <small>
+                      {route.stops!.length} stops · {Math.round(pathLength(route.points)).toLocaleString()}{" "}
+                      tiles
+                    </small>
+                  </span>
+                </button>
+                <button
+                  className="saved-remove"
+                  aria-label={`Delete ${route.label}`}
+                  title="Delete route"
+                  onClick={() => deletePath(route)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {lines.length > 0 && (
+        <>
+          <p className="saved-group-heading">Paths · {lines.length}</p>
+          <ul className="saved-list">
+            {lines.map((path) => (
               <li key={path.id} className="saved-item">
                 <button className="saved-focus" onClick={() => focusOn(pointBounds(path.points))}>
                   <i className="saved-dot is-path" style={{ background: markerColors[path.color] }} />
@@ -80,7 +131,7 @@ export function YourMapSection() {
                   className="saved-remove"
                   aria-label={`Delete ${path.label}`}
                   title="Delete path"
-                  onClick={() => removePath(path.id)}
+                  onClick={() => deletePath(path)}
                 >
                   ×
                 </button>
